@@ -1,15 +1,15 @@
-// The one place this app talks to bpcad.
+// The one place this app talks to whittle.
 //
 // WHY THE APP IS A CLIENT AND NOT THE PROGRAM.
 //
-// bpcad's geometry engine is CadQuery, which is a Python binding to
+// whittle's geometry engine is CadQuery, which is a Python binding to
 // OpenCASCADE: desktop native code with no Android or iOS build, and nothing
 // that could be cross-compiled into a phone app. The pipeline also wants a
-// language model. So the phone cannot run bpcad, and pretending otherwise
+// language model. So the phone cannot run whittle, and pretending otherwise
 // would mean shipping a toy that draws pictures of parts.
 //
-// What the phone CAN do is be the whole interface to a bpcad that runs
-// somewhere else, over the HTTP API bpcad/web/server.py already serves. Every
+// What the phone CAN do is be the whole interface to a whittle that runs
+// somewhere else, over the HTTP API whittle/web/server.py already serves. Every
 // endpoint below already exists and is already used by the web app - this app
 // is a second front end, not a second implementation.
 //
@@ -25,8 +25,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:http/http.dart' as http;
 
-class BpcadApi {
-  BpcadApi(this.baseUrl);
+class WhittleApi {
+  WhittleApi(this.baseUrl);
 
   /// The server's root, no trailing slash. Over USB this is
   /// http://localhost:8765 because of `adb reverse`.
@@ -36,7 +36,7 @@ class BpcadApi {
 
   Uri _uri(String path) => Uri.parse('$baseUrl$path');
 
-  /// Is a bpcad there, and what can the machine behind it do?
+  /// Is a whittle there, and what can the machine behind it do?
   ///
   /// This is the first call the app makes and the only one whose failure is
   /// expected rather than exceptional: a phone that cannot see the laptop is
@@ -45,7 +45,7 @@ class BpcadApi {
   Future<Health> health() async {
     final response = await http.get(_uri('/api/health')).timeout(_quick);
     if (response.statusCode != 200) {
-      throw BpcadUnreachable('the server answered ${response.statusCode}');
+      throw WhittleUnreachable('the server answered ${response.statusCode}');
     }
     return Health.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
@@ -54,7 +54,7 @@ class BpcadApi {
   Future<List<PartSummary>> parts() async {
     final response = await http.get(_uri('/api/parts')).timeout(_quick);
     if (response.statusCode != 200) {
-      throw BpcadUnreachable('the library answered ${response.statusCode}');
+      throw WhittleUnreachable('the library answered ${response.statusCode}');
     }
     final body = jsonDecode(response.body) as Map<String, dynamic>;
     return (body['parts'] as List<dynamic>)
@@ -84,9 +84,9 @@ class BpcadApi {
   Uri glb(String name, {int meshVersion = 1}) =>
       _uri('/api/part/${Uri.encodeComponent(name)}/glb?mv=$meshVersion');
 
-  /// bpcad's own 3D viewer page, for a WebView.
+  /// whittle's own 3D viewer page, for a WebView.
   ///
-  /// The page is served by bpcad and used by BOTH clients, which is the only
+  /// The page is served by whittle and used by BOTH clients, which is the only
   /// way the phone and the browser show a part the same way rather than nearly
   /// the same way. It reads the mesh version from /api/state itself, so this
   /// URL carries only the part.
@@ -111,7 +111,7 @@ class BpcadApi {
         )
         .timeout(_quick);
     if (response.statusCode != 200) {
-      throw BpcadUnreachable(_messageFrom(response));
+      throw WhittleUnreachable(_messageFrom(response));
     }
     return (jsonDecode(response.body) as Map<String, dynamic>)['job'] as String;
   }
@@ -133,7 +133,7 @@ class BpcadApi {
         )
         .timeout(_quick);
     if (response.statusCode != 200) {
-      throw BpcadUnreachable(_messageFrom(response));
+      throw WhittleUnreachable(_messageFrom(response));
     }
     return (jsonDecode(response.body) as Map<String, dynamic>)['job'] as String;
   }
@@ -152,7 +152,7 @@ class BpcadApi {
         )
         .timeout(_quick);
     if (response.statusCode != 200) {
-      throw BpcadUnreachable(_messageFrom(response));
+      throw WhittleUnreachable(_messageFrom(response));
     }
     return (jsonDecode(response.body) as Map<String, dynamic>)['job'] as String;
   }
@@ -163,7 +163,7 @@ class BpcadApi {
         .get(_uri('/api/part/${Uri.encodeComponent(name)}'))
         .timeout(_quick);
     if (response.statusCode != 200) {
-      throw BpcadUnreachable(_messageFrom(response));
+      throw WhittleUnreachable(_messageFrom(response));
     }
     return PartDetail.fromJson(
         jsonDecode(response.body) as Map<String, dynamic>);
@@ -181,7 +181,7 @@ class BpcadApi {
         .post(_uri('/api/part/${Uri.encodeComponent(name)}/verify'))
         .timeout(const Duration(seconds: 120));
     if (response.statusCode != 200) {
-      throw BpcadUnreachable(_messageFrom(response));
+      throw WhittleUnreachable(_messageFrom(response));
     }
     final body = jsonDecode(response.body) as Map<String, dynamic>;
     final checks = body['checks'];
@@ -189,7 +189,7 @@ class BpcadApi {
       // A readable sentence rather than a type error. The server
       // answering 200 with no checks in it would be a bug on its side,
       // and the screen has to say which side.
-      throw BpcadUnreachable(
+      throw WhittleUnreachable(
           'the check came back with no result in it');
     }
     return Checks.fromJson(checks);
@@ -205,7 +205,7 @@ class BpcadApi {
         .get(_uri('/api/template/${Uri.encodeComponent(template)}'))
         .timeout(_quick);
     if (response.statusCode != 200) {
-      throw BpcadUnreachable(_messageFrom(response));
+      throw WhittleUnreachable(_messageFrom(response));
     }
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return ((json['params'] ?? const []) as List<dynamic>)
@@ -216,7 +216,7 @@ class BpcadApi {
   /// Parse one command-line entry.
   ///
   /// SERVER-SIDE, and that is the whole point. The vocabulary has one
-  /// definition (bpcad/agent/command.py), so `wall 3` means the same thing
+  /// definition (whittle/agent/command.py), so `wall 3` means the same thing
   /// here as it does in the browser. Parsed on the phone it would be a second
   /// parser, and the two would drift - which for a command that changes
   /// geometry is worse than a colour drifting.
@@ -230,7 +230,7 @@ class BpcadApi {
         )
         .timeout(_quick);
     if (response.statusCode != 200) {
-      throw BpcadUnreachable(_messageFrom(response));
+      throw WhittleUnreachable(_messageFrom(response));
     }
     return ParsedCommand.fromJson(
         jsonDecode(response.body) as Map<String, dynamic>);
@@ -252,7 +252,7 @@ class BpcadApi {
             headers: {'Content-Type': contentType}, body: bytes)
         .timeout(const Duration(seconds: 60));
     if (response.statusCode != 200) {
-      throw BpcadUnreachable(_messageFrom(response));
+      throw WhittleUnreachable(_messageFrom(response));
     }
     return Reference.fromJson(
         jsonDecode(response.body) as Map<String, dynamic>);
@@ -267,7 +267,7 @@ class BpcadApi {
   Future<List<RunningJob>> jobs() async {
     final response = await http.get(_uri('/api/jobs')).timeout(_quick);
     if (response.statusCode != 200) {
-      throw BpcadUnreachable('the job list answered ${response.statusCode}');
+      throw WhittleUnreachable('the job list answered ${response.statusCode}');
     }
     final body = jsonDecode(response.body) as Map<String, dynamic>;
     return ((body['jobs'] ?? const []) as List<dynamic>)
@@ -320,8 +320,8 @@ class BpcadApi {
 /// The server is not reachable, or refused. Distinct from a bug in the app,
 /// because on a phone it is the ordinary case and the UI must not treat it as
 /// a crash.
-class BpcadUnreachable implements Exception {
-  BpcadUnreachable(this.why);
+class WhittleUnreachable implements Exception {
+  WhittleUnreachable(this.why);
   final String why;
   @override
   String toString() => why;

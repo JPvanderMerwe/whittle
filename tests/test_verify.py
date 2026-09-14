@@ -2,7 +2,7 @@
 Phase 1 acceptance, plus the checks each verify module owes.
 
 The reference keyring is the fixed point: it is a known-good part with known
-numbers, so anything that changes those numbers is a regression in bpcad, not
+numbers, so anything that changes those numbers is a regression in whittle, not
 in the part.
 """
 
@@ -12,16 +12,16 @@ import numpy as np
 import pytest
 import trimesh
 
-from bpcad.verify.features import MARGINAL, PASS, TOO_FINE, check_features
-from bpcad.verify.mesh import check_mesh, load_mesh, report_for
-from bpcad.verify.overhang import overhang_report
-from bpcad.verify.probe import (
+from whittle.verify.features import MARGINAL, PASS, TOO_FINE, check_features
+from whittle.verify.mesh import check_mesh, load_mesh, report_for
+from whittle.verify.overhang import overhang_report
+from whittle.verify.probe import (
     height_map,
     levels_present_in,
     surface_heights,
     surface_levels,
 )
-from bpcad.verify.regression import (
+from whittle.verify.regression import (
     check_regression,
     load_baseline,
     save_baseline,
@@ -173,8 +173,8 @@ def test_surface_heights_returns_nan_off_the_part(keyring):
 
 def test_surface_heights_and_height_map_agree(keyring):
     """Two entry points, one meaning. If they disagree, one of them is lying."""
-    from bpcad.render.raster import Bounds
-    from bpcad.verify.probe import _tris, grid_coords
+    from whittle.render.raster import Bounds
+    from whittle.verify.probe import _tris, grid_coords
 
     tu, tv, _ = _tris(keyring, "z")
     b = Bounds(float(tu.min()), float(tu.max()), float(tv.min()), float(tv.max()))
@@ -201,7 +201,7 @@ def test_ray_cast_uses_no_rtree():
     import importlib.util
 
     assert importlib.util.find_spec("rtree") is None
-    import bpcad.verify.probe as p
+    import whittle.verify.probe as p
 
     assert "rtree" not in p.__dict__
 
@@ -319,20 +319,20 @@ def test_bridge_gap_of_zero_bridges_nothing():
 
 
 def test_surface_below_finds_nothing_under_the_bed(keyring):
-    from bpcad.verify.probe import surface_below
+    from whittle.verify.probe import surface_below
 
     assert np.isnan(surface_below(keyring, [(-12.0, 20.0)], [0.0])[0])
 
 
 def test_surface_below_ignores_the_face_asking(keyring):
     """A face must not find itself as the thing it is standing on."""
-    from bpcad.verify.probe import surface_below
+    from whittle.verify.probe import surface_below
 
     assert surface_below(keyring, [(-12.0, 20.0)], [7.0])[0] == pytest.approx(0.0)
 
 
 def test_surface_below_rejects_mismatched_lengths(keyring):
-    from bpcad.verify.probe import surface_below
+    from whittle.verify.probe import surface_below
 
     with pytest.raises(ValueError):
         surface_below(keyring, [(0.0, 0.0), (1.0, 1.0)], [7.0])
@@ -406,7 +406,7 @@ def test_baseline_round_trips(keyring_report, tmp_path):
 
 
 def test_stated_dimensions_are_read_out_of_a_request():
-    from bpcad.verify.intent import stated_dimensions
+    from whittle.verify.intent import stated_dimensions
 
     dims = stated_dimensions(
         "a birdhouse, 120 mm wide, 140 mm tall, 100 mm deep, "
@@ -417,7 +417,7 @@ def test_stated_dimensions_are_read_out_of_a_request():
 
 
 def test_inner_features_are_not_matched_against_the_envelope():
-    from bpcad.verify.intent import stated_dimensions
+    from whittle.verify.intent import stated_dimensions
 
     for phrase in ("a 32 mm entrance hole", "5 mm wall thickness",
                    "a 12 mm bore", "0.3 mm clearance"):
@@ -425,14 +425,14 @@ def test_inner_features_are_not_matched_against_the_envelope():
 
 
 def test_the_triple_form_is_understood():
-    from bpcad.verify.intent import stated_dimensions
+    from whittle.verify.intent import stated_dimensions
 
     assert stated_dimensions("a box 120 x 140 x 100") == [140.0, 120.0, 100.0]
 
 
 def test_a_dropped_dimension_is_caught():
     """The exact case: 100 mm deep was asked for and 40 mm was built."""
-    from bpcad.verify.intent import check_intent
+    from whittle.verify.intent import check_intent
 
     r = check_intent(
         "a birdhouse, 120 mm wide, 140 mm tall, 100 mm deep",
@@ -448,7 +448,7 @@ def test_a_part_that_matches_stays_quiet():
     A check that fires on good parts gets switched off. A flange or a chamfer
     legitimately adds a few mm and must not trip it.
     """
-    from bpcad.verify.intent import check_intent
+    from whittle.verify.intent import check_intent
 
     assert check_intent("a louvre vent 76 mm wide and 30 mm tall",
                         (86.0, 31.0, 35.0)).ok
@@ -456,17 +456,17 @@ def test_a_part_that_matches_stays_quiet():
 
 
 def test_a_request_with_no_dimensions_is_not_second_guessed():
-    from bpcad.verify.intent import check_intent
+    from whittle.verify.intent import check_intent
 
     r = check_intent("a small birdhouse", (100.0, 100.0, 100.0))
     assert r.ok and not r.checked
 
 
 def test_the_intent_problem_reaches_the_report():
-    from bpcad.verify.intent import check_intent
-    from bpcad.verify.mesh import MeshReport
-    from bpcad.verify.overhang import OverhangReport
-    from bpcad.verify.report import VerifyReport
+    from whittle.verify.intent import check_intent
+    from whittle.verify.mesh import MeshReport
+    from whittle.verify.overhang import OverhangReport
+    from whittle.verify.report import VerifyReport
 
     report = VerifyReport(
         path="x", nozzle_mm=0.4, print_axis="z",
@@ -490,7 +490,7 @@ def test_a_suspiciously_solid_part_is_flagged():
     that was 96% solid - correct on the outside, 2.1 kg of filament, and
     useless as a birdhouse because nothing was hollow. Nothing was looking.
     """
-    from bpcad.verify.mesh import report_for
+    from whittle.verify.mesh import report_for
 
     block = trimesh.creation.box(extents=(120, 100, 145))
     r = report_for(block)
@@ -502,20 +502,20 @@ def test_a_suspiciously_solid_part_is_flagged():
 
 def test_the_real_parts_are_not_flagged_as_bulk(keyring):
     """A check that fires on good parts gets switched off."""
-    from bpcad.verify.mesh import report_for
+    from whittle.verify.mesh import report_for
 
     assert report_for(keyring).warnings == []
 
 
 def test_a_small_solid_part_is_left_alone():
     """A spacer or a wedge is legitimately solid and nobody needs telling."""
-    from bpcad.verify.mesh import report_for
+    from whittle.verify.mesh import report_for
 
     assert report_for(trimesh.creation.box(extents=(20, 20, 20))).warnings == []
 
 
 def test_a_hollow_part_of_the_same_size_is_left_alone():
-    from bpcad.verify.mesh import report_for
+    from whittle.verify.mesh import report_for
 
     outer = trimesh.creation.box(extents=(120, 100, 145))
     inner = trimesh.creation.box(extents=(110, 90, 135))
@@ -533,7 +533,7 @@ def test_axis_labels_are_read_from_the_request():
     a squat wide box instead of a tall one - and pass, because every number
     appeared somewhere.
     """
-    from bpcad.verify.intent import labelled_dimensions
+    from whittle.verify.intent import labelled_dimensions
 
     d = labelled_dimensions(
         "a birdhouse, 120 mm wide, 140 mm tall, 100 mm deep, with a 32 mm entrance hole"
@@ -546,20 +546,20 @@ def test_the_label_search_stops_at_the_next_number():
     "140 mm tall, 100 mm deep" must not read "deep" as the label for 140. The
     first version searched 22 characters and did exactly that.
     """
-    from bpcad.verify.intent import labelled_dimensions
+    from whittle.verify.intent import labelled_dimensions
 
     assert labelled_dimensions("80 mm tall, 60 mm deep") == {2: 80.0, 1: 60.0}
 
 
 def test_the_first_label_by_position_wins_not_by_dictionary_order():
-    from bpcad.verify.intent import labelled_dimensions
+    from whittle.verify.intent import labelled_dimensions
 
     assert labelled_dimensions("a box 90 mm tall")[2] == 90.0
     assert labelled_dimensions("a box 90 mm wide")[0] == 90.0
 
 
 def test_transposed_dimensions_are_caught():
-    from bpcad.verify.intent import check_intent
+    from whittle.verify.intent import check_intent
 
     req = "a birdhouse, 120 mm wide, 140 mm tall, 100 mm deep"
     assert not check_intent(req, (140.0, 120.0, 100.0)).ok
@@ -571,7 +571,7 @@ def test_unlabelled_dimensions_are_not_second_guessed():
     A request that does not say which way round it means must not be told it
     got the axes wrong.
     """
-    from bpcad.verify.intent import check_intent
+    from whittle.verify.intent import check_intent
 
     assert check_intent("a box 120 x 100 x 140", (140.0, 120.0, 100.0)).ok
 
@@ -590,7 +590,7 @@ def test_the_word_by_is_a_dimension_separator():
     drilled-plate prompt this project has been tested against all along is
     exactly that form.
     """
-    from bpcad.verify.intent import stated_dimensions
+    from whittle.verify.intent import stated_dimensions
 
     assert stated_dimensions("a flat plate 80 by 40 by 6 mm") == [80.0, 40.0, 6.0]
     assert stated_dimensions("a box 120 by 140 by 100") == [140.0, 120.0, 100.0]
@@ -605,7 +605,7 @@ def test_an_inner_feature_does_not_poison_the_dimension_beside_it():
     thick" the word "thick" belongs to the 5, and the 40 was thrown away with
     it. One inner-feature word silenced every dimension near it.
     """
-    from bpcad.verify.intent import stated_dimensions
+    from whittle.verify.intent import stated_dimensions
 
     assert stated_dimensions("a hinge 40 mm wide and 5 mm thick") == [40.0]
     assert stated_dimensions("a plate 80 mm long with a 6 mm bore") == [80.0]
@@ -617,7 +617,7 @@ def test_a_number_naming_something_the_part_receives_is_not_the_envelope():
     bore. Three corpus entries whose specs are provably correct were reported
     as the wrong size for want of these words.
     """
-    from bpcad.verify.intent import stated_dimensions
+    from whittle.verify.intent import stated_dimensions
 
     assert stated_dimensions("a clamp that holds an 8 mm rod, 40 mm wide") == [40.0]
     assert stated_dimensions("a clip that holds two 5 mm cables") == []
@@ -631,7 +631,7 @@ def test_deep_is_allowed_to_mean_vertical():
     correct 180 x 180 x 70 bowl was reported as having its dimensions on the
     wrong axes.
     """
-    from bpcad.verify.intent import check_intent
+    from whittle.verify.intent import check_intent
 
     bowl = check_intent("a round bowl 180 mm across and 70 mm deep",
                         (180.0, 180.0, 70.0))
@@ -662,9 +662,9 @@ def test_every_corpus_spec_satisfies_its_own_request():
     """
     import yaml
 
-    from bpcad.build.compile import compile_spec
-    from bpcad.spec.schema import PartSpec
-    from bpcad.verify.intent import check_intent, stated_dimensions
+    from whittle.build.compile import compile_spec
+    from whittle.spec.schema import PartSpec
+    from whittle.verify.intent import check_intent, stated_dimensions
 
     root = Path(__file__).resolve().parent.parent
     entries = yaml.safe_load((root / "eval" / "corpus.yaml").read_text())
@@ -701,8 +701,8 @@ def _meshed(ops, name="r"):
 
     import trimesh
 
-    from bpcad.build.compile import compile_spec, export_solid
-    from bpcad.spec.schema import PartSpec
+    from whittle.build.compile import compile_spec, export_solid
+    from whittle.spec.schema import PartSpec
 
     result = compile_spec(PartSpec(name=name, level=2, material="petg",
                                    nozzle_mm=0.4, layer_mm=0.2, ops=ops))
@@ -716,7 +716,7 @@ def test_a_circle_and_a_square_are_told_apart_by_their_plan_view():
     pi/4 against 1. This is the whole mechanism, and it is worth asserting on
     its own so the threshold below has something to stand on.
     """
-    from bpcad.verify.intent import footprint_fill
+    from whittle.verify.intent import footprint_fill
 
     disc = _meshed([{"op": "disc", "diameter_mm": 40, "height_mm": 10}], "disc")
     box = _meshed([{"op": "rounded_prism", "width_mm": 40, "depth_mm": 40,
@@ -734,7 +734,7 @@ def test_a_square_knob_is_refused_for_a_round_request():
     pot/planter mistake from enclosure.py one level down, where there is no
     template routing to catch a shape word.
     """
-    from bpcad.verify.intent import check_roundness
+    from whittle.verify.intent import check_roundness
 
     square = _meshed([
         {"op": "rounded_prism", "width_mm": 40, "depth_mm": 40, "height_mm": 20,
@@ -747,7 +747,7 @@ def test_a_square_knob_is_refused_for_a_round_request():
 
 
 def test_a_round_part_passes_and_a_request_with_no_round_word_is_not_judged():
-    from bpcad.verify.intent import check_roundness
+    from whittle.verify.intent import check_roundness
 
     round_knob = _meshed([{"op": "disc", "diameter_mm": 40, "height_mm": 20}], "rk")
     assert check_roundness("a round knob 40 mm across", round_knob) is None
@@ -763,7 +763,7 @@ def test_a_thing_the_part_merely_holds_does_not_make_it_round():
     for it fills 99% of its bounding box. Words naming what the part receives
     are deliberately absent from ROUND_WORDS - _INNER already carries them.
     """
-    from bpcad.verify.intent import round_words_in
+    from whittle.verify.intent import round_words_in
 
     assert round_words_in("a clamp that holds an 8 mm rod against a surface") == []
     assert round_words_in("a clip that holds two 5 mm cables") == []
@@ -784,9 +784,9 @@ def test_no_corpus_entry_is_called_the_wrong_shape():
     import trimesh
     import yaml
 
-    from bpcad.build.compile import compile_spec, export_solid
-    from bpcad.spec.schema import PartSpec
-    from bpcad.verify.intent import check_roundness
+    from whittle.build.compile import compile_spec, export_solid
+    from whittle.spec.schema import PartSpec
+    from whittle.verify.intent import check_roundness
 
     root = Path(__file__).resolve().parent.parent
     entries = yaml.safe_load((root / "eval" / "corpus.yaml").read_text())
@@ -813,8 +813,8 @@ def test_no_corpus_entry_is_called_the_wrong_shape():
 
 def _solid(ops):
     """A level-2 ops list, compiled to a solid."""
-    from bpcad.build.compile import compile_spec
-    from bpcad.spec.schema import PartSpec
+    from whittle.build.compile import compile_spec
+    from whittle.spec.schema import PartSpec
 
     return compile_spec(PartSpec(name="t", level=2, material="petg",
                                  nozzle_mm=0.4, layer_mm=0.2, ops=ops)).solid
@@ -822,15 +822,15 @@ def _solid(ops):
 
 def _built(name, block):
     """Any corpus spec block - level 1 or 2 - compiled to a solid."""
-    from bpcad.build.compile import compile_spec
-    from bpcad.spec.schema import PartSpec
+    from whittle.build.compile import compile_spec
+    from whittle.spec.schema import PartSpec
 
     return compile_spec(PartSpec(name=name, material="petg", nozzle_mm=0.4,
                                  layer_mm=0.2, **block)).solid
 
 
 def test_hole_counts_are_read_out_of_a_request():
-    from bpcad.verify.intent import stated_holes
+    from whittle.verify.intent import stated_holes
 
     assert stated_holes("a plate with two 5 mm holes 60 mm apart") == [(2, 5.0)]
     assert stated_holes("four 4 mm holes 80 mm apart") == [(4, 4.0)]
@@ -847,7 +847,7 @@ def test_a_rounded_corner_is_not_a_hole():
     with corner_r_mm 2 reads as having four 4 mm holes in its corners - which
     is how a part with NO holes satisfied a request for two.
     """
-    from bpcad.verify.assertions import cylindrical_faces
+    from whittle.verify.assertions import cylindrical_faces
 
     faces = cylindrical_faces(_solid([
         {"op": "rounded_prism", "width_mm": 80, "depth_mm": 40, "height_mm": 6,
@@ -866,7 +866,7 @@ def test_a_dimple_does_not_pass_for_two_countersunk_holes():
     countersunk screw holes": ONE cone, pointed, 3 mm deep, nowhere near
     through. A conical dent, no bore, and one of the two asked for.
     """
-    from bpcad.verify.intent import check_hole_counts
+    from whittle.verify.intent import check_hole_counts
 
     solid = _solid([
         {"op": "rounded_prism", "width_mm": 80, "depth_mm": 40, "height_mm": 6,
@@ -880,7 +880,7 @@ def test_a_dimple_does_not_pass_for_two_countersunk_holes():
 
 
 def test_a_real_countersunk_pair_passes():
-    from bpcad.verify.intent import check_hole_counts
+    from whittle.verify.intent import check_hole_counts
 
     solid = _solid([
         {"op": "rounded_prism", "width_mm": 80, "depth_mm": 40, "height_mm": 6},
@@ -900,7 +900,7 @@ def test_fewer_holes_than_asked_is_the_only_complaint():
     One-sided on purpose. A part may carry holes the request never mentioned -
     a drain, a vent, a fixing - and complaining about those is noise.
     """
-    from bpcad.verify.intent import check_hole_counts
+    from whittle.verify.intent import check_hole_counts
 
     solid = _solid([
         {"op": "rounded_prism", "width_mm": 80, "depth_mm": 40, "height_mm": 6},
@@ -915,7 +915,7 @@ def test_no_corpus_entry_is_told_it_has_too_few_holes():
     """The same oracle: a corpus spec is right, so a flag here is this check."""
     import yaml
 
-    from bpcad.verify.intent import check_hole_counts, stated_holes
+    from whittle.verify.intent import check_hole_counts, stated_holes
 
     root = Path(__file__).resolve().parent.parent
     entries = yaml.safe_load((root / "eval" / "corpus.yaml").read_text())
@@ -944,8 +944,8 @@ def test_a_solid_block_is_not_a_plant_pot():
 
     import trimesh
 
-    from bpcad.build.compile import export_solid
-    from bpcad.verify.intent import check_hollowness
+    from whittle.build.compile import export_solid
+    from whittle.verify.intent import check_hollowness
 
     def mesh_of(ops, name):
         out = Path(tempfile.mkdtemp()) / ("%s.stl" % name)
@@ -986,8 +986,8 @@ def test_no_corpus_container_is_called_solid():
     import trimesh
     import yaml
 
-    from bpcad.build.compile import export_solid
-    from bpcad.verify.intent import check_hollowness
+    from whittle.build.compile import export_solid
+    from whittle.verify.intent import check_hollowness
 
     root = Path(__file__).resolve().parent.parent
     entries = yaml.safe_load((root / "eval" / "corpus.yaml").read_text())

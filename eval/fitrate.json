@@ -112,7 +112,7 @@
        "degenerate_faces": 0,
        "face_count": 3044,
        "is_volume": true,
-       "path": "/tmp/bpcad-api-yt0x_t4q/out/flat_plate_with_holes.stl",
+       "path": "/tmp/whittle-api-yt0x_t4q/out/flat_plate_with_holes.stl",
        "problems": [],
        "vertex_count": 1520,
        "volume_cm3": 18.959252569617064,
@@ -142,7 +142,7 @@
        "unsupported_fraction": 0.0,
        "worst_overhang_deg": 4.6923664472590215e-15
       },
-      "path": "/tmp/bpcad-api-yt0x_t4q/out/flat_plate_with_holes.stl",
+      "path": "/tmp/whittle-api-yt0x_t4q/out/flat_plate_with_holes.stl",
       "print_axis": "z",
       "problems": [],
       "surface_levels": [
@@ -205,7 +205,7 @@
     "total_checks": 0,
     "seconds": 298.8,
     "lines": [],
-    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/bpcad-fitrate-la1k9wkn/plate_four_holes_countersunk/spec.draft.yaml.",
+    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/whittle-fitrate-la1k9wkn/plate_four_holes_countersunk/spec.draft.yaml.",
     "template": null,
     "level": null,
     "model_used": "hermes3:latest",
@@ -283,7 +283,7 @@
       "max_seconds": null
      },
      "elapsed_s": 298.81,
-     "handoff": "/tmp/bpcad-fitrate-la1k9wkn/plate_four_holes_countersunk/spec.draft.yaml",
+     "handoff": "/tmp/whittle-fitrate-la1k9wkn/plate_four_holes_countersunk/spec.draft.yaml",
      "level_reached": 2,
      "machine": "laptop",
      "ok": false,
@@ -336,7 +336,7 @@
         "tokens_per_s": 0.65
        },
        "elapsed_s": 230.962,
-       "error": "template 'bracket' rejected these params. Run `bpcad spec explain bracket` for the full schema with units, defaults and bounds:\n  shelf_length_mm\n      problem : Input should be greater than 10\n      given   : 6\n      legal   : > 10.0",
+       "error": "template 'bracket' rejected these params. Run `whittle spec explain bracket` for the full schema with units, defaults and bounds:\n  shelf_length_mm\n      problem : Input should be greater than 10\n      given   : 6\n      legal   : > 10.0",
        "index": 1,
        "level": 1,
        "model": "qwen2.5-coder:7b",
@@ -352,7 +352,7 @@
         "tokens_per_s": 4.55
        },
        "elapsed_s": 33.291,
-       "error": "template 'bracket' rejected these params. Run `bpcad spec explain bracket` for the full schema with units, defaults and bounds:\n  (root)\n      problem : Value error, 2 holes do not fit along a 15 mm shelf plate with 7.0 mm margins - it needs 34 mm. Legal: fewer holes, a longer plate, or a smaller edge_margin_mm.\n      given   : {'wall_length_mm': 200, 'shelf_length_mm': 15, 'width_mm': 30, 'thickness_mm': 6, 'corner_r_mm': 5, 'gusset': True, 'gusset_thickness_mm': 1.5, 'wall_holes': 2, 'shelf_holes': 2, 'hole_dia_mm': 5}",
+       "error": "template 'bracket' rejected these params. Run `whittle spec explain bracket` for the full schema with units, defaults and bounds:\n  (root)\n      problem : Value error, 2 holes do not fit along a 15 mm shelf plate with 7.0 mm margins - it needs 34 mm. Legal: fewer holes, a longer plate, or a smaller edge_margin_mm.\n      given   : {'wall_length_mm': 200, 'shelf_length_mm': 15, 'width_mm': 30, 'thickness_mm': 6, 'corner_r_mm': 5, 'gusset': True, 'gusset_thickness_mm': 1.5, 'wall_holes': 2, 'shelf_holes': 2, 'hole_dia_mm': 5}",
        "index": 2,
        "level": 1,
        "model": "qwen2.5-coder:7b",
@@ -368,7 +368,7 @@
         "tokens_per_s": 2.58
        },
        "elapsed_s": 74.087,
-       "error": "template 'bracket' rejected these params. Run `bpcad spec explain bracket` for the full schema with units, defaults and bounds:\n  ><!-- corrected shelf_length_mm from 15 to 34 to fit the holes and margins specified in problem text -->\n      problem : Extra inputs are not permitted\n      given   : ''\n  ><!-- kept shelf_holes at 2 to match the problem text -->\n      problem : Extra inputs are not permitted\n      given   : ''",
+       "error": "template 'bracket' rejected these params. Run `whittle spec explain bracket` for the full schema with units, defaults and bounds:\n  ><!-- corrected shelf_length_mm from 15 to 34 to fit the holes and margins specified in problem text -->\n      problem : Extra inputs are not permitted\n      given   : ''\n  ><!-- kept shelf_holes at 2 to match the problem text -->\n      problem : Extra inputs are not permitted\n      given   : ''",
        "index": 3,
        "level": 1,
        "model": "hermes3:latest",
@@ -458,7 +458,7 @@
        "degenerate_faces": 0,
        "face_count": 4606,
        "is_volume": true,
-       "path": "/tmp/bpcad-api-b6s9bv80/out/shelf bracket.stl",
+       "path": "/tmp/whittle-api-b6s9bv80/out/shelf bracket.stl",
        "problems": [],
        "vertex_count": 2293,
        "volume_cm3": 42.68572305370301,
@@ -493,7 +493,7 @@
        "unsupported_fraction": 0.0029626786164331023,
        "worst_overhang_deg": 90.0
       },
-      "path": "/tmp/bpcad-api-b6s9bv80/out/shelf bracket.stl",
+      "path": "/tmp/whittle-api-b6s9bv80/out/shelf bracket.stl",
       "print_axis": "z",
       "problems": [],
       "surface_levels": [
@@ -578,7 +578,7 @@
     "total_checks": 0,
     "seconds": 577.0,
     "lines": [],
-    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/bpcad-fitrate-la1k9wkn/rod_clamp_8mm/spec.draft.yaml.",
+    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/whittle-fitrate-la1k9wkn/rod_clamp_8mm/spec.draft.yaml.",
     "template": null,
     "level": null,
     "model_used": "hermes3:latest",
@@ -656,7 +656,7 @@
       "max_seconds": null
      },
      "elapsed_s": 576.96,
-     "handoff": "/tmp/bpcad-fitrate-la1k9wkn/rod_clamp_8mm/spec.draft.yaml",
+     "handoff": "/tmp/whittle-fitrate-la1k9wkn/rod_clamp_8mm/spec.draft.yaml",
      "level_reached": 2,
      "machine": "laptop",
      "ok": false,
@@ -782,7 +782,7 @@
        "degenerate_faces": 0,
        "face_count": 7578,
        "is_volume": true,
-       "path": "/tmp/bpcad-api-41uwcwxz/out/L bracket.stl",
+       "path": "/tmp/whittle-api-41uwcwxz/out/L bracket.stl",
        "problems": [],
        "vertex_count": 3779,
        "volume_cm3": 30.854847223312323,
@@ -817,7 +817,7 @@
        "unsupported_fraction": 0.005449364610181478,
        "worst_overhang_deg": 90.0
       },
-      "path": "/tmp/bpcad-api-41uwcwxz/out/L bracket.stl",
+      "path": "/tmp/whittle-api-41uwcwxz/out/L bracket.stl",
       "print_axis": "z",
       "problems": [],
       "surface_levels": [
@@ -947,7 +947,7 @@
         "tokens_per_s": 0.46
        },
        "elapsed_s": 203.732,
-       "error": "template 'enclosure' rejected these params. Run `bpcad spec explain enclosure` for the full schema with units, defaults and bounds:\n  (root)\n      problem : Value error, the entrance reaches 37.2 mm up a 30 mm box and breaks through the top. Lower entrance_height_mm, or raise height_mm.\n      given   : {'width_mm': 100, 'depth_mm': 60, 'height_mm': 30, 'wall_mm': 2.5}",
+       "error": "template 'enclosure' rejected these params. Run `whittle spec explain enclosure` for the full schema with units, defaults and bounds:\n  (root)\n      problem : Value error, the entrance reaches 37.2 mm up a 30 mm box and breaks through the top. Lower entrance_height_mm, or raise height_mm.\n      given   : {'width_mm': 100, 'depth_mm': 60, 'height_mm': 30, 'wall_mm': 2.5}",
        "index": 1,
        "level": 2,
        "model": "qwen2.5-coder:7b",
@@ -963,7 +963,7 @@
         "tokens_per_s": 3.94
        },
        "elapsed_s": 23.721,
-       "error": "template 'enclosure' rejected these params. Run `bpcad spec explain enclosure` for the full schema with units, defaults and bounds:\n  (root)\n      problem : Value error, the entrance reaches 40.6 mm up a 35 mm box and breaks through the top. Lower entrance_height_mm, or raise height_mm.\n      given   : {'width_mm': 100, 'depth_mm': 60, 'height_mm': 35, 'wall_mm': 2.5}",
+       "error": "template 'enclosure' rejected these params. Run `whittle spec explain enclosure` for the full schema with units, defaults and bounds:\n  (root)\n      problem : Value error, the entrance reaches 40.6 mm up a 35 mm box and breaks through the top. Lower entrance_height_mm, or raise height_mm.\n      given   : {'width_mm': 100, 'depth_mm': 60, 'height_mm': 35, 'wall_mm': 2.5}",
        "index": 2,
        "level": 2,
        "model": "qwen2.5-coder:7b",
@@ -979,7 +979,7 @@
         "tokens_per_s": 2.41
        },
        "elapsed_s": 51.362,
-       "error": "template 'enclosure' rejected these params. Run `bpcad spec explain enclosure` for the full schema with units, defaults and bounds:\n  ><!-- lowered height_mm from 35 to 45 to avoid breaking through the top of a 35mm box -->\n      problem : Extra inputs are not permitted\n      given   : 'wall_mm'",
+       "error": "template 'enclosure' rejected these params. Run `whittle spec explain enclosure` for the full schema with units, defaults and bounds:\n  ><!-- lowered height_mm from 35 to 45 to avoid breaking through the top of a 35mm box -->\n      problem : Extra inputs are not permitted\n      given   : 'wall_mm'",
        "index": 3,
        "level": 2,
        "model": "hermes3:latest",
@@ -995,7 +995,7 @@
         "tokens_per_s": 3.04
        },
        "elapsed_s": 26.191,
-       "error": "template 'enclosure' rejected these params. Run `bpcad spec explain enclosure` for the full schema with units, defaults and bounds:\n  (root)\n      problem : Value error, the entrance reaches 47.6 mm up a 45 mm box and breaks through the top. Lower entrance_height_mm, or raise height_mm.\n      given   : {'width_mm': 100, 'depth_mm': 60, 'height_mm': 45}",
+       "error": "template 'enclosure' rejected these params. Run `whittle spec explain enclosure` for the full schema with units, defaults and bounds:\n  (root)\n      problem : Value error, the entrance reaches 47.6 mm up a 45 mm box and breaks through the top. Lower entrance_height_mm, or raise height_mm.\n      given   : {'width_mm': 100, 'depth_mm': 60, 'height_mm': 45}",
        "index": 4,
        "level": 2,
        "model": "hermes3:latest",
@@ -1067,7 +1067,7 @@
        "degenerate_faces": 0,
        "face_count": 1036,
        "is_volume": true,
-       "path": "/tmp/bpcad-api-iavszije/out/enclosure_with_walls.stl",
+       "path": "/tmp/whittle-api-iavszije/out/enclosure_with_walls.stl",
        "problems": [],
        "vertex_count": 520,
        "volume_cm3": 36.1514875327445,
@@ -1097,7 +1097,7 @@
        "unsupported_fraction": 0.0,
        "worst_overhang_deg": 0.0
       },
-      "path": "/tmp/bpcad-api-iavszije/out/enclosure_with_walls.stl",
+      "path": "/tmp/whittle-api-iavszije/out/enclosure_with_walls.stl",
       "print_axis": "z",
       "problems": [],
       "surface_levels": [
@@ -1153,7 +1153,7 @@
     "total_checks": 0,
     "seconds": 1301.5,
     "lines": [],
-    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/bpcad-fitrate-la1k9wkn/divided_tray/spec.draft.yaml.",
+    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/whittle-fitrate-la1k9wkn/divided_tray/spec.draft.yaml.",
     "template": null,
     "level": null,
     "model_used": "hermes3:latest",
@@ -1170,7 +1170,7 @@
         "tokens_per_s": 0.45
        },
        "elapsed_s": 225.655,
-       "error": "template 'enclosure' rejected these params. Run `bpcad spec explain enclosure` for the full schema with units, defaults and bounds:\n  (root)\n      problem : Value error, the entrance reaches 44.2 mm up a 40 mm box and breaks through the top. Lower entrance_height_mm, or raise height_mm.\n      given   : {'width_mm': 160, 'depth_mm': 100, 'height_mm': 40, 'wall_mm': 3, 'corner_r_mm': 4}",
+       "error": "template 'enclosure' rejected these params. Run `whittle spec explain enclosure` for the full schema with units, defaults and bounds:\n  (root)\n      problem : Value error, the entrance reaches 44.2 mm up a 40 mm box and breaks through the top. Lower entrance_height_mm, or raise height_mm.\n      given   : {'width_mm': 160, 'depth_mm': 100, 'height_mm': 40, 'wall_mm': 3, 'corner_r_mm': 4}",
        "index": 1,
        "level": 2,
        "model": "qwen2.5-coder:7b",
@@ -1186,7 +1186,7 @@
         "tokens_per_s": 3.87
        },
        "elapsed_s": 28.034,
-       "error": "template 'enclosure' rejected these params. Run `bpcad spec explain enclosure` for the full schema with units, defaults and bounds:\n  As suggested by the validator\n      problem : Extra inputs are not permitted\n      given   : 'wall_mm'",
+       "error": "template 'enclosure' rejected these params. Run `whittle spec explain enclosure` for the full schema with units, defaults and bounds:\n  As suggested by the validator\n      problem : Extra inputs are not permitted\n      given   : 'wall_mm'",
        "index": 2,
        "level": 2,
        "model": "qwen2.5-coder:7b",
@@ -1202,7 +1202,7 @@
         "tokens_per_s": 2.33
        },
        "elapsed_s": 46.255,
-       "error": "template 'enclosure' rejected these params. Run `bpcad spec explain enclosure` for the full schema with units, defaults and bounds:\n  (root)\n      problem : Value error, the entrance reaches 50.5 mm up a 50 mm box and breaks through the top. Lower entrance_height_mm, or raise height_mm.\n      given   : {'width_mm': 160, 'depth_mm': 100, 'height_mm': 50, 'wall_mm': 1.5, 'corner_r_mm': 4}",
+       "error": "template 'enclosure' rejected these params. Run `whittle spec explain enclosure` for the full schema with units, defaults and bounds:\n  (root)\n      problem : Value error, the entrance reaches 50.5 mm up a 50 mm box and breaks through the top. Lower entrance_height_mm, or raise height_mm.\n      given   : {'width_mm': 160, 'depth_mm': 100, 'height_mm': 50, 'wall_mm': 1.5, 'corner_r_mm': 4}",
        "index": 3,
        "level": 2,
        "model": "hermes3:latest",
@@ -1218,7 +1218,7 @@
         "tokens_per_s": 3.19
        },
        "elapsed_s": 31.165,
-       "error": "template 'enclosure' rejected these params. Run `bpcad spec explain enclosure` for the full schema with units, defaults and bounds:\n  (root)\n      problem : Value error, the entrance reaches 43.7 mm up a 40 mm box and breaks through the top. Lower entrance_height_mm, or raise height_mm.\n      given   : {'width_mm': 160, 'depth_mm': 100, 'height_mm': 40, 'wall_mm': 1.5, 'corner_r_mm': 4}",
+       "error": "template 'enclosure' rejected these params. Run `whittle spec explain enclosure` for the full schema with units, defaults and bounds:\n  (root)\n      problem : Value error, the entrance reaches 43.7 mm up a 40 mm box and breaks through the top. Lower entrance_height_mm, or raise height_mm.\n      given   : {'width_mm': 160, 'depth_mm': 100, 'height_mm': 40, 'wall_mm': 1.5, 'corner_r_mm': 4}",
        "index": 4,
        "level": 2,
        "model": "hermes3:latest",
@@ -1295,7 +1295,7 @@
       "max_seconds": null
      },
      "elapsed_s": 1301.47,
-     "handoff": "/tmp/bpcad-fitrate-la1k9wkn/divided_tray/spec.draft.yaml",
+     "handoff": "/tmp/whittle-fitrate-la1k9wkn/divided_tray/spec.draft.yaml",
      "level_reached": 2,
      "machine": "laptop",
      "ok": false,
@@ -1325,7 +1325,7 @@
     "total_checks": 0,
     "seconds": 1355.4,
     "lines": [],
-    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/bpcad-fitrate-la1k9wkn/birdhouse_entrance/spec.draft.yaml.",
+    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/whittle-fitrate-la1k9wkn/birdhouse_entrance/spec.draft.yaml.",
     "template": null,
     "level": null,
     "model_used": "hermes3:latest",
@@ -1435,7 +1435,7 @@
       "max_seconds": null
      },
      "elapsed_s": 1355.39,
-     "handoff": "/tmp/bpcad-fitrate-la1k9wkn/birdhouse_entrance/spec.draft.yaml",
+     "handoff": "/tmp/whittle-fitrate-la1k9wkn/birdhouse_entrance/spec.draft.yaml",
      "level_reached": 2,
      "machine": "laptop",
      "ok": false,
@@ -1465,7 +1465,7 @@
     "total_checks": 0,
     "seconds": 1993.7,
     "lines": [],
-    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/bpcad-fitrate-la1k9wkn/birdhouse_with_feeder/spec.draft.yaml.",
+    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/whittle-fitrate-la1k9wkn/birdhouse_with_feeder/spec.draft.yaml.",
     "template": null,
     "level": null,
     "model_used": "hermes3:latest",
@@ -1498,7 +1498,7 @@
         "tokens_per_s": 0.64
        },
        "elapsed_s": 388.118,
-       "error": "template 'enclosure' rejected these params. Run `bpcad spec explain enclosure` for the full schema with units, defaults and bounds:\n  (root)\n      problem : Value error, the entrance reaches below the floor. Raise entrance_height_mm above 37.0.\n      given   : {'width_mm': 200, 'depth_mm': 150, 'height_mm': 100, 'wall_mm': 3, 'floor_mm': 5, 'corner_r_mm': 4, 'entrance_dia_mm': 60, 'entrance_height_mm': 30, 'entrance_face': 'front', 'predator_guard_mm': 0, 'back_plate_mm': 20, 'roof_overhang_mm': 10, 'roof_thick_mm': 5, 'roof_pitch_deg': 45, 'roof_lip_mm': 0, 'roof_clearance_mm': 0.4, 'finish': 'plain', 'finish_pitch_mm': 11, 'finish_groove_mm': 1.2, 'finish_depth_mm': 0.8}",
+       "error": "template 'enclosure' rejected these params. Run `whittle spec explain enclosure` for the full schema with units, defaults and bounds:\n  (root)\n      problem : Value error, the entrance reaches below the floor. Raise entrance_height_mm above 37.0.\n      given   : {'width_mm': 200, 'depth_mm': 150, 'height_mm': 100, 'wall_mm': 3, 'floor_mm': 5, 'corner_r_mm': 4, 'entrance_dia_mm': 60, 'entrance_height_mm': 30, 'entrance_face': 'front', 'predator_guard_mm': 0, 'back_plate_mm': 20, 'roof_overhang_mm': 10, 'roof_thick_mm': 5, 'roof_pitch_deg': 45, 'roof_lip_mm': 0, 'roof_clearance_mm': 0.4, 'finish': 'plain', 'finish_pitch_mm': 11, 'finish_groove_mm': 1.2, 'finish_depth_mm': 0.8}",
        "index": 2,
        "level": 2,
        "model": "hermes3:latest",
@@ -1591,7 +1591,7 @@
       "max_seconds": null
      },
      "elapsed_s": 1993.67,
-     "handoff": "/tmp/bpcad-fitrate-la1k9wkn/birdhouse_with_feeder/spec.draft.yaml",
+     "handoff": "/tmp/whittle-fitrate-la1k9wkn/birdhouse_with_feeder/spec.draft.yaml",
      "level_reached": 2,
      "machine": "laptop",
      "ok": false,
@@ -1712,7 +1712,7 @@
        "degenerate_faces": 0,
        "face_count": 94496,
        "is_volume": true,
-       "path": "/tmp/bpcad-api-qdqq77hb/out/vessel.stl",
+       "path": "/tmp/whittle-api-qdqq77hb/out/vessel.stl",
        "problems": [],
        "vertex_count": 47250,
        "volume_cm3": 101.25361974603484,
@@ -1744,7 +1744,7 @@
        "unsupported_fraction": 0.0,
        "worst_overhang_deg": 44.3917749507553
       },
-      "path": "/tmp/bpcad-api-qdqq77hb/out/vessel.stl",
+      "path": "/tmp/whittle-api-qdqq77hb/out/vessel.stl",
       "print_axis": "z",
       "problems": [],
       "surface_levels": [
@@ -1898,7 +1898,7 @@
        "degenerate_faces": 0,
        "face_count": 109632,
        "is_volume": true,
-       "path": "/tmp/bpcad-api-w3sm3o8p/out/plant_pot.stl",
+       "path": "/tmp/whittle-api-w3sm3o8p/out/plant_pot.stl",
        "problems": [],
        "vertex_count": 54810,
        "volume_cm3": 111.09535208116674,
@@ -1930,7 +1930,7 @@
        "unsupported_fraction": 0.0,
        "worst_overhang_deg": 22.66414453542038
       },
-      "path": "/tmp/bpcad-api-w3sm3o8p/out/plant_pot.stl",
+      "path": "/tmp/whittle-api-w3sm3o8p/out/plant_pot.stl",
       "print_axis": "z",
       "problems": [],
       "surface_levels": [
@@ -2079,7 +2079,7 @@
        "degenerate_faces": 0,
        "face_count": 112892,
        "is_volume": true,
-       "path": "/tmp/bpcad-api-o2pywyrm/out/pen_pot.stl",
+       "path": "/tmp/whittle-api-o2pywyrm/out/pen_pot.stl",
        "problems": [],
        "vertex_count": 56448,
        "volume_cm3": 52.00097476619151,
@@ -2111,7 +2111,7 @@
        "unsupported_fraction": 0.0,
        "worst_overhang_deg": 17.025665287684486
       },
-      "path": "/tmp/bpcad-api-o2pywyrm/out/pen_pot.stl",
+      "path": "/tmp/whittle-api-o2pywyrm/out/pen_pot.stl",
       "print_axis": "z",
       "problems": [],
       "surface_levels": [
@@ -2255,7 +2255,7 @@
        "degenerate_faces": 0,
        "face_count": 112892,
        "is_volume": true,
-       "path": "/tmp/bpcad-api-1r7agm_v/out/cup.stl",
+       "path": "/tmp/whittle-api-1r7agm_v/out/cup.stl",
        "problems": [],
        "vertex_count": 56448,
        "volume_cm3": 51.53329878351973,
@@ -2287,7 +2287,7 @@
        "unsupported_fraction": 0.0,
        "worst_overhang_deg": 9.176395847752824
       },
-      "path": "/tmp/bpcad-api-1r7agm_v/out/cup.stl",
+      "path": "/tmp/whittle-api-1r7agm_v/out/cup.stl",
       "print_axis": "z",
       "problems": [],
       "surface_levels": [
@@ -2448,7 +2448,7 @@
        "degenerate_faces": 0,
        "face_count": 2032,
        "is_volume": true,
-       "path": "/tmp/bpcad-api-nsh673wo/out/keyring_tag.stl",
+       "path": "/tmp/whittle-api-nsh673wo/out/keyring_tag.stl",
        "problems": [],
        "vertex_count": 1016,
        "volume_cm3": 2.3385250423465953,
@@ -2478,7 +2478,7 @@
        "unsupported_fraction": 0.0,
        "worst_overhang_deg": 0.0
       },
-      "path": "/tmp/bpcad-api-nsh673wo/out/keyring_tag.stl",
+      "path": "/tmp/whittle-api-nsh673wo/out/keyring_tag.stl",
       "print_axis": "z",
       "problems": [],
       "surface_levels": [
@@ -2532,7 +2532,7 @@
     "total_checks": 0,
     "seconds": 491.0,
     "lines": [],
-    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/bpcad-fitrate-la1k9wkn/cable_clip/spec.draft.yaml.",
+    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/whittle-fitrate-la1k9wkn/cable_clip/spec.draft.yaml.",
     "template": null,
     "level": null,
     "model_used": "hermes3:latest",
@@ -2610,7 +2610,7 @@
       "max_seconds": null
      },
      "elapsed_s": 491.01,
-     "handoff": "/tmp/bpcad-fitrate-la1k9wkn/cable_clip/spec.draft.yaml",
+     "handoff": "/tmp/whittle-fitrate-la1k9wkn/cable_clip/spec.draft.yaml",
      "level_reached": 2,
      "machine": "laptop",
      "ok": false,
@@ -2718,7 +2718,7 @@
        "degenerate_faces": 0,
        "face_count": 2296,
        "is_volume": true,
-       "path": "/tmp/bpcad-api-bgjhxc9q/out/cable_clip.stl",
+       "path": "/tmp/whittle-api-bgjhxc9q/out/cable_clip.stl",
        "problems": [],
        "vertex_count": 1152,
        "volume_cm3": 9.733935363914322,
@@ -2750,7 +2750,7 @@
        "unsupported_fraction": 0.0018401153608927647,
        "worst_overhang_deg": 90.0
       },
-      "path": "/tmp/bpcad-api-bgjhxc9q/out/cable_clip.stl",
+      "path": "/tmp/whittle-api-bgjhxc9q/out/cable_clip.stl",
       "print_axis": "z",
       "problems": [],
       "surface_levels": [
@@ -2826,7 +2826,7 @@
     "total_checks": 0,
     "seconds": 498.5,
     "lines": [],
-    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/bpcad-fitrate-la1k9wkn/spacer_ring/spec.draft.yaml.",
+    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/whittle-fitrate-la1k9wkn/spacer_ring/spec.draft.yaml.",
     "template": null,
     "level": null,
     "model_used": "hermes3:latest",
@@ -2904,7 +2904,7 @@
       "max_seconds": null
      },
      "elapsed_s": 498.52,
-     "handoff": "/tmp/bpcad-fitrate-la1k9wkn/spacer_ring/spec.draft.yaml",
+     "handoff": "/tmp/whittle-fitrate-la1k9wkn/spacer_ring/spec.draft.yaml",
      "level_reached": 2,
      "machine": "laptop",
      "ok": false,
@@ -2934,7 +2934,7 @@
     "total_checks": 0,
     "seconds": 305.3,
     "lines": [],
-    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/bpcad-fitrate-la1k9wkn/knob_6mm_shaft/spec.draft.yaml.",
+    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/whittle-fitrate-la1k9wkn/knob_6mm_shaft/spec.draft.yaml.",
     "template": null,
     "level": null,
     "model_used": "hermes3:latest",
@@ -3012,7 +3012,7 @@
       "max_seconds": null
      },
      "elapsed_s": 305.31,
-     "handoff": "/tmp/bpcad-fitrate-la1k9wkn/knob_6mm_shaft/spec.draft.yaml",
+     "handoff": "/tmp/whittle-fitrate-la1k9wkn/knob_6mm_shaft/spec.draft.yaml",
      "level_reached": 2,
      "machine": "laptop",
      "ok": false,
@@ -3042,7 +3042,7 @@
     "total_checks": 0,
     "seconds": 370.7,
     "lines": [],
-    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/bpcad-fitrate-la1k9wkn/wall_hook/spec.draft.yaml.",
+    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/whittle-fitrate-la1k9wkn/wall_hook/spec.draft.yaml.",
     "template": null,
     "level": null,
     "model_used": "hermes3:latest",
@@ -3120,7 +3120,7 @@
       "max_seconds": null
      },
      "elapsed_s": 370.69,
-     "handoff": "/tmp/bpcad-fitrate-la1k9wkn/wall_hook/spec.draft.yaml",
+     "handoff": "/tmp/whittle-fitrate-la1k9wkn/wall_hook/spec.draft.yaml",
      "level_reached": 2,
      "machine": "laptop",
      "ok": false,
@@ -3150,7 +3150,7 @@
     "total_checks": 0,
     "seconds": 246.3,
     "lines": [],
-    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/bpcad-fitrate-la1k9wkn/funnel_20mm_neck/spec.draft.yaml.",
+    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/whittle-fitrate-la1k9wkn/funnel_20mm_neck/spec.draft.yaml.",
     "template": null,
     "level": null,
     "model_used": "hermes3:latest",
@@ -3228,7 +3228,7 @@
       "max_seconds": null
      },
      "elapsed_s": 246.29,
-     "handoff": "/tmp/bpcad-fitrate-la1k9wkn/funnel_20mm_neck/spec.draft.yaml",
+     "handoff": "/tmp/whittle-fitrate-la1k9wkn/funnel_20mm_neck/spec.draft.yaml",
      "level_reached": 2,
      "machine": "laptop",
      "ok": false,
@@ -3351,7 +3351,7 @@
        "degenerate_faces": 0,
        "face_count": 3056,
        "is_volume": true,
-       "path": "/tmp/bpcad-api-gnqo99ag/out/phone_stand.stl",
+       "path": "/tmp/whittle-api-gnqo99ag/out/phone_stand.stl",
        "problems": [],
        "vertex_count": 1528,
        "volume_cm3": 357.60725274824654,
@@ -3385,7 +3385,7 @@
        "unsupported_fraction": 0.014895393162099708,
        "worst_overhang_deg": 90.0
       },
-      "path": "/tmp/bpcad-api-gnqo99ag/out/phone_stand.stl",
+      "path": "/tmp/whittle-api-gnqo99ag/out/phone_stand.stl",
       "print_axis": "z",
       "problems": [],
       "surface_levels": [
@@ -3463,7 +3463,7 @@
     "total_checks": 0,
     "seconds": 692.1,
     "lines": [],
-    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/bpcad-fitrate-la1k9wkn/iphone_from_photo/spec.draft.yaml.",
+    "error": "The model could not produce a valid spec. Every problem is marked inline in /tmp/whittle-fitrate-la1k9wkn/iphone_from_photo/spec.draft.yaml.",
     "template": null,
     "level": null,
     "model_used": "hermes3:latest",
@@ -3541,7 +3541,7 @@
       "max_seconds": null
      },
      "elapsed_s": 692.13,
-     "handoff": "/tmp/bpcad-fitrate-la1k9wkn/iphone_from_photo/spec.draft.yaml",
+     "handoff": "/tmp/whittle-fitrate-la1k9wkn/iphone_from_photo/spec.draft.yaml",
      "level_reached": 2,
      "machine": "laptop",
      "ok": false,

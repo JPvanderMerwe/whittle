@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
-from bpcad.reconstruct import make_reconstructor, scale_to_mm
-from bpcad.reconstruct.base import (
+from whittle.reconstruct import make_reconstructor, scale_to_mm
+from whittle.reconstruct.base import (
     Reconstruction,
     ReconstructionError,
     ReconstructorUnavailable,
@@ -41,11 +41,11 @@ def _dimensionless(extent=(2.0, 1.0, 0.5)) -> Reconstruction:
 
 def test_the_default_backend_is_null():
     """
-    bpcad installs and runs with no torch, no weights and no network. A
+    whittle installs and runs with no torch, no weights and no network. A
     reconstructor that was required would break that, and the offline rebuild
     guarantee is the reason this program is trustworthy.
     """
-    from bpcad import api
+    from whittle import api
 
     cfg = api.config(ROOT / "config" / "default.toml")
     assert cfg.data["reconstruct"]["backend"] == "null"
@@ -59,7 +59,7 @@ def test_the_null_backend_says_what_to_do_instead():
 
     message = str(exc.value)
     # Names the alternative that needs no weights...
-    assert "bpcad measure" in message
+    assert "whittle measure" in message
     # ...and the command that turns this on.
     assert "reconstruct" in message
 
@@ -132,7 +132,7 @@ def test_an_unknown_axis_is_refused_rather_than_assumed():
 
 def test_a_fresh_reconstruction_is_not_printable():
     """
-    `printable` is set by the geometry side of the house after bpcad's own
+    `printable` is set by the geometry side of the house after whittle's own
     verify pass, never by a reconstructor. Neural meshes are routinely
     non-manifold - meshy publishes 55% fully watertight - so a mesh existing
     is not a mesh that will slice.
@@ -158,7 +158,7 @@ def test_the_api_entry_point_exists_and_refuses_cleanly():
     first link fails. It must fail as an ApiError with the instructions in it,
     not as a traceback out of a torch import.
     """
-    from bpcad import api
+    from whittle import api
 
     cfg = api.config(ROOT / "config" / "default.toml")
     with pytest.raises(api.ApiError) as exc:
@@ -173,7 +173,7 @@ def test_the_triposr_backend_can_be_constructed_without_torch():
     it configured should not pay two gigabytes and several seconds for it
     until a photograph actually arrives.
     """
-    from bpcad.reconstruct.triposr import TripoSRReconstructor
+    from whittle.reconstruct.triposr import TripoSRReconstructor
 
     backend = TripoSRReconstructor(None)
     assert backend.name == "triposr"
@@ -182,7 +182,7 @@ def test_the_triposr_backend_can_be_constructed_without_torch():
 
 
 def test_device_can_be_pinned_without_hardware_present():
-    from bpcad.reconstruct.triposr import TripoSRReconstructor
+    from whittle.reconstruct.triposr import TripoSRReconstructor
 
     assert TripoSRReconstructor(None, device="cuda").device() == "cuda"
     assert TripoSRReconstructor(None, device="cpu").device() == "cpu"

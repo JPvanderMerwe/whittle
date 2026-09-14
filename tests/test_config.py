@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from bpcad.config import (
+from whittle.config import (
     Config,
     ConfigError,
     UnsetConfigError,
@@ -62,7 +62,7 @@ def test_harvested_material_numbers_are_readable(cfg):
 
 def test_unset_material_raises_and_names_the_field(cfg):
     """
-    bpcad must never substitute a plausible-looking tolerance. TPU is flexible,
+    whittle must never substitute a plausible-looking tolerance. TPU is flexible,
     no reference part uses it, and a clearance guessed for a flexible material
     is worse than none.
     """
@@ -84,7 +84,7 @@ def test_both_machine_profiles_are_configured(cfg):
 
 
 def test_machine_hosts_are_loopback(cfg):
-    from bpcad.models.base import assert_local_endpoint
+    from whittle.models.base import assert_local_endpoint
 
     for name in cfg.machine_names:
         assert_local_endpoint(
@@ -121,7 +121,7 @@ def test_no_model_tag_is_pinned_before_it_is_benchmarked(cfg):
         has_measurements = "MEASURED" in section
         assert pinned == has_measurements, (
             "machine %r: model_primary is %s but the config %s measurements "
-            "beside it. Benchmark it with `bpcad models bench` and record the "
+            "beside it. Benchmark it with `whittle models bench` and record the "
             "numbers, or set it back to UNSET."
             % (name, "pinned" if pinned else "UNSET",
                "has" if has_measurements else "has no")

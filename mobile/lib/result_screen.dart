@@ -49,7 +49,7 @@ enum SheetState { peek, parameters, checks, export }
 class ResultScreen extends StatefulWidget {
   const ResultScreen({super.key, required this.api, required this.name});
 
-  final BpcadApi api;
+  final WhittleApi api;
   final String name;
 
   @override
@@ -130,7 +130,7 @@ class _ResultScreenState extends State<ResultScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _problem =
-          error is BpcadUnreachable ? error.why : error.toString());
+          error is WhittleUnreachable ? error.why : error.toString());
     }
   }
 
@@ -264,7 +264,7 @@ class _ResultScreenState extends State<ResultScreen> {
                 style: const TextStyle(
                     fontFamily: BpType.mono,
                     fontSize: BpType.figure,
-                    color: BpcadColors.ink)),
+                    color: WhittleColors.ink)),
             const SizedBox(height: BpSpace.base),
             if (_problem == null)
               const Waiting(what: 'reading the part', tight: true)
@@ -275,7 +275,7 @@ class _ResultScreenState extends State<ResultScreen> {
                       fontFamily: BpType.prose,
                       fontSize: BpType.label,
                       height: 1.5,
-                      color: BpcadColors.inkDim)),
+                      color: WhittleColors.inkDim)),
           ],
         ),
       );
@@ -383,7 +383,7 @@ class _ResultScreenState extends State<ResultScreen> {
                   child: const Padding(
                     padding: EdgeInsets.symmetric(
                         horizontal: 14, vertical: 8),
-                    child: TypeMark.back(colour: BpcadColors.ink),
+                    child: TypeMark.back(colour: WhittleColors.ink),
                   ),
                 ),
               ),
@@ -399,7 +399,7 @@ class _ResultScreenState extends State<ResultScreen> {
                         style: const TextStyle(
                             fontFamily: BpType.mono,
                             fontSize: 11.5,
-                            color: BpcadColors.ink)),
+                            color: WhittleColors.ink)),
                     Text(
                         part.parametric
                             ? 'parametric'
@@ -409,7 +409,7 @@ class _ResultScreenState extends State<ResultScreen> {
                         style: const TextStyle(
                             fontFamily: BpType.mono,
                             fontSize: 9.5,
-                            color: BpcadColors.inkDim)),
+                            color: WhittleColors.inkDim)),
                   ],
                 ),
               ),
@@ -449,7 +449,7 @@ class _ResultScreenState extends State<ResultScreen> {
                 style: TextStyle(
                     fontFamily: BpType.mono,
                     fontSize: BpType.label,
-                    color: on ? BpCore.phosphor : BpcadColors.inkDim)),
+                    color: on ? BpCore.phosphor : WhittleColors.inkDim)),
           ),
         ),
       );
@@ -517,7 +517,7 @@ class _ResultScreenState extends State<ResultScreen> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: BpSpace.snug),
           alignment: Alignment.center,
-          child: Container(width: 38, height: 3, color: BpcadColors.edge),
+          child: Container(width: 38, height: 3, color: WhittleColors.edge),
         ),
       );
 
@@ -548,7 +548,7 @@ class _ResultScreenState extends State<ResultScreen> {
             if (part.bodies != null)
               _summaryChip(part.bodies! > 1 ? '✓' : '·',
                   part.bodies! > 1 ? '${part.bodies} pieces · moves' : '1 piece',
-                  part.bodies! > 1 ? BpPen.pass : BpcadColors.inkDim),
+                  part.bodies! > 1 ? BpPen.pass : WhittleColors.inkDim),
           ]),
           const SizedBox(height: BpSpace.base),
           if (part.sizeMm != null)
@@ -588,12 +588,12 @@ class _ResultScreenState extends State<ResultScreen> {
                   _half = true;
                 }),
                 style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: BpcadColors.edge)),
+                    side: const BorderSide(color: WhittleColors.edge)),
                 child: Text(label,
                     style: const TextStyle(
                         fontFamily: BpType.mono,
                         fontSize: BpType.label,
-                        color: BpcadColors.ink)),
+                        color: WhittleColors.ink)),
               ),
       );
 
@@ -619,7 +619,7 @@ class _ResultScreenState extends State<ResultScreen> {
                 style: const TextStyle(
                     fontFamily: BpType.mono,
                     fontSize: BpType.label,
-                    color: BpcadColors.inkDim)),
+                    color: WhittleColors.inkDim)),
           ),
           Text(value,
               style: const TextStyle(
@@ -668,7 +668,7 @@ class _ResultScreenState extends State<ResultScreen> {
                     fontFamily: BpType.mono,
                     fontSize: 9.5,
                     color: _edits.isEmpty
-                        ? BpcadColors.inkFaint
+                        ? WhittleColors.inkFaint
                         : BpCore.phosphor)),
           ],
           InkWell(
@@ -678,7 +678,7 @@ class _ResultScreenState extends State<ResultScreen> {
             }),
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              child: TypeMark.close(colour: BpcadColors.inkFaint),
+              child: TypeMark.close(colour: WhittleColors.inkFaint),
             ),
           ),
         ]),
@@ -713,7 +713,7 @@ class _ResultScreenState extends State<ResultScreen> {
               style: TextStyle(
                   fontFamily: BpType.mono,
                   fontSize: BpType.label,
-                  color: on ? BpCore.phosphor : BpcadColors.inkDim)),
+                  color: on ? BpCore.phosphor : WhittleColors.inkDim)),
         ),
       ),
     );
@@ -750,7 +750,7 @@ class _ResultScreenState extends State<ResultScreen> {
                           fontFamily: BpType.prose,
                           fontSize: BpType.label,
                           height: 1.55,
-                          color: BpcadColors.inkDim)),
+                          color: WhittleColors.inkDim)),
                 )
               : ListView(
                   padding:
@@ -856,7 +856,7 @@ class _ResultScreenState extends State<ResultScreen> {
       setState(() {
         _rechecking = false;
         _recheckProblem =
-            error is BpcadUnreachable ? error.why : error.toString();
+            error is WhittleUnreachable ? error.why : error.toString();
       });
     }
   }
@@ -877,7 +877,7 @@ class _ResultScreenState extends State<ResultScreen> {
                   name: 'Never checked',
                   tag: 'no record',
                   why: 'This part has no run.json, so it was either imported '
-                      'or made before bpcad kept one. That is a real gap in '
+                      'or made before whittle kept one. That is a real gap in '
                       'the record rather than a check that was skipped — run '
                       'one now and it will be measured against the profile as '
                       'it stands.',
@@ -908,7 +908,7 @@ class _ResultScreenState extends State<ResultScreen> {
               ],
               if (part.bodies != null)
                 _Check(
-                  tone: part.bodies! > 1 ? BpPen.pass : BpcadColors.inkDim,
+                  tone: part.bodies! > 1 ? BpPen.pass : WhittleColors.inkDim,
                   mark: part.bodies! > 1 ? '✓' : '·',
                   name: 'Pieces',
                   tag: part.bodies! > 1 ? '${part.bodies} bodies' : 'one body',
@@ -935,14 +935,14 @@ class _ResultScreenState extends State<ResultScreen> {
                     style: TextStyle(
                         fontFamily: BpType.mono,
                         fontSize: BpType.micro,
-                        color: BpcadColors.inkDim)),
+                        color: WhittleColors.inkDim)),
                 const SizedBox(height: BpSpace.tight),
                 Text(part.reportMd,
                     style: const TextStyle(
                         fontFamily: BpType.mono,
                         fontSize: 11,
                         height: 1.6,
-                        color: BpcadColors.inkDim)),
+                        color: WhittleColors.inkDim)),
               ],
               const SizedBox(height: BpSpace.room),
             ],
@@ -983,7 +983,7 @@ class _ResultScreenState extends State<ResultScreen> {
                     fontFamily: BpType.mono,
                     fontSize: BpType.micro,
                     height: 1.5,
-                    color: BpcadColors.inkDim)),
+                    color: WhittleColors.inkDim)),
             for (final why in checks.drift) ...[
               const SizedBox(height: BpSpace.snug),
               Text(why,
@@ -1008,7 +1008,7 @@ class _ResultScreenState extends State<ResultScreen> {
         child: OutlinedButton(
           onPressed: _rechecking ? null : _recheck,
           style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: BpcadColors.edge),
+            side: const BorderSide(color: WhittleColors.edge),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(BpRadius.control)),
           ),
@@ -1018,7 +1018,7 @@ class _ResultScreenState extends State<ResultScreen> {
                   style: TextStyle(
                       fontFamily: BpType.mono,
                       fontSize: BpType.label,
-                      color: BpcadColors.ink)),
+                      color: WhittleColors.ink)),
         ),
       );
 
@@ -1062,7 +1062,7 @@ class _ResultScreenState extends State<ResultScreen> {
               // of offering a button that does nothing. The address is the
               // one the phone is already talking to.
               Text(
-                  'The files are on the computer running bpcad, under '
+                  'The files are on the computer running whittle, under '
                   'parts/${part.name}/out. Open '
                   '${widget.api.baseUrl}/api/part/${part.name}/stl in a '
                   'browser to pull one down.',
@@ -1070,7 +1070,7 @@ class _ResultScreenState extends State<ResultScreen> {
                       fontFamily: BpType.prose,
                       fontSize: BpType.micro,
                       height: 1.55,
-                      color: BpcadColors.inkFaint)),
+                      color: WhittleColors.inkFaint)),
             ],
           ),
         ),
@@ -1110,14 +1110,14 @@ class _ResultScreenState extends State<ResultScreen> {
   Future<void> _runCommand(String line) async {
     final part = _part;
     if (part == null) return;
-    _say('> $line', BpcadColors.ink);
+    _say('> $line', WhittleColors.ink);
 
     ParsedCommand parsed;
     try {
       parsed = await widget.api
           .command(line, material: part.material ?? 'petg');
     } catch (error) {
-      _say(error is BpcadUnreachable ? error.why : error.toString(),
+      _say(error is WhittleUnreachable ? error.why : error.toString(),
           BpPen.fail);
       return;
     }
@@ -1181,7 +1181,7 @@ class _PenRow extends StatelessWidget {
               style: const TextStyle(
                   fontFamily: BpType.mono,
                   fontSize: 9.5,
-                  color: BpcadColors.inkDim)),
+                  color: WhittleColors.inkDim)),
         ]),
       );
 }
@@ -1222,7 +1222,7 @@ class _Slider extends StatelessWidget {
                   style: const TextStyle(
                       fontFamily: BpType.mono,
                       fontSize: BpType.label,
-                      color: BpcadColors.ink)),
+                      color: WhittleColors.ink)),
             ),
             Text(shown,
                 style: const TextStyle(
@@ -1236,7 +1236,7 @@ class _Slider extends StatelessWidget {
                 style: const TextStyle(
                     fontFamily: BpType.mono,
                     fontSize: 9.5,
-                    color: BpcadColors.inkDim)),
+                    color: WhittleColors.inkDim)),
           ]),
           Slider(
             value: value.clamp(low, high),
@@ -1253,7 +1253,7 @@ class _Slider extends StatelessWidget {
                 style: const TextStyle(
                     fontFamily: BpType.mono,
                     fontSize: 9.5,
-                    color: BpcadColors.inkFaint)),
+                    color: WhittleColors.inkFaint)),
             Expanded(
               child: Text(
                   param.description.replaceAll(RegExp(r'\.$'), ''),
@@ -1263,14 +1263,14 @@ class _Slider extends StatelessWidget {
                   style: const TextStyle(
                       fontFamily: BpType.mono,
                       fontSize: 9.5,
-                      color: BpcadColors.inkDim)),
+                      color: WhittleColors.inkDim)),
             ),
             Text(
                 param.whole ? high.round().toString() : high.toStringAsFixed(1),
                 style: const TextStyle(
                     fontFamily: BpType.mono,
                     fontSize: 9.5,
-                    color: BpcadColors.inkFaint)),
+                    color: WhittleColors.inkFaint)),
           ]),
         ],
       ),
@@ -1313,7 +1313,7 @@ class _Check extends StatelessWidget {
                       style: const TextStyle(
                           fontFamily: BpType.mono,
                           fontSize: 12.5,
-                          color: BpcadColors.ink)),
+                          color: WhittleColors.ink)),
                   const SizedBox(width: 6),
                   // The word as well as the colour - brief 6.7 forbids
                   // colour-only status.
@@ -1327,7 +1327,7 @@ class _Check extends StatelessWidget {
                         fontFamily: BpType.prose,
                         fontSize: BpType.label,
                         height: 1.5,
-                        color: BpcadColors.inkDim)),
+                        color: WhittleColors.inkDim)),
               ],
             ),
           ),
@@ -1349,11 +1349,11 @@ class _ExportRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = gated ? BpCore.phosphor : BpcadColors.inkDim;
+    final tone = gated ? BpCore.phosphor : WhittleColors.inkDim;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 7),
       decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: BpcadColors.edge))),
+          border: Border(bottom: BorderSide(color: WhittleColors.edge))),
       child: Row(children: [
         Container(
           width: BpMetric.tap,
@@ -1378,13 +1378,13 @@ class _ExportRow extends StatelessWidget {
                   style: const TextStyle(
                       fontFamily: BpType.mono,
                       fontSize: BpType.label,
-                      color: BpcadColors.ink)),
+                      color: WhittleColors.ink)),
               Text(note,
                   style: const TextStyle(
                       fontFamily: BpType.prose,
                       fontSize: 9.5,
                       height: 1.4,
-                      color: BpcadColors.inkDim)),
+                      color: WhittleColors.inkDim)),
             ],
           ),
         ),
@@ -1399,7 +1399,7 @@ class _ExportRow extends StatelessWidget {
 /// The command line, docked to the bottom of the sheet on every state.
 ///
 /// Brief 6.4: always present. It parses server-side, with the same vocabulary
-/// the panels use - see BpcadApi.command.
+/// the panels use - see WhittleApi.command.
 class _CommandLine extends StatefulWidget {
   const _CommandLine({required this.onRun, required this.readout});
 
@@ -1441,7 +1441,7 @@ class _CommandLineState extends State<_CommandLine> {
           top: BpSpace.snug,
         ),
         decoration: const BoxDecoration(
-            border: Border(top: BorderSide(color: BpcadColors.edge))),
+            border: Border(top: BorderSide(color: WhittleColors.edge))),
         child: Row(children: [
           const Text('>',
               style: TextStyle(
@@ -1458,7 +1458,7 @@ class _CommandLineState extends State<_CommandLine> {
               style: const TextStyle(
                   fontFamily: BpType.mono,
                   fontSize: 12.5,
-                  color: BpcadColors.ink),
+                  color: WhittleColors.ink),
               decoration: const InputDecoration(
                 filled: false,
                 isDense: true,
@@ -1470,7 +1470,7 @@ class _CommandLineState extends State<_CommandLine> {
                 hintStyle: TextStyle(
                     fontFamily: BpType.mono,
                     fontSize: 12.5,
-                    color: BpcadColors.inkFaint),
+                    color: WhittleColors.inkFaint),
               ),
             ),
           ),
@@ -1480,7 +1480,7 @@ class _CommandLineState extends State<_CommandLine> {
                 style: const TextStyle(
                     fontFamily: BpType.mono,
                     fontSize: 9.5,
-                    color: BpcadColors.inkFaint,
+                    color: WhittleColors.inkFaint,
                     fontFeatures: [FontFeature.tabularFigures()])),
           ],
         ]),
@@ -1503,7 +1503,7 @@ class _CheckLineRow extends StatelessWidget {
     'pass': BpPen.pass,
     'warn': BpCore.phosphor,
     'fail': BpPen.fail,
-    'info': BpcadColors.inkDim,
+    'info': WhittleColors.inkDim,
   };
 
   static const Map<String, String> _marks = {
@@ -1515,7 +1515,7 @@ class _CheckLineRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tone = _tones[line.status] ?? BpcadColors.inkDim;
+    final tone = _tones[line.status] ?? WhittleColors.inkDim;
     return Padding(
       padding: const EdgeInsets.only(bottom: BpSpace.snug),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1530,14 +1530,14 @@ class _CheckLineRow extends StatelessWidget {
               style: const TextStyle(
                   fontFamily: BpType.mono,
                   fontSize: BpType.label,
-                  color: BpcadColors.inkDim)),
+                  color: WhittleColors.inkDim)),
         ),
         const SizedBox(width: BpSpace.snug),
         Text(line.value,
             style: TextStyle(
                 fontFamily: BpType.mono,
                 fontSize: BpType.label,
-                color: line.status == 'info' ? BpcadColors.ink : tone,
+                color: line.status == 'info' ? WhittleColors.ink : tone,
                 fontFeatures: const [FontFeature.tabularFigures()])),
       ]),
     );

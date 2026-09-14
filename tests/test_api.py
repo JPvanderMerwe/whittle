@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from bpcad import api
+from whittle import api
 
 ROOT = Path(__file__).resolve().parent.parent
 VENT_SPEC = ROOT / "parts" / "vent" / "spec.yaml"
@@ -82,7 +82,7 @@ def test_build_needs_no_model(tmp_path, monkeypatch):
 
 
 def test_build_reproduces_the_reference(tmp_path):
-    from bpcad.verify.regression import signature_of
+    from whittle.verify.regression import signature_of
 
     part = api.build(VENT_SPEC, out_dir=tmp_path)
     reference = api.verify(REF_VENT)
@@ -178,7 +178,7 @@ def test_a_change_edits_the_spec_not_the_mesh():
     re-rolling a mesh gives something else that is also 10 mm wider, along with
     every other difference nobody asked for.
     """
-    from bpcad.agent.refine import apply_changes
+    from whittle.agent.refine import apply_changes
 
     spec, _ = api.load_spec(VENT_SPEC)
     wider = apply_changes(spec, {"frame_w_mm": 120.0})
@@ -188,14 +188,14 @@ def test_a_change_edits_the_spec_not_the_mesh():
 
 
 def test_null_returns_a_parameter_to_being_derived():
-    from bpcad.agent.refine import apply_changes
+    from whittle.agent.refine import apply_changes
 
     spec, _ = api.load_spec(VENT_SPEC)
     assert "n_blades" in spec.params
     freed = apply_changes(spec, {"frame_w_mm": 120.0, "n_blades": None})
     assert "n_blades" not in freed.params
 
-    from bpcad.build.templates.louvre_vent import LouvreVentParams
+    from whittle.build.templates.louvre_vent import LouvreVentParams
 
     assert LouvreVentParams(**freed.params).n_blades == 6
 
@@ -205,7 +205,7 @@ def test_changes_are_read_off_the_specs_not_taken_on_trust():
     A model that says it made something wider and did not is exactly the case
     worth catching, and it is invisible if the interface only repeats the claim.
     """
-    from bpcad.agent.refine import apply_changes, describe_changes
+    from whittle.agent.refine import apply_changes, describe_changes
 
     spec, _ = api.load_spec(VENT_SPEC)
     after = apply_changes(spec, {"frame_w_mm": 120.0, "n_blades": None})
@@ -215,7 +215,7 @@ def test_changes_are_read_off_the_specs_not_taken_on_trust():
 
 
 def test_a_refined_spec_still_builds(tmp_path):
-    from bpcad.agent.refine import apply_changes
+    from whittle.agent.refine import apply_changes
 
     spec, base = api.load_spec(VENT_SPEC)
     wider = apply_changes(spec, {"frame_w_mm": 120.0, "n_blades": None})
@@ -225,8 +225,8 @@ def test_a_refined_spec_still_builds(tmp_path):
 
 
 def test_an_impossible_change_is_refused_with_field_problems():
-    from bpcad.agent.loop import SpecRejected
-    from bpcad.agent.refine import validate_changes
+    from whittle.agent.loop import SpecRejected
+    from whittle.agent.refine import validate_changes
 
     spec, _ = api.load_spec(VENT_SPEC)
     with pytest.raises(SpecRejected) as exc:
@@ -415,7 +415,7 @@ def test_a_failed_run_may_replace_another_failed_run_but_never_a_part(
     draft.mkdir(parents=True)
     (draft / "spec.draft.yaml").write_text("# handoff\n")
     # Resolved, because _free_part_dir returns a path relative to the working
-    # directory - which is the point of it, parts/ is relative to where bpcad
+    # directory - which is the point of it, parts/ is relative to where whittle
     # is run.
     assert api._free_part_dir("a_hinge").resolve() == draft, (
         "a second failed run refused to reuse the first one's handoff"

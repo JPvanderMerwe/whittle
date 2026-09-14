@@ -11,9 +11,9 @@ import pytest
 import trimesh
 from PIL import Image
 
-from bpcad.render import views as V
-from bpcad.verify.mesh import load_mesh
-from bpcad.verify.probe import surface_levels
+from whittle.render import views as V
+from whittle.verify.mesh import load_mesh
+from whittle.verify.probe import surface_levels
 
 REFERENCE_STL = Path(__file__).resolve().parent.parent / "reference" / "loop_keyring.stl"
 
@@ -106,7 +106,7 @@ def test_section_exposes_an_interior_surface(tmp_path):
     A hollow shell renders as a solid block from outside. Cut it and the nearest
     visible surface has to move deeper into the part.
     """
-    from bpcad.render import raster as R
+    from whittle.render import raster as R
 
     outer = trimesh.creation.box(extents=(20, 20, 20))
     inner = trimesh.creation.box(extents=(10, 10, 10))
@@ -156,7 +156,7 @@ def test_a_one_level_face_renders_as_one_colour():
     """
     import numpy as np
 
-    from bpcad.render.views import colourise
+    from whittle.render.views import colourise
 
     noise = 6.0 + np.random.default_rng(0).normal(0, 1e-7, size=(40, 40))
     img = colourise(noise)
@@ -169,7 +169,7 @@ def test_a_real_step_is_still_shown():
     """The flatness guard must not flatten a part that has actual steps."""
     import numpy as np
 
-    from bpcad.render.views import colourise
+    from whittle.render.views import colourise
 
     field = np.full((40, 40), 6.0)
     field[:, 20:] = 5.8          # a 0.2 mm step, one layer
@@ -183,6 +183,6 @@ def test_the_flatness_threshold_is_below_anything_printable():
     0.001 mm. The export tolerance is 0.005 and a layer is 0.2, so nothing
     real hides under this - which is the whole argument for the threshold.
     """
-    from bpcad.render.views import FLAT_MM
+    from whittle.render.views import FLAT_MM
 
     assert FLAT_MM < 0.005

@@ -19,7 +19,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from bpcad.render import technical
+from whittle.render import technical
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -235,7 +235,7 @@ def test_the_background_is_transparent_by_default():
 
 def test_it_renders_a_real_part_without_raising():
     """
-    The synthetic shapes above are convex and closed. A real bpcad part has
+    The synthetic shapes above are convex and closed. A real whittle part has
     two bodies, fillets, a through bore and coincident faces, and it is the
     one that finds an index arithmetic mistake.
     """

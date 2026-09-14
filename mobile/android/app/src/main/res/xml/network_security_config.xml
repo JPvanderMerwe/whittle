@@ -2,7 +2,7 @@
 <!--
   CLEARTEXT IS PERMITTED FOR LOOPBACK ONLY, AND ON PURPOSE.
 
-  Android 9 and later block plain HTTP by default, and bpcad's server speaks
+  Android 9 and later block plain HTTP by default, and whittle's server speaks
   HTTP. The lazy fix is usesCleartextTraffic="true" on the whole application,
   which permits unencrypted traffic to anywhere - including a hosted backend
   later, silently, with nobody noticing the day it starts mattering.

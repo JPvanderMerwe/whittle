@@ -1,7 +1,7 @@
 """
 cell_bowl - regenerate this part.
 
-Written by bpcad for inspection. The geometry comes from the template,
+Written by whittle for inspection. The geometry comes from the template,
 not from a copy of it pasted here - a second copy would drift.
 
     python model.py
@@ -9,7 +9,7 @@ not from a copy of it pasted here - a second copy would drift.
 
 import cadquery as cq
 
-from bpcad.build.compile import compile_spec, load_spec
+from whittle.build.compile import compile_spec, load_spec
 
 
 def main():

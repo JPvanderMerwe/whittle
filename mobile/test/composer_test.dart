@@ -7,8 +7,8 @@
 // measurement, and writing a plausible number into the user's own sentence -
 // and both are cheap mistakes to make in a later edit, so both are pinned.
 
-import 'package:bpcad_app/api.dart';
-import 'package:bpcad_app/composer_screen.dart';
+import 'package:whittle_app/api.dart';
+import 'package:whittle_app/composer_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -104,7 +104,7 @@ void main() {
     // between this and a generator that prints a picture of your bracket.
     await tester.pumpWidget(MaterialApp(
       home: ComposerScreen(
-        api: BpcadApi('http://localhost:8765'),
+        api: WhittleApi('http://localhost:8765'),
         health: null,
       ),
     ));

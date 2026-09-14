@@ -19,10 +19,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from bpcad.measure.contour import trace
-from bpcad.measure.fit import arc_through, circle
-from bpcad.measure.profile import edges_subpixel, profile, spans, spans_subpixel, transitions
-from bpcad.measure.segment import (
+from whittle.measure.contour import trace
+from whittle.measure.fit import arc_through, circle
+from whittle.measure.profile import edges_subpixel, profile, spans, spans_subpixel, transitions
+from whittle.measure.segment import (
     Box,
     as_array,
     auto_threshold,
@@ -597,10 +597,10 @@ def known_part(tmp_path_factory):
     """
     import cadquery as cq
 
-    from bpcad.build.helpers import BuildLog
-    from bpcad.build.templates.enclosure import EnclosureParams, build_core, derive
-    from bpcad.render import views as V
-    from bpcad.verify.mesh import load_mesh
+    from whittle.build.helpers import BuildLog
+    from whittle.build.templates.enclosure import EnclosureParams, build_core, derive
+    from whittle.render import views as V
+    from whittle.verify.mesh import load_mesh
 
     tmp = tmp_path_factory.mktemp("known")
     p = EnclosureParams(width_mm=140.0, depth_mm=120.0, height_mm=190.0,
@@ -623,7 +623,7 @@ def test_polarity_is_read_off_the_border_not_assumed(known_part):
     product shot on white, false of every render this program makes, which are
     light parts on a near-black viewport. It selected nothing at all.
     """
-    from bpcad.measure.segment import bbox, foreground
+    from whittle.measure.segment import bbox, foreground
 
     mask = foreground(known_part["front"])
     assert mask.any()
@@ -632,7 +632,7 @@ def test_polarity_is_read_off_the_border_not_assumed(known_part):
 
 
 def test_the_entrance_is_recovered_to_within_a_percent(known_part):
-    from bpcad.measure.part import measure_part
+    from whittle.measure.part import measure_part
 
     m = measure_part(known_part["front"], known_width_mm=200.0, view="front")
     dia = m.in_mm("entrance_diameter")
@@ -640,7 +640,7 @@ def test_the_entrance_is_recovered_to_within_a_percent(known_part):
 
 
 def test_the_entrance_height_is_recovered(known_part):
-    from bpcad.measure.part import measure_part
+    from whittle.measure.part import measure_part
 
     m = measure_part(known_part["front"], known_width_mm=200.0, view="front")
     height = m.in_mm("entrance_height")
@@ -653,7 +653,7 @@ def test_the_entrance_carries_its_residual(known_part):
     A circle fitted without its residual is just a number. The residual is what
     says the hole really was round rather than a shadow or a slot.
     """
-    from bpcad.measure.part import measure_part
+    from whittle.measure.part import measure_part
 
     m = measure_part(known_part["front"], known_width_mm=200.0, view="front")
     item = m.get("entrance_diameter")
@@ -666,7 +666,7 @@ def test_a_front_view_is_not_asked_for_the_roof_pitch(known_part):
     It looks along the slope and would report zero - correctly, and uselessly.
     A gap the prompt can fill beats a wrong number.
     """
-    from bpcad.measure.part import measure_part
+    from whittle.measure.part import measure_part
 
     m = measure_part(known_part["front"], known_width_mm=200.0, view="front")
     assert m.get("roof_pitch") is None
@@ -674,7 +674,7 @@ def test_a_front_view_is_not_asked_for_the_roof_pitch(known_part):
 
 
 def test_a_side_view_measures_the_pitch(known_part):
-    from bpcad.measure.part import measure_part
+    from whittle.measure.part import measure_part
 
     m = measure_part(known_part["side"], known_width_mm=180.0, view="side")
     pitch = m.get("roof_pitch")
@@ -685,14 +685,14 @@ def test_a_side_view_measures_the_pitch(known_part):
 
 def test_a_side_view_does_not_report_an_entrance(known_part):
     """It cannot see one, and a ventilation slot passed the roundness test."""
-    from bpcad.measure.part import measure_part
+    from whittle.measure.part import measure_part
 
     m = measure_part(known_part["side"], known_width_mm=180.0, view="side")
     assert m.get("entrance_diameter") is None
 
 
 def test_nothing_is_reported_in_millimetres_without_a_scale(known_part):
-    from bpcad.measure.part import measure_part
+    from whittle.measure.part import measure_part
 
     m = measure_part(known_part["front"], view="front")
     assert m.scale_mm_per_px is None
@@ -708,8 +708,8 @@ def test_only_exact_mappings_become_parameters(known_part):
     same units. An aspect ratio is not any parameter, and choosing one for it
     would be inventing a dimension.
     """
-    from bpcad import api
-    from bpcad.measure.part import measure_part
+    from whittle import api
+    from whittle.measure.part import measure_part
 
     m = measure_part(known_part["front"], known_width_mm=200.0, view="front")
     params = api.measured_params(m, "enclosure")
@@ -720,16 +720,16 @@ def test_only_exact_mappings_become_parameters(known_part):
 
 
 def test_no_parameters_are_mapped_without_a_scale(known_part):
-    from bpcad import api
-    from bpcad.measure.part import measure_part
+    from whittle import api
+    from whittle.measure.part import measure_part
 
     m = measure_part(known_part["front"], view="front")
     assert api.measured_params(m, "enclosure") == {}
 
 
 def test_measurements_reach_the_prompt_as_facts(known_part):
-    from bpcad.agent import prompts
-    from bpcad.measure.part import measure_part
+    from whittle.agent import prompts
+    from whittle.measure.part import measure_part
 
     m = measure_part(known_part["front"], known_width_mm=200.0, view="front")
     text = prompts.build_user_prompt("a birdhouse", "petg", 0.4, 0.24,

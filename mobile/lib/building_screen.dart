@@ -60,7 +60,7 @@ class BuildingScreen extends StatefulWidget {
     this.refineOf,
   });
 
-  final BpcadApi api;
+  final WhittleApi api;
   final String request;
   final String material;
   final int expectedSeconds;
@@ -124,7 +124,7 @@ class _BuildingScreenState extends State<BuildingScreen> {
         },
       );
     } catch (error) {
-      _fail(error is BpcadUnreachable ? error.why : error.toString());
+      _fail(error is WhittleUnreachable ? error.why : error.toString());
     }
   }
 
@@ -205,7 +205,7 @@ class _BuildingScreenState extends State<BuildingScreen> {
                       fontFamily: BpType.mono,
                       fontSize: BpType.figure,
                       height: 1.35,
-                      color: BpcadColors.ink)),
+                      color: WhittleColors.ink)),
               if (_problem == null) _waiting() else Expanded(child: _failed()),
               _stages(),
               const SizedBox(height: BpSpace.loose),
@@ -262,7 +262,7 @@ class _BuildingScreenState extends State<BuildingScreen> {
                   style: const TextStyle(
                       fontFamily: BpType.mono,
                       fontSize: BpType.label,
-                      color: BpcadColors.inkDim)),
+                      color: WhittleColors.inkDim)),
             ),
           ],
         ),
@@ -289,7 +289,7 @@ class _BuildingScreenState extends State<BuildingScreen> {
                     fontFamily: BpType.prose,
                     fontSize: BpType.label,
                     height: 1.5,
-                    color: BpcadColors.inkDim)),
+                    color: WhittleColors.inkDim)),
           ],
         ),
       );
@@ -334,7 +334,7 @@ class _BuildingScreenState extends State<BuildingScreen> {
                 value: MediaQuery.of(context).disableAnimations
                     ? _fraction
                     : value,
-                backgroundColor: BpcadColors.edge,
+                backgroundColor: WhittleColors.edge,
                 color: _problem == null ? BpCore.phosphor : BpPen.fail,
               ),
             ),
@@ -350,13 +350,13 @@ class _BuildingScreenState extends State<BuildingScreen> {
                   style: const TextStyle(
                       fontFamily: BpType.mono,
                       fontSize: BpType.micro,
-                      color: BpcadColors.inkDim,
+                      color: WhittleColors.inkDim,
                       fontFeatures: [FontFeature.tabularFigures()])),
               Text('${_elapsed}s',
                   style: const TextStyle(
                       fontFamily: BpType.mono,
                       fontSize: BpType.micro,
-                      color: BpcadColors.inkDim,
+                      color: WhittleColors.inkDim,
                       fontFeatures: [FontFeature.tabularFigures()])),
             ],
           ),
@@ -375,7 +375,7 @@ class _BuildingScreenState extends State<BuildingScreen> {
                   fontFamily: BpType.prose,
                   fontSize: BpType.micro,
                   height: 1.55,
-                  color: BpcadColors.inkFaint)),
+                  color: WhittleColors.inkFaint)),
           const SizedBox(height: BpSpace.snug),
           // A BORDERED GHOST, which is what the design draws. A bare text
           // button on a dark screen does not read as a control, and this one
@@ -386,7 +386,7 @@ class _BuildingScreenState extends State<BuildingScreen> {
             child: OutlinedButton(
               onPressed: () => Navigator.of(context).maybePop(),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: BpcadColors.edge),
+                side: const BorderSide(color: WhittleColors.edge),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(BpRadius.control)),
               ),
@@ -394,7 +394,7 @@ class _BuildingScreenState extends State<BuildingScreen> {
                   style: const TextStyle(
                       fontFamily: BpType.mono,
                       fontSize: BpType.label,
-                      color: BpcadColors.inkDim)),
+                      color: WhittleColors.inkDim)),
             ),
           ),
         ],
@@ -447,8 +447,8 @@ class _StageRow extends StatelessWidget {
                     fontFamily: BpType.mono,
                     fontSize: 12.5,
                     color: done || live
-                        ? BpcadColors.ink
-                        : BpcadColors.inkFaint)),
+                        ? WhittleColors.ink
+                        : WhittleColors.inkFaint)),
           ),
           Text(note,
               style: const TextStyle(

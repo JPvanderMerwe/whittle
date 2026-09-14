@@ -210,7 +210,7 @@ def is_measurable(expect: dict) -> bool:
 
 def assert_part(result, expect: dict) -> tuple[bool, int, int, list[str]]:
     """Run the corpus assertions against a built part."""
-    from bpcad.verify import assertions
+    from whittle.verify import assertions
 
     report = assertions.check(
         result.build.solid,
@@ -228,7 +228,7 @@ def run_reachable(entry: dict, out_root: Path) -> Outcome:
     This is the vocabulary test. An entry with no spec is one the vocabulary
     cannot express, which is a real result and is reported as such.
     """
-    from bpcad import api
+    from whittle import api
 
     outcome = Outcome(id=entry["id"], request=entry.get("request", ""),
                       mode="reachable",
@@ -271,7 +271,7 @@ def run_first_try(entry: dict, out_root: Path) -> Outcome:
     pipeline's own internal repair attempts are part of one try, because the
     user does not see them and is not charged for them.
     """
-    from bpcad import api
+    from whittle import api
 
     outcome = Outcome(id=entry["id"], request=entry.get("request", ""),
                       mode="first-try",
@@ -451,7 +451,7 @@ def main(argv: list[str] | None = None) -> int:
         print("\n%s: %d entries" % (mode, len(entries)))
         print("-" * 78)
         outcomes = []
-        with tempfile.TemporaryDirectory(prefix="bpcad-fitrate-") as scratch:
+        with tempfile.TemporaryDirectory(prefix="whittle-fitrate-") as scratch:
             for entry in entries:
                 if entry["id"] in done:
                     outcome = done[entry["id"]]

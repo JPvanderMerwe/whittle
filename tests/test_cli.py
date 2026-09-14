@@ -1,12 +1,12 @@
 """
 The CLI owns no pipeline logic, and one command proves it the hard way.
 
-`bpcad gen` used to drive its own copy of the escalation ladder: its own
+`whittle gen` used to drive its own copy of the escalation ladder: its own
 level-1 call, its own escalation to level 2, its own wall-clock budget, its own
 run record. api.generate had the other copy.
 
 That is not a tidiness complaint. The deterministic router was wired into
-api.generate first, the whole test suite passed, and `bpcad gen` carried on
+api.generate first, the whole test suite passed, and `whittle gen` carried on
 handing drilled plates to the enclosure template - correctly, by its own
 lights, for as long as it took somebody to run the CLI and notice. Two paths
 also measure differently, so no fit-rate number means anything while both
@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-CLI = Path(__file__).resolve().parent.parent / "bpcad" / "cli.py"
+CLI = Path(__file__).resolve().parent.parent / "whittle" / "cli.py"
 
 
 def _command_source(name: str) -> str:
@@ -59,7 +59,7 @@ def test_gen_drives_no_ladder_of_its_own():
     source = _command_source("gen")
     offenders = [name for name in LADDER if name in source]
     assert not offenders, (
-        "bpcad gen reaches into the pipeline (%s). It must call api.generate "
+        "whittle gen reaches into the pipeline (%s). It must call api.generate "
         "and nothing else, or a fix lands in one path and not the other - "
         "which is exactly how the router shipped working in the web app and "
         "broken in the CLI." % ", ".join(offenders)
@@ -68,7 +68,7 @@ def test_gen_drives_no_ladder_of_its_own():
 
 def test_gen_calls_api_generate():
     source = _command_source("gen")
-    assert "api.generate(" in source, "gen must go through bpcad.api"
+    assert "api.generate(" in source, "gen must go through whittle.api"
 
 
 def test_the_budget_lives_in_the_api_not_the_command():
@@ -80,7 +80,7 @@ def test_the_budget_lives_in_the_api_not_the_command():
     """
     import inspect
 
-    from bpcad import api
+    from whittle import api
 
     assert "max_seconds" in inspect.signature(api.generate).parameters
     source = _command_source("gen")
@@ -91,7 +91,7 @@ def test_every_command_is_registered_before_the_entry_point():
     """
     `if __name__ == "__main__": app()` runs at import time, so a command
     registered BELOW it does not exist when app() is called. `web` was in that
-    position: `python -m bpcad.cli web` answered "No such command 'web'" while
+    position: `python -m whittle.cli web` answered "No such command 'web'" while
     the installed console script worked, because that imports the module fully
     before calling app(). A difference that appears in only one of two ways of
     starting the same program is the worst kind to leave lying about.
@@ -103,7 +103,7 @@ def test_every_command_is_registered_before_the_entry_point():
              if line.startswith("@app.command") or line.startswith("@spec_app.command")]
     assert not after, (
         "commands are registered after the entry point, at lines %s - they "
-        "will not exist under `python -m bpcad.cli`" % after
+        "will not exist under `python -m whittle.cli`" % after
     )
 
 
@@ -117,19 +117,19 @@ def test_python_dash_m_can_reach_every_command():
 
     for command in ("gen", "build", "verify", "render", "web"):
         done = subprocess.run(
-            [sys.executable, "-m", "bpcad.cli", command, "--help"],
+            [sys.executable, "-m", "whittle.cli", command, "--help"],
             capture_output=True, text=True, timeout=120,
             cwd=str(CLI.parent.parent),
         )
         assert done.returncode == 0, (
-            "python -m bpcad.cli %s --help failed: %s"
+            "python -m whittle.cli %s --help failed: %s"
             % (command, (done.stderr or done.stdout)[-300:])
         )
 
 
 def test_render_output_is_ignored():
     """
-    `bpcad render` writes to ./out relative to the working directory. Every
+    `whittle render` writes to ./out relative to the working directory. Every
     other generated mesh is ignored under parts/; this one was not, and sat
     staged waiting to be committed by accident.
     """

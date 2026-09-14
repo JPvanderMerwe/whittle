@@ -1,5 +1,5 @@
 """
-Proof that the deterministic side of bpcad never reaches for a model.
+Proof that the deterministic side of whittle never reaches for a model.
 
 The brief's design requirement is that measure/, spec/, build/, verify/ and
 render/ are pure CPU with no network and no model. This test imports every one
@@ -12,36 +12,36 @@ import importlib
 import pytest
 
 DETERMINISTIC_MODULES = [
-    "bpcad.measure.segment",
-    "bpcad.measure.contour",
-    "bpcad.measure.fit",
-    "bpcad.measure.profile",
-    "bpcad.spec.schema",
-    "bpcad.spec.registry",
-    "bpcad.spec.dsl",
-    "bpcad.build.helpers",
-    "bpcad.build.compile",
-    "bpcad.build.templates.keyring_device",
-    "bpcad.build.templates.louvre_vent",
-    "bpcad.verify.mesh",
-    "bpcad.verify.features",
-    "bpcad.verify.probe",
-    "bpcad.verify.overhang",
-    "bpcad.verify.regression",
-    "bpcad.verify.report",
-    "bpcad.render.raster",
-    "bpcad.render.views",
+    "whittle.measure.segment",
+    "whittle.measure.contour",
+    "whittle.measure.fit",
+    "whittle.measure.profile",
+    "whittle.spec.schema",
+    "whittle.spec.registry",
+    "whittle.spec.dsl",
+    "whittle.build.helpers",
+    "whittle.build.compile",
+    "whittle.build.templates.keyring_device",
+    "whittle.build.templates.louvre_vent",
+    "whittle.verify.mesh",
+    "whittle.verify.features",
+    "whittle.verify.probe",
+    "whittle.verify.overhang",
+    "whittle.verify.regression",
+    "whittle.verify.report",
+    "whittle.render.raster",
+    "whittle.render.views",
 ]
 
 
 DETERMINISTIC_ENTRY_POINTS = [
-    ("bpcad.verify.mesh", "check_mesh"),
-    ("bpcad.verify.probe", "surface_heights"),
-    ("bpcad.verify.probe", "height_map"),
-    ("bpcad.verify.overhang", "overhang_report"),
-    ("bpcad.verify.features", "check_features"),
-    ("bpcad.render.raster", "render"),
-    ("bpcad.render.views", "standard_views"),
+    ("whittle.verify.mesh", "check_mesh"),
+    ("whittle.verify.probe", "surface_heights"),
+    ("whittle.verify.probe", "height_map"),
+    ("whittle.verify.overhang", "overhang_report"),
+    ("whittle.verify.features", "check_features"),
+    ("whittle.render.raster", "render"),
+    ("whittle.render.views", "standard_views"),
 ]
 
 
@@ -51,7 +51,7 @@ def test_imports_without_network(name, monkeypatch):
 
     def explode(*args, **kwargs):
         raise AssertionError(
-            "%s tried to make an HTTP request. The deterministic side of bpcad "
+            "%s tried to make an HTTP request. The deterministic side of whittle "
             "must work with the network cable out." % name
         )
 
@@ -66,7 +66,7 @@ def test_cli_imports_without_network(monkeypatch):
     import httpx
 
     monkeypatch.setattr(httpx, "Client", lambda *a, **k: pytest.fail("no network"))
-    importlib.import_module("bpcad.cli")
+    importlib.import_module("whittle.cli")
 
 
 @pytest.mark.parametrize("module,attr", DETERMINISTIC_ENTRY_POINTS)
@@ -95,10 +95,10 @@ def test_the_whole_verify_path_runs_with_sockets_dead(monkeypatch, tmp_path):
     monkeypatch.setattr(socket, "socket", Blocked)
     monkeypatch.setattr(socket, "create_connection", lambda *a, **k: pytest.fail("no network"))
 
-    from bpcad.render import views
-    from bpcad.verify.mesh import check_mesh, load_mesh
-    from bpcad.verify.overhang import overhang_report
-    from bpcad.verify.probe import surface_levels
+    from whittle.render import views
+    from whittle.verify.mesh import check_mesh, load_mesh
+    from whittle.verify.overhang import overhang_report
+    from whittle.verify.probe import surface_levels
 
     stl = Path(__file__).resolve().parent.parent / "reference" / "loop_keyring.stl"
     report = check_mesh(stl)

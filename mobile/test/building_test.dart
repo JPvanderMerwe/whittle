@@ -16,8 +16,8 @@
 // a frame and the drawing is never on screen at all. Pulling the drawing out
 // is what makes it possible to see it here.
 
-import 'package:bpcad_app/build_rig.dart';
-import 'package:bpcad_app/tokens.dart';
+import 'package:whittle_app/build_rig.dart';
+import 'package:whittle_app/tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

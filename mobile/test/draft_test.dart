@@ -11,8 +11,8 @@
 // So these check that the words survive, and that the request comes back so
 // nobody has to retype a sentence they already wrote.
 
-import 'package:bpcad_app/api.dart';
-import 'package:bpcad_app/draft_view.dart';
+import 'package:whittle_app/api.dart';
+import 'package:whittle_app/draft_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -33,7 +33,7 @@ Draft _draft() => Draft.fromJson({
       'level_reached': 2,
       'message': _diagnosis,
       'handoff': 'parts/a_hinge/spec.draft.yaml',
-      'spec_draft': '# bpcad handoff - the model could not produce a valid '
+      'spec_draft': '# whittle handoff - the model could not produce a valid '
           'spec.\nname: hinge\nparams: {}\n',
     });
 
@@ -61,7 +61,7 @@ void main() {
       (WidgetTester tester) async {
     await tester.pumpWidget(MaterialApp(
       home: DraftView(
-        api: BpcadApi('http://localhost:8765'),
+        api: WhittleApi('http://localhost:8765'),
         name: 'hinge',
         draft: _draft(),
       ),
@@ -93,7 +93,7 @@ void main() {
     // that failed to load.
     await tester.pumpWidget(MaterialApp(
       home: DraftView(
-        api: BpcadApi('http://localhost:8765'),
+        api: WhittleApi('http://localhost:8765'),
         name: 'hinge',
         draft: Draft.fromJson({'request': 'a hinge', 'attempts': 4}),
       ),

@@ -21,8 +21,8 @@ from __future__ import annotations
 
 import pytest
 
-from bpcad.build.helpers import probe
-from bpcad.spec.dsl import DslError, run_ops
+from whittle.build.helpers import probe
+from whittle.spec.dsl import DslError, run_ops
 
 # ---------------------------------------------------------------------------
 # Whole parts. Each was unbuildable before placement, rotation and cut mode.

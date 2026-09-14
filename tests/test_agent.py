@@ -13,8 +13,8 @@ import math
 import pytest
 import yaml
 
-from bpcad.agent import bundle as bundle_mod
-from bpcad.agent.loop import (
+from whittle.agent import bundle as bundle_mod
+from whittle.agent.loop import (
     STAGE_COMPILE,
     STAGE_PARSE,
     STAGE_VALIDATE,
@@ -28,9 +28,9 @@ from bpcad.agent.loop import (
     compile_and_verify,
     validate_reply,
 )
-from bpcad.config import load_config
-from bpcad.models.selector import Attempt, Profile
-from bpcad.spec.schema import PartSpec
+from whittle.config import load_config
+from whittle.models.selector import Attempt, Profile
+from whittle.spec.schema import PartSpec
 
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG = ROOT / "config" / "default.toml"
@@ -85,7 +85,7 @@ def scripted(monkeypatch, replies):
         holder["last"] = backend
         return backend
 
-    monkeypatch.setattr("bpcad.models.selector.make_backend", make)
+    monkeypatch.setattr("whittle.models.selector.make_backend", make)
     return holder
 
 
@@ -198,10 +198,10 @@ def test_the_ladder_drops_to_the_small_model(monkeypatch):
 
 
 def test_a_too_fine_feature_produces_a_numeric_critique():
-    from bpcad.verify.features import check_features
-    from bpcad.verify.mesh import MeshReport
-    from bpcad.verify.overhang import OverhangReport
-    from bpcad.verify.report import VerifyReport
+    from whittle.verify.features import check_features
+    from whittle.verify.mesh import MeshReport
+    from whittle.verify.overhang import OverhangReport
+    from whittle.verify.report import VerifyReport
 
     report = VerifyReport(
         path="x", nozzle_mm=0.4, print_axis="z",
@@ -221,14 +221,14 @@ def test_a_too_fine_feature_produces_a_numeric_critique():
 
 
 def test_the_hint_names_the_field_the_value_and_the_range():
-    from bpcad.agent.handoff import FieldProblem
+    from whittle.agent.handoff import FieldProblem
 
     text = _hint([FieldProblem("params.wall_mm", "too big", 999, "<= 20")])
     assert "wall_mm" in text and "999" in text and "<= 20" in text
 
 
 def test_a_misspelling_is_told_to_be_removed():
-    from bpcad.agent.handoff import FieldProblem
+    from whittle.agent.handoff import FieldProblem
 
     text = _hint([FieldProblem("params.wal_mm", "Extra inputs are not permitted", 4, "")])
     assert "remove" in text and "does not exist" in text
@@ -238,7 +238,7 @@ def test_a_misspelling_is_told_to_be_removed():
 
 
 def test_a_good_spec_compiles_and_verifies(cfg, tmp_path):
-    from bpcad.build.compile import load_spec
+    from whittle.build.compile import load_spec
 
     spec, base = load_spec(VENT_SPEC)
     result, report, stl = compile_and_verify(spec, cfg, base, tmp_path / "out")
@@ -252,7 +252,7 @@ def test_a_part_needing_supports_is_not_a_failure(cfg, tmp_path):
     Plenty of good parts need support - the vent reference is one. Only broken
     meshes and unprintable features fail the loop.
     """
-    from bpcad.build.compile import load_spec
+    from whittle.build.compile import load_spec
 
     spec, base = load_spec(VENT_SPEC)
     _, report, _ = compile_and_verify(spec, cfg, base, tmp_path / "out")
@@ -281,7 +281,7 @@ PLATE_WITH_A_MISSED_HOLE = dict(
 
 def test_a_missed_cut_is_only_a_note_for_a_hand_written_build(cfg, tmp_path):
     """
-    `bpcad build` must not lose a whole part over one cut that missed. The
+    `whittle build` must not lose a whole part over one cut that missed. The
     report says so and the build stands - see
     test_a_cut_that_misses_is_reported_but_not_fatal in test_dsl_coverage.
     """
@@ -341,7 +341,7 @@ def test_geometry_that_cannot_be_built_comes_back_as_a_rejection(cfg, tmp_path):
 
 @pytest.fixture(scope="module")
 def built(cfg, tmp_path_factory):
-    from bpcad.build.compile import load_spec
+    from whittle.build.compile import load_spec
 
     tmp = tmp_path_factory.mktemp("bundle")
     spec, base = load_spec(VENT_SPEC)
@@ -363,7 +363,7 @@ def test_the_bundle_writes_every_promised_artifact(built):
 
 def test_the_written_spec_round_trips(built):
     """spec.yaml is the durable artifact. It must load back and build again."""
-    from bpcad.build.compile import compile_spec, load_spec
+    from whittle.build.compile import compile_spec, load_spec
 
     spec, base = load_spec(built["written"]["spec"])
     assert spec.template == "louvre_vent"
@@ -429,7 +429,7 @@ def test_the_report_warns_that_a_drop_may_be_a_bridge(built):
 
 
 def test_a_hand_written_spec_reports_no_model(cfg, tmp_path):
-    from bpcad.build.compile import load_spec
+    from whittle.build.compile import load_spec
 
     spec, base = load_spec(VENT_SPEC)
     result, report, stl = compile_and_verify(spec, cfg, base, tmp_path / "out")
@@ -438,7 +438,7 @@ def test_a_hand_written_spec_reports_no_model(cfg, tmp_path):
 
 
 def test_a_level_3_part_is_marked_review_required(cfg, tmp_path):
-    from bpcad.build.compile import compile_spec
+    from whittle.build.compile import compile_spec
 
     spec = PartSpec(
         name="raw", level=3, material="petg", nozzle_mm=0.4, layer_mm=0.2,
@@ -514,7 +514,7 @@ def test_run_json_is_written_on_failure_too(tmp_path):
 
 
 def test_attempt_records_carry_the_token_counts():
-    from bpcad.models.ollama import CallRecord
+    from whittle.models.ollama import CallRecord
 
     a = Attempt("m", "primary", 1, True, 51.2,
                 call=CallRecord("m", "schema", 51.2, 1.0, 1600, 90))
@@ -539,7 +539,7 @@ def test_level_3_stays_blocked_without_the_flag(cfg, tmp_path):
 
 
 def test_a_level_2_reply_validates(monkeypatch):
-    from bpcad.agent.loop import ask_level_2
+    from whittle.agent.loop import ask_level_2
 
     reply = ('{"name": "bracket", "ops": [{"op": "rounded_prism", "width_mm": 40, '
              '"depth_mm": 20, "height_mm": 8}]}')
@@ -551,7 +551,7 @@ def test_a_level_2_reply_validates(monkeypatch):
 
 
 def test_a_bad_op_is_rejected_at_parse_naming_the_index(monkeypatch):
-    from bpcad.agent.loop import ask_level_2
+    from whittle.agent.loop import ask_level_2
 
     bad = ('{"name": "b", "ops": [{"op": "rounded_prism", "width_mm": 10, '
            '"depth_mm": 10, "height_mm": 5}, {"op": "pocket", "anchor": "lid", '
@@ -567,7 +567,7 @@ def test_a_bad_op_is_rejected_at_parse_naming_the_index(monkeypatch):
 
 
 def test_level_2_rejects_an_empty_op_list(monkeypatch):
-    from bpcad.agent.loop import ask_level_2
+    from whittle.agent.loop import ask_level_2
 
     scripted(monkeypatch, ['{"name": "b", "ops": []}'] * 8)
     result = ask_level_2("a block", profile(), "pla", 0.4, 0.2)
@@ -575,7 +575,7 @@ def test_level_2_rejects_an_empty_op_list(monkeypatch):
 
 
 def test_the_dsl_catalogue_names_anchors_not_selectors():
-    from bpcad.agent import prompts
+    from whittle.agent import prompts
 
     text = prompts.dsl_catalogue()
     assert "top_face" in text and "front_face" in text
@@ -583,14 +583,14 @@ def test_the_dsl_catalogue_names_anchors_not_selectors():
 
 
 def test_the_dsl_system_prompt_forbids_selectors():
-    from bpcad.agent import prompts
+    from whittle.agent import prompts
 
     assert "selector" in prompts.DSL_SYSTEM.lower()
     assert "do NOT write CAD code" in prompts.DSL_SYSTEM
 
 
 def test_the_dsl_schema_constrains_op_names():
-    from bpcad.agent import prompts
+    from whittle.agent import prompts
 
     enum = prompts.dsl_schema()["properties"]["ops"]["items"]["properties"]["op"]["enum"]
     assert "rounded_prism" in enum and "pocket" in enum
@@ -652,7 +652,7 @@ def test_a_hole_that_stops_short_is_corrected_in_a_generated_spec(cfg, tmp_path)
         assert op["height_mm"] == 10.0, op
         assert op["z_mm"] == -2.0, op
 
-    # And it is said out loud: bpcad changes no dimension without showing it.
+    # And it is said out loud: whittle changes no dimension without showing it.
     repaired = [n for n in result.log.notes if n.startswith("repaired op")]
     assert len(repaired) == 2, result.log.notes
     assert "height_mm 7 -> 10.0" in repaired[0], repaired[0]
@@ -707,7 +707,7 @@ ASSUMPTIONS_SPEC = dict(
 
 
 def _assumptions_section(cfg, tmp_path, request, tag):
-    from bpcad.agent.bundle import write_report
+    from whittle.agent.bundle import write_report
 
     spec = PartSpec(**ASSUMPTIONS_SPEC)
     result, report, _ = compile_and_verify(spec, cfg, None, tmp_path / tag,
@@ -742,7 +742,7 @@ def test_a_hand_written_spec_still_says_specified(cfg, tmp_path):
     """
     With no request there is nobody to have failed to specify anything - a
     person typed the numbers, and "specified" is the honest word. This is the
-    `bpcad build` path and it must not be told off for its own spec.
+    `whittle build` path and it must not be told off for its own spec.
     """
     text = _assumptions_section(cfg, tmp_path, "", "hand")
     assert text.startswith("None - every dimension")
@@ -768,8 +768,8 @@ def test_the_mechanism_example_really_is_two_bodies(clearance_mm):
     """
     import json
 
-    from bpcad.agent.prompts import mechanism_example
-    from bpcad.spec.dsl import run_ops
+    from whittle.agent.prompts import mechanism_example
+    from whittle.spec.dsl import run_ops
 
     ops = json.loads(mechanism_example(clearance_mm))["ops"]
     scene = run_ops(ops)
@@ -788,7 +788,7 @@ def test_the_mechanism_example_needs_no_support(cfg, tmp_path):
     """
     import json
 
-    from bpcad.agent.prompts import mechanism_example
+    from whittle.agent.prompts import mechanism_example
 
     ops = json.loads(mechanism_example(0.30))["ops"]
     spec = PartSpec(name="example", level=2, material="petg", nozzle_mm=0.4,
@@ -806,7 +806,7 @@ def test_the_example_gap_matches_the_rule_stated_above_it():
     example were hard-coded it could contradict the sentence directly above
     it the moment a material with a different clearance was used.
     """
-    from bpcad.agent.prompts import build_dsl_prompt
+    from whittle.agent.prompts import build_dsl_prompt
 
     text = build_dsl_prompt("a hinge", "pla", 0.4, 0.2, clearance_mm=0.20)
     assert "Leave 0.20 mm between them" in text
@@ -829,7 +829,7 @@ def test_a_level_2_handoff_carries_the_ops_the_model_wrote(tmp_path):
     """
     import yaml
 
-    from bpcad.agent.handoff import write_handoff
+    from whittle.agent.handoff import write_handoff
 
     attempt = {
         "name": "mini_dragon", "level": 2, "material": "petg",

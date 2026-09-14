@@ -3,20 +3,20 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "bpcad"
+name = "whittle"
 version = "0.1.0"
 description = "Local, offline text-and-image-to-3D-printable-part pipeline. Bit Primitive."
 readme = "README.md"
 requires-python = ">=3.11"
 
 # Kept deliberately tight. Nothing here is a GPU library, a cloud SDK or a web
-# framework, and httpx only ever talks to a loopback host - see bpcad/models/base.py.
+# framework, and httpx only ever talks to a loopback host - see whittle/models/base.py.
 dependencies = [
     "cadquery",
     "numpy",
     "pillow",
     "scikit-image",
-    # scipy arrives with scikit-image anyway, but bpcad/build/cells.py imports
+    # scipy arrives with scikit-image anyway, but whittle/build/cells.py imports
     # scipy.spatial.Voronoi directly. A dependency you use by name is one you
     # declare, or it disappears the day the transitive one is dropped.
     "scipy",
@@ -32,7 +32,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # PHOTO TO MESH. Deliberately optional and deliberately large: torch plus
-# TripoSR's weights is about 2.5 GB, and bpcad has to install and run on a
+# TripoSR's weights is about 2.5 GB, and whittle has to install and run on a
 # machine that has neither - every part in parts/ rebuilds from its spec.yaml
 # with this absent. Turn it on in config: [reconstruct] backend = "triposr".
 #
@@ -61,13 +61,13 @@ gui = ["PySide6>=6.6"]
 dev = ["pytest"]
 
 [project.scripts]
-bpcad = "bpcad.cli:app"
+whittle = "whittle.cli:app"
 
 [project.gui-scripts]
-bpcad-gui = "bpcad.gui.shell:main"
+whittle-gui = "whittle.gui.shell:main"
 
 [tool.setuptools.packages.find]
-include = ["bpcad*"]
+include = ["whittle*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

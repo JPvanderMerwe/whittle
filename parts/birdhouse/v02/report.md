@@ -78,7 +78,7 @@ None - this part is at true scale throughout.
 Spec written by **qwen2.5-coder:7b** on machine **laptop**, 1 attempt(s), 64.6s.
 
 The model filled in a validated specification. It did not write
-CAD code - the geometry comes from a template in bpcad, and every
+CAD code - the geometry comes from a template in whittle, and every
 number above was measured off the exported mesh.
 
 ## Build log

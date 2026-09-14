@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "whittle",
+    "slug": "whittle",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "whittle",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0B0F0D",
+    "splash": {
+      "image": "./assets/splash-logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B0F0D"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bitprimitive.whittle"
+    },
+    "android": {
+      "package": "com.bitprimitive.whittle",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B0F0D",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "./plugins/withLoopbackCleartext"
+    ]
+  }
+}

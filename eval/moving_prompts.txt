@@ -3,7 +3,7 @@
 # Every other prompt list in this repo states its dimensions, because that is
 # how you measure whether a part came out the size it was asked for. These
 # state nothing. That is the point: they test the half of the job the corpus
-# cannot, which is whether bpcad can pick sensible numbers when nobody gave it
+# cannot, which is whether whittle can pick sensible numbers when nobody gave it
 # any, and whether it knows that a moving part is two bodies with a measured
 # gap rather than one lump.
 #

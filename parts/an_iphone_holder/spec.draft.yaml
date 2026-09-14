@@ -1,4 +1,4 @@
-# bpcad handoff - the model could not produce a valid spec.
+# whittle handoff - the model could not produce a valid spec.
 #
 # Requested:
 #   an iPhone holder
@@ -9,11 +9,11 @@
 # No field-level problems were recorded - see the error below.
 #
 # WHEN YOU HAVE FIXED IT:
-#   bpcad build parts/an_iphone_holder/spec.yaml
+#   whittle build parts/an_iphone_holder/spec.yaml
 #
 # Useful while editing:
-#   bpcad spec list                 # what templates exist
-#   bpcad spec ops                  # level-2 operations and anchors
+#   whittle spec list                 # what templates exist
+#   whittle spec ops                  # level-2 operations and anchors
 
 name: iPhone_holder
 print_axis: Z

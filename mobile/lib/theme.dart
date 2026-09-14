@@ -15,7 +15,7 @@
 // every label cyan, and both would have looked deliberate. `live` maps to
 // `pen-ref`, which is the design's own word for the same job.
 //
-// The CPU rasteriser's ground (bpcad/gui/theme.py's VIEWPORT_BG) has to agree
+// The CPU rasteriser's ground (whittle/gui/theme.py's VIEWPORT_BG) has to agree
 // with `bed` or a render sits on a different ground from the screen around it
 // and shows as a hard rectangle behind the part - which is exactly what it
 // looked like before that was fixed.
@@ -24,8 +24,8 @@ import 'package:flutter/material.dart';
 
 import 'tokens.dart';
 
-class BpcadColors {
-  BpcadColors._();
+class WhittleColors {
+  WhittleColors._();
 
   /// The app ground. Also render.raster's background, to the byte.
   static const Color bed = BpCore.caseColor;
@@ -56,8 +56,8 @@ class BpcadColors {
   static const Color fail = BpPen.fail;
 }
 
-class BpcadText {
-  BpcadText._();
+class WhittleText {
+  WhittleText._();
 
   /// Every numeral in this product. Tabular, so a column of dimensions lines
   /// up and a 1 cannot be mistaken for a 7 at a glance - on a measuring
@@ -65,25 +65,25 @@ class BpcadText {
   static const TextStyle dimension = TextStyle(
     fontFamily: BpType.mono,
     fontSize: BpType.micro,
-    color: BpcadColors.live,
+    color: WhittleColors.live,
     fontFeatures: [FontFeature.tabularFigures()],
   );
 
   static const TextStyle fact = TextStyle(
     fontFamily: BpType.mono,
     fontSize: BpType.reading,
-    color: BpcadColors.live,
+    color: WhittleColors.live,
     fontFeatures: [FontFeature.tabularFigures()],
   );
 }
 
-ThemeData bpcadTheme() {
+ThemeData whittleTheme() {
   const scheme = ColorScheme.dark(
-    surface: BpcadColors.bed,
-    primary: BpcadColors.live,
-    secondary: BpcadColors.act,
-    error: BpcadColors.fail,
-    onSurface: BpcadColors.ink,
+    surface: WhittleColors.bed,
+    primary: WhittleColors.live,
+    secondary: WhittleColors.act,
+    error: WhittleColors.fail,
+    onSurface: WhittleColors.ink,
   );
 
   // Data chrome keeps the hard radii and floating surfaces get the soft ones.
@@ -93,21 +93,21 @@ ThemeData bpcadTheme() {
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
-    scaffoldBackgroundColor: BpcadColors.bed,
-    canvasColor: BpcadColors.bed,
+    scaffoldBackgroundColor: WhittleColors.bed,
+    canvasColor: WhittleColors.bed,
     appBarTheme: const AppBarTheme(
-      backgroundColor: BpcadColors.bed,
+      backgroundColor: WhittleColors.bed,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
-      foregroundColor: BpcadColors.ink,
+      foregroundColor: WhittleColors.ink,
     ),
     textTheme: const TextTheme().apply(
-      bodyColor: BpcadColors.ink,
-      displayColor: BpcadColors.ink,
+      bodyColor: WhittleColors.ink,
+      displayColor: WhittleColors.ink,
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: BpcadColors.act,
+        backgroundColor: WhittleColors.act,
         // `case` on phosphor, which is what the design says plainly. The old
         // value was a hand-darkened brown that existed nowhere else.
         foregroundColor: BpCore.caseColor,
@@ -125,30 +125,30 @@ ThemeData bpcadTheme() {
       // A field WELL, which the design makes glass - but an InputDecoration
       // cannot carry a BackdropFilter, so it takes the flat fill. A field
       // wrapped in GlassSurface sets `filled: false` and lets the pane show.
-      fillColor: BpcadColors.bezel,
+      fillColor: WhittleColors.bezel,
       hintStyle: const TextStyle(
-          color: BpcadColors.inkFaint, fontSize: BpType.reading),
+          color: WhittleColors.inkFaint, fontSize: BpType.reading),
       contentPadding: const EdgeInsets.symmetric(
           horizontal: BpSpace.base, vertical: BpSpace.base),
       border: OutlineInputBorder(
         borderRadius: control,
-        borderSide: const BorderSide(color: BpcadColors.edge),
+        borderSide: const BorderSide(color: WhittleColors.edge),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: control,
-        borderSide: const BorderSide(color: BpcadColors.edge),
+        borderSide: const BorderSide(color: WhittleColors.edge),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: control,
         // The focus ring is phosphor: brief 6.7 wants keyboard focus visible,
         // and amber is the one colour that reads as "this is where you are".
-        borderSide: const BorderSide(color: BpcadColors.act),
+        borderSide: const BorderSide(color: WhittleColors.act),
       ),
     ),
     sliderTheme: const SliderThemeData(
-      activeTrackColor: BpcadColors.act,
-      inactiveTrackColor: BpcadColors.edge,
-      thumbColor: BpcadColors.act,
+      activeTrackColor: WhittleColors.act,
+      inactiveTrackColor: WhittleColors.edge,
+      thumbColor: WhittleColors.act,
       trackHeight: 2,
       // A 12px SQUARE THUMB, NOT MATERIAL'S CIRCLE.
       //
@@ -165,8 +165,8 @@ ThemeData bpcadTheme() {
     progressIndicatorTheme: const ProgressIndicatorThemeData(
       // Progress is a commit in flight, so it is amber, and its track is the
       // etch hairline. 2px: it is a data mark, not a decoration.
-      color: BpcadColors.act,
-      linearTrackColor: BpcadColors.edge,
+      color: WhittleColors.act,
+      linearTrackColor: WhittleColors.edge,
       linearMinHeight: 2,
     ),
   );
@@ -204,7 +204,7 @@ class SquareSliderThumb extends SliderComponentShape {
     required Size sizeWithOverflow,
   }) {
     final paint = Paint()
-      ..color = sliderTheme.thumbColor ?? BpcadColors.act
+      ..color = sliderTheme.thumbColor ?? WhittleColors.act
       ..style = PaintingStyle.fill;
 
     // No radius at all - Radius.zero rather than a small one. A 1px round is

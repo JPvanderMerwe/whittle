@@ -15,15 +15,15 @@ import numpy as np
 import pytest
 import trimesh
 
-from bpcad import api
-from bpcad.measure.revolve import fit_revolve, to_vessel_params
+from whittle import api
+from whittle.measure.revolve import fit_revolve, to_vessel_params
 
 
 def turned_mesh(profile, height=120.0, sections=64, wall=3.0):
     """A hollow turned shape built WITHOUT the vessel template, as a mesh."""
     import cadquery as cq
 
-    from bpcad.verify.fit import mesh_of_solid
+    from whittle.verify.fit import mesh_of_solid
 
     def loft(fn, z0=0.0):
         wp, last = cq.Workplane("XY"), 0.0
@@ -94,10 +94,10 @@ def test_the_wall_is_measured_not_assumed():
 
 
 def test_a_solid_shape_reports_no_wall_rather_than_inventing_one():
-    """bpcad does not substitute a plausible number. See rule 29."""
+    """whittle does not substitute a plausible number. See rule 29."""
     import cadquery as cq
 
-    from bpcad.verify.fit import mesh_of_solid
+    from whittle.verify.fit import mesh_of_solid
 
     cone = cq.Workplane("XY").circle(30).workplane(offset=80).circle(18).loft(ruled=True)
     fit = fit_revolve(mesh_of_solid(cone))
@@ -120,7 +120,7 @@ def test_a_mesh_becomes_a_spec_that_rebuilds_to_the_same_object():
         "name": "fitted", "level": 1, "material": "petg", "nozzle_mm": 0.4,
         "layer_mm": 0.24, "template": "vessel", "params": params,
     })
-    result = api.build(spec=spec, out_dir="/tmp/bpcad_fit_test", render=False)
+    result = api.build(spec=spec, out_dir="/tmp/whittle_fit_test", render=False)
     rebuilt = result.report.mesh
 
     assert rebuilt.body_count == 1
@@ -148,7 +148,7 @@ def test_the_fitted_part_is_then_editable_which_is_the_whole_point():
             "name": "e", "level": 1, "material": "petg", "nozzle_mm": 0.4,
             "layer_mm": 0.24, "template": "vessel", "params": changed,
         })
-        built = api.build(spec=spec, out_dir="/tmp/bpcad_fit_edit", render=False)
+        built = api.build(spec=spec, out_dir="/tmp/whittle_fit_edit", render=False)
         box = built.report.mesh.bbox_mm
         got = box[2] if field == "height_mm" else max(box[0], box[1])
         assert got == pytest.approx(value, rel=0.03), (
@@ -157,7 +157,7 @@ def test_the_fitted_part_is_then_editable_which_is_the_whole_point():
 
 
 def test_the_profile_must_climb():
-    from bpcad.build.templates.vessel import VesselParams
+    from whittle.build.templates.vessel import VesselParams
 
     with pytest.raises(ValueError) as exc:
         VesselParams(profile="custom", profile_points=[(20, 0), (25, 10), (22, 5)])
@@ -165,7 +165,7 @@ def test_the_profile_must_climb():
 
 
 def test_points_on_a_named_profile_are_refused_rather_than_ignored():
-    from bpcad.build.templates.vessel import VesselParams
+    from whittle.build.templates.vessel import VesselParams
 
     with pytest.raises(ValueError) as exc:
         VesselParams(profile="flared", profile_points=[(10, 0), (12, 5), (14, 9)])

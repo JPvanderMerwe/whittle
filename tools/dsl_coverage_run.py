@@ -28,11 +28,11 @@ import time
 import traceback
 from pathlib import Path
 
-from bpcad import api
-from bpcad.agent.loop import ask_level_2
-from bpcad.build.helpers import probe
-from bpcad.models.selector import load_profile
-from bpcad.spec.dsl import run_ops
+from whittle import api
+from whittle.agent.loop import ask_level_2
+from whittle.build.helpers import probe
+from whittle.models.selector import load_profile
+from whittle.spec.dsl import run_ops
 
 # Ordinary things somebody would ask a 3D printer for. None of them matches a
 # template, so every one of them has to come out of the primitive layer.

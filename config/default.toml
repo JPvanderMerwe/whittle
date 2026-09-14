@@ -1,11 +1,11 @@
-# bpcad default configuration
+# whittle default configuration
 # ---------------------------
 # Every value here is either MEASURED, taken from the brief, or marked "UNSET".
-# Nothing is estimated. A value marked "UNSET" has no source yet, and bpcad
+# Nothing is estimated. A value marked "UNSET" has no source yet, and whittle
 # refuses to use it rather than substituting a plausible-looking number - a
 # wrong tolerance is worse than no tolerance.
 #
-# Run `bpcad config show` to see the resolved values and everything still unset.
+# Run `whittle config show` to see the resolved values and everything still unset.
 
 
 [print]
@@ -121,7 +121,7 @@ allowed_model_hosts = []
 # RECONSTRUCTION: A PHOTOGRAPH TO A MESH
 # ---------------------------------------------------------------------------
 # backend  null or triposr. NULL BY DEFAULT, and that is not timidity: a
-#          reconstructor is about 2.5 GB of torch and weights, and bpcad has to
+#          reconstructor is about 2.5 GB of torch and weights, and whittle has to
 #          install and run on a machine that has neither. Every part in parts/
 #          still rebuilds from its spec.yaml with this off.
 #
@@ -137,7 +137,7 @@ allowed_model_hosts = []
 # WHAT A RECONSTRUCTION IS NOT. It has no scale: a photograph of a bracket and
 # a photograph of a bridge are the same pixels, so one real dimension has to
 # come from the person holding the object. It is also not printable until
-# bpcad's own verify pass has said so - neural meshes are routinely
+# whittle's own verify pass has said so - neural meshes are routinely
 # non-manifold. Both facts are carried in the result rather than left to a UI
 # to remember.
 [reconstruct]

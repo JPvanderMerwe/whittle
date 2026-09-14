@@ -43,7 +43,7 @@ class DraftView extends StatefulWidget {
     this.health,
   });
 
-  final BpcadApi api;
+  final WhittleApi api;
   final String name;
   final Draft draft;
   final Health? health;
@@ -151,7 +151,7 @@ class _DraftViewState extends State<DraftView> {
                     fontFamily: BpType.mono,
                     fontSize: BpType.reading,
                     height: 1.35,
-                    color: BpcadColors.ink)),
+                    color: WhittleColors.ink)),
           ],
         ),
       );
@@ -202,7 +202,7 @@ class _DraftViewState extends State<DraftView> {
                 fontFamily: BpType.mono,
                 fontSize: BpType.micro,
                 letterSpacing: .06,
-                color: BpcadColors.inkDim)),
+                color: WhittleColors.inkDim)),
         const SizedBox(height: BpSpace.snug),
         GlassSurface(
           depth: GlassDepth.panel,
@@ -212,7 +212,7 @@ class _DraftViewState extends State<DraftView> {
                   fontFamily: BpType.mono,
                   fontSize: 11.5,
                   height: 1.6,
-                  color: BpcadColors.ink)),
+                  color: WhittleColors.ink)),
         ),
       ],
     );
@@ -232,7 +232,7 @@ class _DraftViewState extends State<DraftView> {
                   fontFamily: BpType.mono,
                   fontSize: BpType.micro,
                   letterSpacing: .06,
-                  color: BpcadColors.inkDim)),
+                  color: WhittleColors.inkDim)),
           const SizedBox(height: BpSpace.snug),
           const Text(
               'The closest attempt is written out with every problem marked '
@@ -242,7 +242,7 @@ class _DraftViewState extends State<DraftView> {
                   fontFamily: BpType.prose,
                   fontSize: BpType.micro,
                   height: 1.55,
-                  color: BpcadColors.inkFaint)),
+                  color: WhittleColors.inkFaint)),
           const SizedBox(height: BpSpace.snug),
           SelectableText(_draft.handoff,
               style: const TextStyle(
@@ -255,7 +255,7 @@ class _DraftViewState extends State<DraftView> {
             child: OutlinedButton(
               onPressed: _copyPath,
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: BpcadColors.edge),
+                side: const BorderSide(color: WhittleColors.edge),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(BpRadius.control)),
               ),
@@ -263,7 +263,7 @@ class _DraftViewState extends State<DraftView> {
                   style: TextStyle(
                       fontFamily: BpType.mono,
                       fontSize: BpType.label,
-                      color: _copied ? BpPen.pass : BpcadColors.ink)),
+                      color: _copied ? BpPen.pass : WhittleColors.ink)),
             ),
           ),
         ],
@@ -286,14 +286,14 @@ class _DraftViewState extends State<DraftView> {
                         fontFamily: BpType.mono,
                         fontSize: BpType.figure,
                         height: 1,
-                        color: BpcadColors.inkDim)),
+                        color: WhittleColors.inkDim)),
                 const SizedBox(width: BpSpace.snug),
                 const Text('the marked-up spec',
                     style: TextStyle(
                         fontFamily: BpType.mono,
                         fontSize: BpType.micro,
                         letterSpacing: .06,
-                        color: BpcadColors.inkDim)),
+                        color: WhittleColors.inkDim)),
               ]),
             ),
           ),
@@ -306,7 +306,7 @@ class _DraftViewState extends State<DraftView> {
                       fontFamily: BpType.mono,
                       fontSize: 10.5,
                       height: 1.6,
-                      color: BpcadColors.inkDim)),
+                      color: WhittleColors.inkDim)),
             ),
         ],
       );
@@ -322,7 +322,7 @@ class _DraftViewState extends State<DraftView> {
                   style: const TextStyle(
                       fontFamily: BpType.mono,
                       fontSize: BpType.label,
-                      color: BpcadColors.inkDim)),
+                      color: WhittleColors.inkDim)),
             ),
             Expanded(
               child: Text(value,
@@ -344,6 +344,6 @@ class _DraftViewState extends State<DraftView> {
                 fontFamily: BpType.prose,
                 fontSize: BpType.label,
                 height: 1.55,
-                color: BpcadColors.inkDim)),
+                color: WhittleColors.inkDim)),
       );
 }

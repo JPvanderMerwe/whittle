@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import pytest
 
-from bpcad.agent.command import VOCABULARY, parse
+from whittle.agent.command import VOCABULARY, parse
 
 
 # ---------------------------------------------------------------------------

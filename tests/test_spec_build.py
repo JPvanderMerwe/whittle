@@ -15,7 +15,7 @@ import cadquery as cq
 import pytest
 from pydantic import ValidationError
 
-from bpcad.build.compile import (
+from whittle.build.compile import (
     Level3NotAllowed,
     SpecError,
     check_export,
@@ -24,7 +24,7 @@ from bpcad.build.compile import (
     load_spec,
     validate_params,
 )
-from bpcad.build.helpers import (
+from whittle.build.helpers import (
     FILLET_MARGIN_MM,
     BuildLog,
     clip,
@@ -36,11 +36,11 @@ from bpcad.build.helpers import (
     safe_fillet_radius,
     try_edge_op,
 )
-from bpcad.spec import registry
-from bpcad.spec.dsl import DslError, run_ops
-from bpcad.spec.schema import PartSpec, format_validation_error
-from bpcad.verify.mesh import check_mesh
-from bpcad.verify.regression import signature_of
+from whittle.spec import registry
+from whittle.spec.dsl import DslError, run_ops
+from whittle.spec.schema import PartSpec, format_validation_error
+from whittle.verify.mesh import check_mesh
+from whittle.verify.regression import signature_of
 
 ROOT = Path(__file__).resolve().parent.parent
 REF_KEYRING = ROOT / "reference" / "loop_keyring.stl"
@@ -104,12 +104,12 @@ def test_building_touches_no_model(monkeypatch, tmp_path):
 
 def test_the_null_backend_is_never_constructed_during_a_build(tmp_path):
     """Nothing under build/ or spec/ may import the model layer at all."""
-    import bpcad.build.compile as compile_mod
-    import bpcad.spec.dsl as dsl_mod
+    import whittle.build.compile as compile_mod
+    import whittle.spec.dsl as dsl_mod
 
     for mod in (compile_mod, dsl_mod):
         source = Path(mod.__file__).read_text()
-        assert "bpcad.models" not in source
+        assert "whittle.models" not in source
 
 
 def test_export_is_verified_watertight(tmp_path):
@@ -168,7 +168,7 @@ def test_out_of_range_parameter_names_the_field_and_the_range():
 
 
 def test_face_detail_deeper_than_the_part_is_rejected():
-    from bpcad.build.templates.keyring_device import KeyringDeviceParams
+    from whittle.build.templates.keyring_device import KeyringDeviceParams
 
     with pytest.raises(ValidationError) as exc:
         KeyringDeviceParams(logo_on=False, depth_mm=1.2, recess_mm=0.6, glass_mm=0.6, cam_mm=0.5)
@@ -178,7 +178,7 @@ def test_face_detail_deeper_than_the_part_is_rejected():
 
 
 def test_logo_on_without_a_logo_file_is_rejected():
-    from bpcad.build.templates.keyring_device import KeyringDeviceParams
+    from whittle.build.templates.keyring_device import KeyringDeviceParams
 
     with pytest.raises(ValidationError) as exc:
         KeyringDeviceParams(logo_on=True, logo_json=None)
@@ -194,12 +194,12 @@ def test_missing_logo_file_names_the_command_that_makes_one(tmp_path):
     )
     with pytest.raises(SpecError) as exc:
         compile_spec(spec, base_dir=tmp_path)
-    assert "bpcad measure trace" in str(exc.value)
+    assert "whittle measure trace" in str(exc.value)
 
 
 def test_blades_wider_than_their_pitch_are_rejected():
     """A mechanism can be geometrically valid and functionally dead."""
-    from bpcad.build.templates.louvre_vent import LouvreVentParams
+    from whittle.build.templates.louvre_vent import LouvreVentParams
 
     with pytest.raises(ValidationError) as exc:
         LouvreVentParams(blade_chord_mm=20.0)
@@ -208,7 +208,7 @@ def test_blades_wider_than_their_pitch_are_rejected():
 
 
 def test_tie_bar_fouling_the_pivot_pins_is_rejected():
-    from bpcad.build.templates.louvre_vent import LouvreVentParams
+    from whittle.build.templates.louvre_vent import LouvreVentParams
 
     with pytest.raises(ValidationError) as exc:
         LouvreVentParams(crank_r_mm=2.0, blade_chord_mm=14.0)
@@ -216,7 +216,7 @@ def test_tie_bar_fouling_the_pivot_pins_is_rejected():
 
 
 def test_grip_tab_unreachable_at_full_travel_is_rejected():
-    from bpcad.build.templates.louvre_vent import LouvreVentParams
+    from whittle.build.templates.louvre_vent import LouvreVentParams
 
     with pytest.raises(ValidationError) as exc:
         LouvreVentParams(grip_len_mm=8.0)
@@ -456,7 +456,7 @@ def test_dsl_anchor_names_are_in_the_schema_not_just_the_error():
     A constrained decoder reads the schema. Legal names belong in it, not only
     in the message it sees after getting one wrong.
     """
-    from bpcad.spec.dsl import Pocket
+    from whittle.spec.dsl import Pocket
 
     schema = Pocket.model_json_schema()
     anchor = schema["properties"]["anchor"]
@@ -600,7 +600,7 @@ def test_the_keyring_builds_with_no_parameters_at_all():
     The exact request a model makes on a bare keyring prompt. Before logo_on
     defaulted to false this raised, costing an attempt every time.
     """
-    from bpcad.build.templates.keyring_device import KeyringDeviceParams
+    from whittle.build.templates.keyring_device import KeyringDeviceParams
 
     params = KeyringDeviceParams()
     assert params.logo_on is False
@@ -625,7 +625,7 @@ def test_the_vent_derives_a_workable_mechanism_for_any_frame(kw):
     Every one of these is a frame the baseline's prompts asked for, and every
     one used to fail on a fixed default somewhere in the cascade.
     """
-    from bpcad.build.templates.louvre_vent import LouvreVentParams
+    from whittle.build.templates.louvre_vent import LouvreVentParams
 
     p = LouvreVentParams(**kw)
     assert p.blade_chord_mm < p.pitch_mm, "blades would collide"
@@ -636,7 +636,7 @@ def test_the_vent_derives_a_workable_mechanism_for_any_frame(kw):
 
 def test_a_derived_vent_actually_builds():
     """Passing the validators is not the same as producing geometry."""
-    from bpcad.build.templates.louvre_vent import LouvreVentParams, build
+    from whittle.build.templates.louvre_vent import LouvreVentParams, build
 
     spec = PartSpec(name="v", level=1, material="petg", nozzle_mm=0.4,
                     layer_mm=0.2, template="louvre_vent")
@@ -650,7 +650,7 @@ def test_an_explicit_value_is_never_overridden():
     """
     Silently correcting what someone asked for would be worse than refusing it.
     """
-    from bpcad.build.templates.louvre_vent import LouvreVentParams
+    from whittle.build.templates.louvre_vent import LouvreVentParams
 
     p = LouvreVentParams(frame_w_mm=120.0, n_blades=3, blade_chord_mm=20.0,
                          crank_r_mm=6.0, grip_len_mm=20.0, grip_blade=0)
@@ -667,7 +667,7 @@ def test_too_many_blades_is_refused_with_the_number_that_fits():
     The cascade's real cause. Telling someone to "raise crank_r_mm" when eight
     blades simply will not fit sends them round the loop one more time.
     """
-    from bpcad.build.templates.louvre_vent import LouvreVentParams
+    from whittle.build.templates.louvre_vent import LouvreVentParams
     from pydantic import ValidationError
 
     with pytest.raises(ValidationError) as exc:
@@ -679,7 +679,7 @@ def test_too_many_blades_is_refused_with_the_number_that_fits():
 
 def test_the_grip_tab_goes_on_the_most_central_blade():
     """On the reference 4-blade frame that is index 2, as the reference uses."""
-    from bpcad.build.templates.louvre_vent import LouvreVentParams
+    from whittle.build.templates.louvre_vent import LouvreVentParams
 
     assert LouvreVentParams().grip_blade == 2
     assert LouvreVentParams(frame_w_mm=60.0, wall_mm=5.0).grip_blade == 1
@@ -693,7 +693,7 @@ def test_the_grip_tab_respects_both_its_floor_and_its_ceiling():
     """
     import math
 
-    from bpcad.build.templates.louvre_vent import LouvreVentParams
+    from whittle.build.templates.louvre_vent import LouvreVentParams
 
     for kw in ({}, {"frame_w_mm": 60.0, "wall_mm": 5.0}, {"frame_d_mm": 30.0}):
         p = LouvreVentParams(**kw)
@@ -709,7 +709,7 @@ def test_a_frame_too_narrow_for_its_depth_says_so():
     Genuinely infeasible, and the message has to name the real cause: shortening
     the tab would put it out of reach inside the mounting hole.
     """
-    from bpcad.build.templates.louvre_vent import LouvreVentParams
+    from whittle.build.templates.louvre_vent import LouvreVentParams
     from pydantic import ValidationError
 
     with pytest.raises(ValidationError) as exc:
@@ -731,10 +731,10 @@ def test_every_template_says_what_people_call_it():
 
 def test_the_words_reach_the_model(monkeypatch):
     """
-    They have to be in the CATALOGUE, not only in `bpcad spec explain`. They
+    They have to be in the CATALOGUE, not only in `whittle spec explain`. They
     were added to explain() first and the model never saw them.
     """
-    from bpcad.agent import prompts
+    from whittle.agent import prompts
 
     catalogue = prompts.template_catalogue()
     for word in ("container", "storage box", "plant pot", "vent", "keyring"):
@@ -804,8 +804,8 @@ def test_a_cut_that_stops_inside_the_part_is_corrected_not_refused(tmp_path):
     The numbers come off the solid that was just built, so they are measured
     rather than guessed, and the pipeline applies them itself.
     """
-    from bpcad import api
-    from bpcad.agent.loop import compile_and_verify
+    from whittle import api
+    from whittle.agent.loop import compile_and_verify
 
     spec_path = _plate_with_short_holes(tmp_path)
     spec, base = api.load_spec(spec_path)
@@ -820,7 +820,7 @@ def test_a_cut_that_stops_inside_the_part_is_corrected_not_refused(tmp_path):
         "blind pockets"
     )
 
-    # AND IT SAYS SO. bpcad does not change a dimension without showing it.
+    # AND IT SAYS SO. whittle does not change a dimension without showing it.
     repaired = [n for n in result.log.notes if n.startswith("repaired op")]
     assert len(repaired) == 2, result.log.notes
     assert "height_mm 5 -> 10.0" in repaired[0]
@@ -834,8 +834,8 @@ def test_the_repaired_spec_is_the_one_that_gets_stored(tmp_path):
     rebuild the stored mesh is the worst possible thing to leave on disk, so
     the correction is written into the spec that the caller goes on to save.
     """
-    from bpcad import api
-    from bpcad.agent.loop import compile_and_verify
+    from whittle import api
+    from whittle.agent.loop import compile_and_verify
 
     spec, base = api.load_spec(_plate_with_short_holes(tmp_path))
     compile_and_verify(spec, api.config(), base, tmp_path / "out",
@@ -850,13 +850,13 @@ def test_the_repaired_spec_is_the_one_that_gets_stored(tmp_path):
 
 def test_a_hand_written_spec_is_never_quietly_corrected(tmp_path):
     """
-    strict_cuts is off for `bpcad build`, and this is why: a person's own spec
+    strict_cuts is off for `whittle build`, and this is why: a person's own spec
     is theirs. A cut that removes nothing there earns a note in the report,
     which is the right severity - killing the build would lose the part, and
     silently changing their numbers would be worse than either.
     """
-    from bpcad import api
-    from bpcad.agent.loop import compile_and_verify
+    from whittle import api
+    from whittle.agent.loop import compile_and_verify
 
     spec, base = api.load_spec(_plate_with_short_holes(tmp_path))
     result, report, stl = compile_and_verify(
@@ -870,7 +870,7 @@ def test_a_hand_written_spec_is_never_quietly_corrected(tmp_path):
         "the author's own numbers were changed"
     )
     # The fault is still REPORTED, because it is still true.
-    from bpcad.spec.dsl import CUT_FAULT
+    from whittle.spec.dsl import CUT_FAULT
     assert any(CUT_FAULT in n for n in result.log.notes), result.log.notes
 
 
@@ -881,8 +881,8 @@ def test_a_cut_that_misses_the_part_entirely_is_still_refused(tmp_path):
     somewhere else, and the pipeline guessing where would be inventing intent
     rather than measuring it.
     """
-    from bpcad import api
-    from bpcad.agent.loop import compile_and_verify, SpecRejected
+    from whittle import api
+    from whittle.agent.loop import compile_and_verify, SpecRejected
 
     import yaml
     spec_data = yaml.safe_load(_plate_with_short_holes(tmp_path).read_text())
@@ -906,8 +906,8 @@ def test_a_cut_that_misses_the_part_entirely_is_still_refused(tmp_path):
 
 
 def _mesh(ops, print_axis="z"):
-    from bpcad.spec.dsl import run_ops
-    from bpcad.verify.fit import mesh_of_solid
+    from whittle.spec.dsl import run_ops
+    from whittle.verify.fit import mesh_of_solid
     return mesh_of_solid(run_ops(ops, print_axis=print_axis).solid)
 
 
@@ -937,7 +937,7 @@ def test_a_loft_tapers_and_bends_and_is_watertight():
 
 
 def test_two_sections_at_the_same_station_say_so():
-    from bpcad.spec.dsl import DslError, run_ops
+    from whittle.spec.dsl import DslError, run_ops
 
     with pytest.raises(DslError) as caught:
         run_ops([{"op": "loft", "sections": [
@@ -957,8 +957,8 @@ def test_a_free_joint_leaves_two_bodies_with_the_measured_gap():
     Two bodies is the whole test. One body means it printed as a solid lump.
     """
     import cadquery as cq
-    from bpcad.spec.dsl import run_ops
-    from bpcad.verify.fit import solid_gap_mm
+    from whittle.spec.dsl import run_ops
+    from whittle.verify.fit import solid_gap_mm
 
     clearance = 0.30
     scene = run_ops([
@@ -987,7 +987,7 @@ def test_a_stem_as_fat_as_its_ball_is_refused():
     No shoulder means the joint pulls straight out, which is a toy that falls
     apart in your hand rather than a mechanism.
     """
-    from bpcad.spec.dsl import DslError, run_ops
+    from whittle.spec.dsl import DslError, run_ops
 
     with pytest.raises(DslError) as caught:
         run_ops([
@@ -1039,7 +1039,7 @@ def test_thousands_of_dead_facets_are_still_a_reported_fault():
     import numpy as np
     import trimesh
 
-    from bpcad.verify.mesh import report_for
+    from whittle.verify.mesh import report_for
 
     # A cube, plus a thousand facets with no area at all.
     box = trimesh.creation.box((10, 10, 10))
@@ -1060,8 +1060,8 @@ def test_a_point_written_as_an_object_is_accepted():
     threw it away over spelling. The shape it described comes out 120 mm
     across, which is the dimension the request asked for.
     """
-    from bpcad.spec.dsl import run_ops
-    from bpcad.verify.fit import mesh_of_solid
+    from whittle.spec.dsl import run_ops
+    from whittle.verify.fit import mesh_of_solid
 
     as_objects = mesh_of_solid(run_ops([{
         "op": "profile_extrude", "height_mm": 6,
@@ -1086,7 +1086,7 @@ def test_something_that_is_not_a_point_is_still_refused():
     schema's own message, because guessing what a malformed point meant is
     inventing geometry.
     """
-    from bpcad.spec.dsl import DslError, parse_op
+    from whittle.spec.dsl import DslError, parse_op
 
     with pytest.raises(DslError) as caught:
         parse_op({"op": "profile_extrude", "height_mm": 6,
@@ -1109,8 +1109,8 @@ def test_an_articulated_chain_is_the_length_it_was_asked_for():
     """
     import cadquery as cq
 
-    from bpcad.spec.dsl import run_ops
-    from bpcad.verify.fit import mesh_of_solid, solid_gap_mm
+    from whittle.spec.dsl import run_ops
+    from whittle.verify.fit import mesh_of_solid, solid_gap_mm
 
     clearance = 0.30
     scene = run_ops([{
@@ -1158,8 +1158,8 @@ def test_a_chain_is_right_at_every_density(count, length):
     """
     import cadquery as cq
 
-    from bpcad.spec.dsl import run_ops
-    from bpcad.verify.fit import mesh_of_solid, solid_gap_mm
+    from whittle.spec.dsl import run_ops
+    from whittle.verify.fit import mesh_of_solid, solid_gap_mm
 
     clearance = 0.3
     scene = run_ops([{
@@ -1191,7 +1191,7 @@ def test_a_chain_too_dense_to_print_is_refused_rather_than_shipped():
     At some density the ball is thinner than a couple of extrusions and snaps
     the first time the thing is flexed. Saying so beats shipping it.
     """
-    from bpcad.spec.dsl import DslError, run_ops
+    from whittle.spec.dsl import DslError, run_ops
 
     with pytest.raises(DslError) as caught:
         run_ops([{"op": "articulated_chain", "count": 5, "length_mm": 60,
@@ -1201,7 +1201,7 @@ def test_a_chain_too_dense_to_print_is_refused_rather_than_shipped():
 
 
 def test_a_chain_that_gets_wider_says_which_end_is_which():
-    from bpcad.spec.dsl import DslError, run_ops
+    from whittle.spec.dsl import DslError, run_ops
 
     with pytest.raises(DslError) as caught:
         run_ops([{"op": "articulated_chain", "count": 4, "length_mm": 100,
@@ -1222,8 +1222,8 @@ def test_a_revolve_is_dimensionally_exact():
     template, so you could have a turned shape only if the router decided your
     request was a vessel, and only on its own.
     """
-    from bpcad.spec.dsl import run_ops
-    from bpcad.verify.fit import mesh_of_solid
+    from whittle.spec.dsl import run_ops
+    from whittle.verify.fit import mesh_of_solid
 
     # A plain cylinder, which has an analytic volume to check against.
     mesh = _mesh([{"op": "revolve", "points": [[10, 0], [10, 25]]}])
@@ -1271,7 +1271,7 @@ def test_a_revolve_cut_hollows_a_turned_shape():
 
 
 def test_a_flat_or_negative_profile_says_which():
-    from bpcad.spec.dsl import DslError, run_ops
+    from whittle.spec.dsl import DslError, run_ops
 
     with pytest.raises(DslError) as flat:
         run_ops([{"op": "revolve", "points": [[10, 5], [20, 5]]}])

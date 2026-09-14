@@ -4,7 +4,7 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 # LEADING SLASH. Written as `build/` this matches a directory called build at
-# ANY depth, which meant bpcad/build/ - the compiler, the helpers and every
+# ANY depth, which meant whittle/build/ - the compiler, the helpers and every
 # template, 3104 lines and the entire geometry engine - was silently untracked
 # for the whole life of the repo. Three commits shipped a package that could
 # not build anything. Anchor it to the top level.
@@ -27,7 +27,7 @@ parts/*/*/out/
 # both in the repo would only create doubt about which one is canonical.
 files/
 
-# `bpcad render` writes here when it is run from the repo root - it defaults to
+# `whittle render` writes here when it is run from the repo root - it defaults to
 # ./out relative to the working directory, not to the part's own folder. Every
 # other generated mesh is already ignored under parts/; this one was not, and
 # sat staged waiting to be committed by accident.
@@ -39,15 +39,15 @@ files/
 # uploaded phone photo would put a stranger's picture in the repository.
 /library/
 
-# Generated brand assets. bpcad_media/build/ is 46 files derived from
+# Generated brand assets. whittle_media/build/ is 46 files derived from
 # icon-master.svg by build_brand.py, and a derived file in version control is
 # a file that will disagree with its source. The SOURCE is tracked; run
-# `python bpcad_media/build_brand.py` to make the rest.
+# `python whittle_media/build_brand.py` to make the rest.
 #
 # The exception is what the clients actually ship, which IS tracked:
-# bpcad/web/static/icons/, the iOS asset catalogue and the Android mipmaps.
+# whittle/web/static/icons/, the iOS asset catalogue and the Android mipmaps.
 # Those are inputs to a build, not outputs of one.
-/bpcad_media/build/
+/whittle_media/build/
 
 # Editors and OS
 .vscode/

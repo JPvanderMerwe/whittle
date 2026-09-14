@@ -15,9 +15,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:bpcad_app/glass.dart';
-import 'package:bpcad_app/theme.dart';
-import 'package:bpcad_app/tokens.dart';
+import 'package:whittle_app/glass.dart';
+import 'package:whittle_app/theme.dart';
+import 'package:whittle_app/tokens.dart';
 
 /// Wraps a surface in the minimum tree it needs, with control over the
 /// accessibility flags the primitive reads.
@@ -91,7 +91,7 @@ void main() {
     ));
 
     final decoration = decorationOf(tester);
-    expect(decoration.color, BpcadColors.bezel);
+    expect(decoration.color, WhittleColors.bezel);
     expect(decoration.color!.a, 1.0, reason: 'the flat fill must be opaque');
     expect(find.byType(BackdropFilter), findsNothing,
         reason: 'blur: false still built a BackdropFilter');
@@ -107,7 +107,7 @@ void main() {
       highContrast: true,
     ));
 
-    expect(decorationOf(tester).color, BpcadColors.bezel);
+    expect(decorationOf(tester).color, WhittleColors.bezel);
     expect(find.byType(BackdropFilter), findsNothing);
   });
 
@@ -160,6 +160,6 @@ void main() {
 
     expect(find.byType(DecoratedBox), findsNothing);
     expect(tester.widget<ColoredBox>(find.byType(ColoredBox)).color,
-        BpcadColors.bed);
+        WhittleColors.bed);
   });
 }

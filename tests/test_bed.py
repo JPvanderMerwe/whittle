@@ -10,8 +10,8 @@ the building.
 
 import pytest
 
-from bpcad import api
-from bpcad.verify.bed import check_bed
+from whittle import api
+from whittle.verify.bed import check_bed
 
 BED = (220.0, 220.0, 250.0)
 

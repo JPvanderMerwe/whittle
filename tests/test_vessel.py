@@ -14,9 +14,9 @@ import math
 
 import pytest
 
-from bpcad.build.helpers import BuildLog, probe
-from bpcad.build.templates.vessel import VesselParams, build_core
-from bpcad.spec import registry
+from whittle.build.helpers import BuildLog, probe
+from whittle.build.templates.vessel import VesselParams, build_core
+from whittle.spec import registry
 
 PROFILES = ("flared", "straight", "belly", "cylinder")
 
@@ -111,7 +111,7 @@ def test_a_bowl_is_wider_than_it_is_tall_and_a_vase_is_not():
 def test_the_belly_profile_actually_has_a_belly():
     """Otherwise it is a cylinder wearing a different name."""
     p = VesselParams(profile="belly", outer_dia_mm=110, height_mm=180)
-    from bpcad.build.templates.vessel import _outer_profile
+    from whittle.build.templates.vessel import _outer_profile
 
     radii = [r for r, _z in _outer_profile(p)]
     assert max(radii) > radii[0] * 1.05, "no bulge"
@@ -143,7 +143,7 @@ def test_a_bowl_too_flared_to_print_is_refused():
 
 
 def test_the_default_bowl_is_printable_without_support():
-    from bpcad.build.templates.vessel import MAX_LEAN_DEG
+    from whittle.build.templates.vessel import MAX_LEAN_DEG
 
     assert VesselParams().worst_lean_deg() <= MAX_LEAN_DEG
 
@@ -202,7 +202,7 @@ def test_the_belly_waist_reaches_the_stated_diameter():
 
 def test_the_bezier_control_point_puts_the_peak_where_it_was_asked():
     """Exact, not iterated - so this is an equality assertion, not a band."""
-    from bpcad.build.templates.vessel import _bezier_control_for_peak
+    from whittle.build.templates.vessel import _bezier_control_for_peak
 
     for base_r, rim_r, peak_r in ((34.8, 43.2, 60.0), (20.0, 30.0, 45.0),
                                   (5.0, 5.0, 25.0)):
@@ -219,7 +219,7 @@ def test_an_unreachable_peak_falls_back_rather_than_raising():
     A waist narrower than one of the ends has no maximum between them. The
     plain control point is the honest answer there, not an exception.
     """
-    from bpcad.build.templates.vessel import _bezier_control_for_peak
+    from whittle.build.templates.vessel import _bezier_control_for_peak
 
     assert _bezier_control_for_peak(60.0, 50.0, 40.0) == 40.0
 

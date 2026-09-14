@@ -1,0 +1,205 @@
+{
+  "attempts": [
+    {
+      "call": {
+        "gen_tokens": 151,
+        "load_s": 2.939,
+        "mechanism": "schema",
+        "prompt_tokens": 3799,
+        "tokens_per_s": 0.69
+      },
+      "elapsed_s": 223.259,
+      "error": "",
+      "index": 1,
+      "level": 1,
+      "model": "qwen2.5-coder:7b",
+      "ok": true,
+      "step": "primary"
+    }
+  ],
+  "budget": {
+    "attempts_per_level": 2,
+    "max_seconds": null
+  },
+  "elapsed_s": 223.28,
+  "handoff": null,
+  "level_reached": 1,
+  "machine": "laptop",
+  "ok": true,
+  "profile": {
+    "host": "http://127.0.0.1:11434",
+    "max_attempts_per_level": 2,
+    "model_primary": "qwen2.5-coder:7b",
+    "model_small": "hermes3:latest",
+    "name": "laptop",
+    "num_ctx": 8192,
+    "timeout_s": 420.0
+  },
+  "report": {
+    "features": {
+      "checks": [
+        {
+          "name": "gusset thickness",
+          "status": "PASS",
+          "threshold_mm": 0.4,
+          "value_mm": 4.0
+        },
+        {
+          "name": "corner fillet",
+          "status": "PASS",
+          "threshold_mm": 0.4,
+          "value_mm": 5.0
+        },
+        {
+          "name": "plate thickness",
+          "status": "PASS",
+          "threshold_mm": 0.4,
+          "value_mm": 6.0
+        },
+        {
+          "name": "hole edge margin",
+          "status": "PASS",
+          "threshold_mm": 0.4,
+          "value_mm": 7.699999999999999
+        }
+      ],
+      "nozzle_mm": 0.4,
+      "threshold_mm": 0.4
+    },
+    "material": "pla",
+    "mesh": {
+      "bbox_min_mm": [
+        0.0,
+        -15.0,
+        0.0
+      ],
+      "bbox_mm": [
+        150.0,
+        30.0,
+        80.0
+      ],
+      "body_count": 1,
+      "body_sizes": [],
+      "degenerate_faces": 0,
+      "face_count": 5118,
+      "is_volume": true,
+      "path": "/tmp/whittle-api-yzicm48i/out/wall_bracket.stl",
+      "problems": [],
+      "vertex_count": 2551,
+      "volume_cm3": 50.32349819285758,
+      "warnings": [],
+      "watertight": true,
+      "winding_consistent": true
+    },
+    "notes": [
+      "inside corner filleted 5.0 mm - a sharp internal corner is a stress raiser and where a printed bracket cracks",
+      "prints standing on its back edge so the layers run ACROSS the bending load - printed flat this part is roughly a third as strong"
+    ],
+    "nozzle_mm": 0.4,
+    "ok": true,
+    "overhang": {
+      "bed_area_mm2": 4365.854278756857,
+      "bridged_area_mm2": 68.44016384496014,
+      "downward_area_mm2": 278.21215981451326,
+      "max_bridge_gap_mm": 0.5,
+      "max_deg": 45.0,
+      "max_drop_mm": 8.0,
+      "overhang_area_mm2": 122.6818288750187,
+      "overhang_face_count": 380,
+      "overhang_fraction": 0.005667064073706192,
+      "print_axis": "z",
+      "problems": [
+        "258 faces totalling 54.24 mm2 overhang past 45 degrees and fall more than 0.50 mm (worst drop 8.00 mm) - this part needs support as oriented, unless those undersides are bridges anchored both sides, which this check cannot tell apart"
+      ],
+      "supports_needed": true,
+      "total_area_mm2": 21648.21630378819,
+      "unsupported_area_mm2": 54.241665030058556,
+      "unsupported_face_count": 258,
+      "unsupported_fraction": 0.0025055951154999722,
+      "worst_overhang_deg": 90.0
+    },
+    "path": "/tmp/whittle-api-yzicm48i/out/wall_bracket.stl",
+    "print_axis": "z",
+    "problems": [],
+    "surface_levels": [
+      {
+        "area_mm2": 90.0,
+        "height_mm": 80.0
+      },
+      {
+        "area_mm2": 1.1220656259777515,
+        "height_mm": 79.99984486897786
+      },
+      {
+        "area_mm2": 1.1220656259777515,
+        "height_mm": 79.99968973795573
+      },
+      {
+        "area_mm2": 0.5485178042025325,
+        "height_mm": 40.250563303629555
+      },
+      {
+        "area_mm2": 0.542879356510509,
+        "height_mm": 40.25027847290038
+      },
+      {
+        "area_mm2": 1.620563548363584,
+        "height_mm": 6.001036008199056
+      },
+      {
+        "area_mm2": 1.620563548363584,
+        "height_mm": 6.000518004099527
+      },
+      {
+        "area_mm2": 0.07494939364058002,
+        "height_mm": 6.000312169392903
+      },
+      {
+        "area_mm2": 0.07494939364058002,
+        "height_mm": 6.000156084696452
+      },
+      {
+        "area_mm2": 3712.7023089251616,
+        "height_mm": 6.0
+      },
+      {
+        "area_mm2": 0.5609847151598943,
+        "height_mm": 5.999844551086426
+      },
+      {
+        "area_mm2": 0.5609847151598943,
+        "height_mm": 5.999689102172852
+      }
+    ],
+    "verdict": "PASS, with warnings",
+    "warnings": [
+      "258 faces totalling 54.24 mm2 overhang past 45 degrees and fall more than 0.50 mm (worst drop 8.00 mm) - this part needs support as oriented, unless those undersides are bridges anchored both sides, which this check cannot tell apart"
+    ]
+  },
+  "request": "A wall bracket for an iPhone",
+  "spec": {
+    "assumptions": [],
+    "layer_mm": 0.2,
+    "level": 1,
+    "material": "pla",
+    "name": "wall_bracket",
+    "nozzle_mm": 0.4,
+    "ops": [],
+    "params": {
+      "corner_r_mm": 5,
+      "gusset": true,
+      "gusset_thickness_mm": 4,
+      "hole_dia_mm": 5.5,
+      "shelf_holes": 1,
+      "shelf_length_mm": 80,
+      "thickness_mm": 6,
+      "wall_holes": 2,
+      "wall_length_mm": 150,
+      "width_mm": 30
+    },
+    "print_axis": "z",
+    "scale_departures": [],
+    "template": "bracket"
+  },
+  "started_at": "2026-09-08T06:12:06.272440+00:00"
+}

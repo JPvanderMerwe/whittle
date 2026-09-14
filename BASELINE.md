@@ -7,7 +7,7 @@ first measurement in `baseline/results-before-fix.jsonl`, prompts in
 
     machine   laptop - Intel Core Ultra 7 258V, 32 GB, 100% CPU inference
     models    qwen2.5-coder:7b primary, hermes3:latest small
-    command   bpcad gen "<prompt>" --no-render
+    command   whittle gen "<prompt>" --no-render
 
 ## Result
 
@@ -64,7 +64,7 @@ were testing different programs. The harness now fingerprints the source and
 records it on every row.
 
 **One after-run reported 73066 seconds.** The machine suspended overnight and
-`time.time()` counted the sleep. bpcad's own `run.json` times with
+`time.time()` counted the sleep. whittle's own `run.json` times with
 `time.monotonic()`, which excludes suspend, and gives 100.1 seconds for that
 run - 1 attempt, valid part. The analysis prefers the in-process timing and
 prints the discrepancy rather than quietly substituting it.

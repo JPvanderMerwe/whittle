@@ -11,7 +11,7 @@
 // So these pin the two rules that keep it honest. A verdict always arrives
 // with its provenance, and a genuinely unknown one stays unknown.
 
-import 'package:bpcad_app/api.dart';
+import 'package:whittle_app/api.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Map<String, dynamic> _stored({

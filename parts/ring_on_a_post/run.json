@@ -64,7 +64,7 @@
       "degenerate_faces": 0,
       "face_count": 4044,
       "is_volume": true,
-      "path": "/tmp/bpcad-gen-e2j046sk/out/ring_on_a_post.stl",
+      "path": "/tmp/whittle-gen-e2j046sk/out/ring_on_a_post.stl",
       "problems": [],
       "vertex_count": 2024,
       "volume_cm3": 9.289050491541913,
@@ -94,7 +94,7 @@
       "unsupported_fraction": 0.0,
       "worst_overhang_deg": 90.0
     },
-    "path": "/tmp/bpcad-gen-e2j046sk/out/ring_on_a_post.stl",
+    "path": "/tmp/whittle-gen-e2j046sk/out/ring_on_a_post.stl",
     "print_axis": "z",
     "problems": [],
     "surface_levels": [

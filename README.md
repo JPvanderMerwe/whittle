@@ -1,8 +1,19 @@
-# bpcad
+# whittle
 
-A fully local, fully offline text-and-image-to-3D-printable-part pipeline for
-Bit Primitive. Input is a natural-language prompt, optionally plus a reference
-photo. Output is a verified, printable STL/STEP bundle plus a report.
+A fully local, fully offline 3D-printing workshop for Bit Primitive, with two
+ways in and one set of guarantees.
+
+**Describe a part.** Input is a natural-language prompt, optionally plus a
+reference photo. Output is a verified, printable STL/STEP bundle plus a report.
+
+**Or bring one in.** An STL, OBJ, PLY or glTF off Printables, Thingiverse or
+Meshy is read, repaired, measured and put behind an ordered stack of
+parameterised operations - hollow, cut to fit the bed, thicken thin walls -
+every one of them a slider rather than a baked result. Whittle makes somebody
+else's mesh editable.
+
+Both paths end in the same place: the printability gate runs on the geometry,
+and nothing claims to print until it has passed.
 
 ## The one architectural decision
 
@@ -17,13 +28,13 @@ rejects it before any geometry exists.
 Two pipelines, two answers, and the difference matters.
 
 **Description to parametric part** is local. Ollama on local hardware or it
-does not happen, enforced in `bpcad/models/base.py`: every backend asserts its
+does not happen, enforced in `whittle/models/base.py`: every backend asserts its
 host is loopback at construction and raises `NonLocalEndpointError` otherwise.
 A non-loopback host has to be named in `allowed_model_hosts` in config - never
 reached by silent fallback.
 
 **Photo to mesh** is a neural reconstruction and is opt-in, off by default.
-`[reconstruct] backend = "null"` ships as the default, so bpcad installs and
+`[reconstruct] backend = "null"` ships as the default, so whittle installs and
 runs with no torch, no model weights and no network. Turning it on is a
 config change plus `pip install -e ".[reconstruct]"`.
 
@@ -38,12 +49,12 @@ never be a mystery.
 writes one. Everything downstream of the spec is deterministic Python, so all
 of this works with no model loaded at all:
 
-    bpcad build parts/vent/spec.yaml
-    bpcad verify out/vent.stl
-    bpcad render out/vent.stl --heightmap
-    bpcad measure trace logo.png
+    whittle build parts/vent/spec.yaml
+    whittle verify out/vent.stl
+    whittle render out/vent.stl --heightmap
+    whittle measure trace logo.png
 
-With a local model running, `bpcad gen "..."` does the whole thing at once -
+With a local model running, `whittle gen "..."` does the whole thing at once -
 but it is a convenience layer over the commands above, never a dependency.
 
 ## The library
@@ -65,19 +76,19 @@ opens a socket.
 
 A desktop app:
 
-    bpcad-gui
+    whittle-gui
 
 a command line:
 
-    bpcad build parts/vent/spec.yaml
+    whittle build parts/vent/spec.yaml
 
 and a phone, over the same HTTP API the web app uses:
 
     cd mobile && flutter run
 
-All three sit on `bpcad.api`, which is also the way to drive it from a script:
+All three sit on `whittle.api`, which is also the way to drive it from a script:
 
-    from bpcad import api
+    from whittle import api
 
     part = api.build("parts/vent/spec.yaml")
     print(part.volume_cm3, part.report.verdict)
@@ -88,8 +99,8 @@ about what a part is.
 
 ## Install
 
-    conda create -n bpcad python=3.12
-    conda activate bpcad
+    conda create -n whittle python=3.12
+    conda activate whittle
     pip install -e ".[dev,gui]"
 
 On a Wayland desktop the app moves itself onto XWayland at start-up, because
@@ -138,20 +149,20 @@ Since then:
   move.
 - **STL import with spec recovery**, and size variants of anything that has
   ops rather than named parameters.
-- **A photo-to-mesh seam** (`bpcad/reconstruct/`) with the scale problem
+- **A photo-to-mesh seam** (`whittle/reconstruct/`) with the scale problem
   treated as first class: no photograph carries absolute size, so a
   reconstruction stays dimensionless until one real measurement is supplied.
 
 ### Two clients, one API
 
-- **Web app** at `bpcad web`, installable, phone-first.
+- **Web app** at `whittle web`, installable, phone-first.
 - **Native app** in `mobile/`, Flutter, Android and iOS from one codebase.
 
 Neither contains geometry logic - CadQuery is Python and runs server-side
 only. `tests/test_cli.py` and `tests/test_gui.py` both fail if a front end
-reaches past `bpcad.api` into the pipeline.
+reaches past `whittle.api` into the pipeline.
 
-### One 3D viewer, served by bpcad
+### One 3D viewer, served by whittle
 
 Both clients turn a part in the same page: `/static/viewer.html`, which the
 browser loads in an iframe and the phone loads in a WebView. The mesh is a
@@ -194,11 +205,11 @@ not the other.
 
 ### Brand assets
 
-`bpcad_media/build_brand.py` generates 46 assets from one SVG: the icon at
+`whittle_media/build_brand.py` generates 46 assets from one SVG: the icon at
 every size both stores want, adaptive and monochrome Android layers, splash
 images, the wordmark and the social card.
 
-    python bpcad_media/build_brand.py
+    python whittle_media/build_brand.py
 
 The generated tree is not tracked - a derived file in version control is a
 file that will disagree with its source. What the clients ship is tracked,

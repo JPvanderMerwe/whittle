@@ -1,4 +1,4 @@
-# bpcad_app
+# whittle_app
 
 A new Flutter project.
 

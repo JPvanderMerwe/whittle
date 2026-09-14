@@ -1,4 +1,4 @@
-// The 3D viewer: bpcad's own page, in a WebView, on the phone's own GPU.
+// The 3D viewer: whittle's own page, in a WebView, on the phone's own GPU.
 //
 // WHY A PLAIN WEBVIEW AND NOT A 3D PACKAGE.
 //
@@ -10,7 +10,7 @@
 // and no exception in Dart. Three moving parts nobody controls and a network
 // dependency, to show a file the server was already holding.
 //
-// So the page is bpcad's: /static/viewer.html, with model-viewer vendored
+// So the page is whittle's: /static/viewer.html, with model-viewer vendored
 // beside it. That removes the proxy, the ephemeral port and the CDN, and the
 // web client loads the identical page - which is the only way two clients
 // show a part the same way rather than nearly the same way.
@@ -28,7 +28,7 @@ import 'tokens.dart';
 class ViewerScreen extends StatefulWidget {
   const ViewerScreen({super.key, required this.api, required this.name});
 
-  final BpcadApi api;
+  final WhittleApi api;
   final String name;
 
   @override
@@ -91,7 +91,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
               child: Center(
                 child: Text('drag · pinch',
                     style: TextStyle(
-                        fontSize: 11.5, color: BpcadColors.inkFaint)),
+                        fontSize: 11.5, color: WhittleColors.inkFaint)),
               ),
             ),
         ],
@@ -108,12 +108,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(
-                        strokeWidth: 1.5, color: BpcadColors.inkFaint),
+                        strokeWidth: 1.5, color: WhittleColors.inkFaint),
                   ),
                   SizedBox(height: 12),
                   Text('opening the viewer',
                       style: TextStyle(
-                          fontSize: 12.5, color: BpcadColors.inkFaint)),
+                          fontSize: 12.5, color: WhittleColors.inkFaint)),
                 ],
               ),
             ),
@@ -133,15 +133,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
             const SizedBox(height: 10),
             Text(why,
                 style: const TextStyle(
-                    fontSize: 13, color: BpcadColors.inkDim, height: 1.45)),
+                    fontSize: 13, color: WhittleColors.inkDim, height: 1.45)),
             const SizedBox(height: 12),
             const Text(
               'The mesh and the viewer both come from the computer running '
-              'bpcad. The turntable on the previous screen works from cached '
+              'whittle. The turntable on the previous screen works from cached '
               'images, so it is worth going back to check whether this is the '
               'connection or the part.',
               style: TextStyle(
-                  fontSize: 12.5, color: BpcadColors.inkFaint, height: 1.5),
+                  fontSize: 12.5, color: WhittleColors.inkFaint, height: 1.5),
             ),
           ],
         ),

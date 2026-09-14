@@ -1,0 +1,798 @@
+"""
+Prompt construction.
+
+WHAT THE MODEL IS ASKED TO DO, AND WHAT IT IS NOT
+--------------------------------------------------
+It is asked to fill in a form. It is never asked to write CAD code, choose a
+CadQuery selector, or reason about geometry. Structured extraction into a schema
+is something an 8B model does reliably; the rest is not, and the architecture is
+built so it never has to.
+
+The template catalogue goes into the prompt WITH its parameter schema, because a
+model that cannot see the legal parameter names invents plausible ones, and a
+model that cannot see the bounds picks round numbers that fail validation.
+"""
+
+from __future__ import annotations
+
+import json
+from typing import Any
+
+NO_TEMPLATE = "none_of_these_fit"
+
+SYSTEM = """You fill in a part specification for a 3D printing pipeline.
+
+You do NOT write CAD code. You choose a template and fill in its parameters.
+Deterministic Python turns your specification into geometry.
+
+Rules:
+- Reply with JSON only. No prose, no explanation, no markdown fences.
+- `template` MUST be one of the template names listed. Never invent one, and
+  never put a material or a description there.
+- If NONE of the templates makes the part that was asked for, answer
+  "none_of_these_fit". Do not bend an unrelated template to the dimensions -
+  a birdhouse is not a keyring with different numbers, and a wrong template
+  silently produces a part that passes every check and is not what was wanted.
+  Saying it does not fit is a correct and useful answer.
+- Use only the parameter names listed for the template you chose. A name that
+  is not on the list is rejected.
+- Every dimension is in millimetres and every angle is in degrees.
+- Respect the stated bounds. A value outside them is rejected.
+- Omit any parameter you have no information about; it will take its default.
+  Guessing is worse than omitting.
+"""
+
+
+def template_catalogue(max_params: int = 40) -> str:
+    """Every template with its parameters, units, defaults and bounds."""
+    from whittle.spec import registry
+
+    blocks: list[str] = []
+    for name in registry.names():
+        t = registry.get(name)
+        lines = ["TEMPLATE %s" % name, "  %s" % t.summary]
+        if t.makes:
+            # The words people actually use. A model picks a template by
+            # matching on these, and "a container" matched nothing when the
+            # enclosure described itself only as a birdhouse.
+            lines.append("  use this for: %s" % ", ".join(t.makes))
+        lines.append("  parameters:")
+        for i, (fname, field) in enumerate(t.params_model.model_fields.items()):
+            if i >= max_params:
+                lines.append("    ... %d more, see `whittle spec explain %s`"
+                             % (len(t.params_model.model_fields) - max_params, name))
+                break
+            bounds = []
+            for meta in field.metadata:
+                for attr, label in (("ge", ">="), ("gt", ">"), ("le", "<="), ("lt", "<")):
+                    v = getattr(meta, attr, None)
+                    if v is not None:
+                        bounds.append("%s %g" % (label, v))
+            default = field.default
+            shown = "required" if field.is_required() else (
+                "%g" % default if isinstance(default, float) else str(default)
+            )
+            lines.append(
+                "    %-22s default %-8s %-18s %s"
+                % (fname, shown, ", ".join(bounds), (field.description or "").split(".")[0])
+            )
+        blocks.append("\n".join(lines))
+    return "\n\n".join(blocks)
+
+
+def build_user_prompt(
+    request: str,
+    material: str,
+    nozzle_mm: float,
+    layer_mm: float,
+    measurements: dict[str, Any] | None = None,
+) -> str:
+    """The task, the catalogue, and any measurements taken from a reference image."""
+    parts = [
+        "Requested part:",
+        "  %s" % request.strip(),
+        "",
+        "Fixed settings - copy these into your answer unchanged:",
+        "  material: %s" % material,
+        "  nozzle_mm: %g" % nozzle_mm,
+        "  layer_mm: %g" % layer_mm,
+        "",
+    ]
+
+    if measurements:
+        parts.append("MEASURED FROM THE REFERENCE IMAGE. These are measurements,")
+        parts.append("not estimates. Where one of these covers a parameter, USE IT -")
+        parts.append("it beats anything implied by the request text, and it beats")
+        parts.append("a default:")
+        for k, v in measurements.items():
+            parts.append("  %s: %s" % (k, v))
+        parts.append("")
+        parts.append("Anything the image could not show is simply absent above.")
+        parts.append("Take those from the request, or leave them to default.")
+        parts.append("")
+
+    parts.append("Templates available:")
+    parts.append("")
+    parts.append(template_catalogue())
+    parts.append("")
+    parts.append(
+        "If none of these makes the part that was asked for, set template to "
+        "%r. That is a correct answer, not a failure - the request will be "
+        "built from primitive shapes instead." % NO_TEMPLATE
+    )
+    return "\n".join(parts)
+
+
+def critique_prompt(previous: str, problem: str, hint: str = "") -> str:
+    """
+    Feed a failure back.
+
+    ORDER MATTERS MORE THAN CONTENT HERE. The first version of this put the
+    instruction last, behind the full validator dump and a line telling the
+    reader to run `whittle spec explain` - advice aimed at a person, useless to a
+    model. Given that, a 7B model moved blade_chord_mm from 12.5 to 15 when it
+    had been told in as many words to set it to 10.2: it had the answer and
+    buried it.
+
+    So the correction leads, in the imperative, and the raw validator text is
+    demoted to context underneath. Human-facing CLI suggestions are stripped -
+    the model cannot run a command.
+    """
+    # Strip lines that are PURELY advice to a human - "Run `whittle spec explain
+    # x`" - which a model cannot act on. Do NOT strip every line that mentions
+    # whittle: the keyring's own message is "...or set logo_on: false" on the
+    # same line as a `whittle measure trace` suggestion, and dropping the whole
+    # line throws away the answer along with the noise.
+    clean = "\n".join(
+        line for line in problem.strip().splitlines()
+        if not line.strip().startswith("Run `whittle")
+        and not line.strip().startswith("whittle ")
+    ).strip()
+
+    lines = ["Your previous answer was rejected. Fix exactly this and resend:", ""]
+    if hint:
+        lines += [hint.strip(), ""]
+    lines += [
+        "Change ONLY what is listed above. Keep every other value you sent.",
+        "",
+        "For reference, the validator said:",
+        clean,
+        "",
+        "You previously sent:",
+        previous.strip()[:1500],
+        "",
+        "Send the corrected JSON object. JSON only, no prose.",
+    ]
+    return "\n".join(lines)
+
+
+def ask_schema() -> dict:
+    """
+    The JSON schema handed to the daemon for constrained generation.
+
+    Deliberately FLAT rather than mirroring PartSpec exactly: `params` is a free
+    object here because a small model handles a flat form far better than a
+    discriminated union, and the real PartSpec validation happens afterwards in
+    Python where the errors are good. The `template` enum is the important part
+    - without it, models reliably put a material or a description in that field.
+    """
+    from whittle.spec import registry
+
+    return {
+        "type": "object",
+        "properties": {
+            "name": {
+                "type": "string",
+                "description": "Short lowercase identifier, words separated by underscores.",
+            },
+            # NO_TEMPLATE is in the enum deliberately. A constrained decoder
+            # cannot emit anything outside it, so without this the model is
+            # FORCED to name a template even when none makes the requested part.
+            # Asked for a birdhouse with only a keyring and a vent available, it
+            # produced a 573 cm3 solid slab with a keyring handle - and every
+            # downstream check passed, because the part was manufacturable. It
+            # was simply not a birdhouse.
+            "template": {"type": "string", "enum": registry.names() + [NO_TEMPLATE]},
+            "material": {"type": "string"},
+            "nozzle_mm": {"type": "number"},
+            "layer_mm": {"type": "number"},
+            "print_axis": {"type": "string", "enum": ["x", "y", "z"]},
+            "params": {
+                "type": "object",
+                "description": "Parameters for the chosen template, names exactly as listed.",
+            },
+        },
+        "required": ["name", "template", "material", "nozzle_mm", "layer_mm", "params"],
+    }
+
+
+def parse_reply(raw: str) -> dict:
+    """
+    Turn a model's reply into a dict, forgiving the usual decorations.
+
+    Even under schema constraint a model occasionally wraps its answer in a
+    markdown fence or adds a sentence. Stripping that here is not encouraging
+    sloppiness; it is refusing to fail a run over punctuation.
+    """
+    text = (raw or "").strip()
+    if not text:
+        raise ValueError("the model returned nothing at all")
+
+    if text.startswith("```"):
+        text = text.split("```")[1] if "```" in text[3:] else text[3:]
+        if text.lstrip().startswith("json"):
+            text = text.lstrip()[4:]
+        text = text.strip()
+
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        start, end = text.find("{"), text.rfind("}")
+        if start == -1 or end <= start:
+            raise ValueError(
+                "the reply is not JSON and contains no JSON object. It began: %r"
+                % text[:200]
+            )
+        try:
+            data = json.loads(text[start : end + 1])
+        except json.JSONDecodeError as exc:
+            raise ValueError("the reply is not valid JSON: %s" % exc) from exc
+
+    if not isinstance(data, dict):
+        raise ValueError(
+            "the reply is a %s, but a spec must be a JSON object" % type(data).__name__
+        )
+    return data
+
+
+DSL_SYSTEM = """You describe a 3D part as a list of primitive operations.
+
+You do NOT write CAD code and you do NOT write CadQuery selector strings.
+You choose operations from a fixed list and give each one its numbers.
+
+Rules:
+- Reply with JSON only. No prose, no markdown fences.
+- `ops` is a list. Each entry has an `op` field naming the operation.
+- The FIRST op must create geometry, in add mode: rounded_prism, disc, cone,
+  sphere, wedge, profile_extrude or arc_rod.
+- Faces are addressed by NAME - top_face, front_face and so on. Never by a
+  selector like ">Z" or "|Z".
+- Every dimension is in millimetres and every angle is in degrees.
+- A cavity must open along the print direction, never against it.
+
+HOW TO MAKE A HOLE. There is no hole operation. Every shape takes a `mode`,
+and `"mode": "cut"` removes that shape from the part instead of adding it. A
+disc in cut mode is a round hole. A rounded_prism in cut mode is a slot. A cone
+in cut mode is a countersink. This is the single most useful thing here.
+
+WHERE SHAPES GO. Every shape takes x_mm, y_mm, z_mm, and it is built at the
+origin, then turned by rotate_deg about rotate_axis, THEN moved to x/y/z.
+- Prisms, discs, cones, wedges and extruded profiles STAND ON that point: it is
+  the centre of their base.
+- Spheres are CENTRED on that point. To rest one on a surface, add its radius.
+
+CUTTERS MUST OVERSHOOT. A cutter that stops exactly flush with a surface leaves
+a zero-thickness face. Start it a millimetre outside the part and make it a
+couple of millimetres longer than it needs to be.
+
+THE PART MUST BE ONE CONNECTED PIECE. Every shape you add has to touch or
+overlap something already there. Shapes that do not touch come out as separate
+pieces lying apart on the bed, which is never what was asked for.
+"""
+
+
+# TWO examples, not one, and the second one is doing the work. A single example
+# of a hollow box taught the model to make hollow boxes: every answer came back
+# as a prism, a hollow and a pocket, whatever had been asked for. The second
+# example exists to show a cut, a placed shape and a pattern, because those
+# three are what the whole vocabulary is built on and none of them appear in
+# the first.
+WORKED_EXAMPLE = """{
+  "name": "hollow_box",
+  "ops": [
+    {"op": "rounded_prism", "width_mm": 80, "depth_mm": 50,
+     "height_mm": 60, "corner_r_mm": 3},
+    {"op": "hollow", "wall_mm": 3, "opening": "top_face"},
+    {"op": "pocket", "anchor": "front_face", "width_mm": 20,
+     "height_mm": 20, "depth_mm": 4, "corner_r_mm": 10}
+  ],
+  "print_axis": "z"
+}"""
+
+
+def mechanism_example(clearance_mm: float) -> str:
+    """
+    A complete, working print-in-place mechanism, with the gap filled in.
+
+    THE RULES WERE PROSE AND THE MODEL IGNORED THEM. Told in words that a
+    moving part is two bodies with a %s mm gap, and that the moving body has to
+    be finished before the rest exists, three vague prompts - "a hinge", "a
+    ring that turns on a post", "a spinning top" - came back as ONE fused body
+    every time. Not one of them moved.
+
+    This file already knew why. WORKED_EXAMPLE's own comment says a model given
+    only the catalogue emits ops with no numbers, and that "showing one
+    complete valid answer fixes that far more reliably than any amount of
+    instruction". The moving-parts guidance was the one part of this prompt
+    with no example attached.
+
+    The numbers are DERIVED from the clearance rather than written in, so the
+    example can never contradict rule 1 above it: at 0.20 mm the gaps are
+    0.20 mm. tests/test_agent.py builds this exact example and asserts it comes
+    out as two separate bodies, because a worked example that does not work
+    teaches the wrong thing with authority.
+    """
+    gap = float(clearance_mm)
+    return """{
+  "name": "captive_ring_on_a_post",
+  "ops": [
+    {"op": "disc", "diameter_mm": 24, "height_mm": 5, "z_mm": %(ring_z).2f},
+    {"op": "disc", "diameter_mm": %(bore).2f, "height_mm": 9, "z_mm": %(bore_z).2f,
+     "mode": "cut"},
+    {"op": "rounded_prism", "width_mm": 40, "depth_mm": 40, "height_mm": 4,
+     "corner_r_mm": 3},
+    {"op": "disc", "diameter_mm": 10, "height_mm": 14, "z_mm": 4}
+  ],
+  "print_axis": "z"
+}""" % {
+        "ring_z": 4.0 + gap,          # the ring floats one gap above the plate
+        "bore": 10.0 + 2.0 * gap,     # and clears the 10 mm post by one gap
+        "bore_z": 3.0 + gap,
+    }
+
+
+SECOND_EXAMPLE = """{
+  "name": "divided_tray_with_a_drain",
+  "ops": [
+    {"op": "rounded_prism", "width_mm": 160, "depth_mm": 100,
+     "height_mm": 40, "corner_r_mm": 4},
+    {"op": "hollow", "wall_mm": 3, "opening": "top_face", "floor_mm": 3},
+    {"op": "pattern_linear", "count": 3, "dx_mm": 50,
+     "step": {"op": "rounded_prism", "width_mm": 3, "depth_mm": 94,
+              "height_mm": 34, "x_mm": -50, "z_mm": 3}},
+    {"op": "disc", "diameter_mm": 6, "height_mm": 8, "z_mm": -2,
+     "x_mm": -60, "mode": "cut"}
+  ],
+  "print_axis": "z"
+}"""
+
+
+def dsl_catalogue() -> str:
+    """
+    Every level-2 op with its fields, plus the legal anchors and edge groups.
+
+    THE SHARED FIELDS ARE PRINTED ONCE. Every creator carries the same five
+    placement fields, and spelling them out on all seven shapes cost 2 400
+    characters of pure repetition - a quarter of the whole prompt, saying the
+    same thing seven times. On a machine with no GPU that is prefill the model
+    pays for on every single attempt, and this laptop was spending about four
+    minutes per part largely reading its own instructions twice over.
+
+    Generic bounds are dropped too. "x_mm >= -2000, <= 2000" is not information
+    - nobody was going to put a bracket two metres off the origin, and the bed
+    check catches it if they try. Bounds that a person could plausibly hit, and
+    that change the answer, are kept.
+    """
+    import typing
+
+    from whittle.spec.dsl import (
+        EDGE_GROUPS, FACE_FRAMES, Creator, AnyOp,
+    )
+
+    shared = set(Creator.model_fields)
+
+    def bounds_of(field) -> str:
+        out = []
+        for meta in field.metadata:
+            for attr, label in (("ge", ">="), ("gt", ">"), ("le", "<="), ("lt", "<")):
+                v = getattr(meta, attr, None)
+                if v is not None:
+                    out.append("%s %g" % (label, v))
+        text = ", ".join(out)
+        # The two generic ranges every numeric field carries. They are noise.
+        if text in ("> 0, <= 1000", ">= -2000, <= 2000", ">= -1000, <= 1000",
+                    ">= 0, <= 1000", ">= 0, <= 500", "> 0, <= 500"):
+            return ""
+        return text
+
+    def line(fname, field) -> str:
+        default = field.default
+        shown = "required" if field.is_required() else (
+            "%g" % default if isinstance(default, float) else str(default)
+        )
+        return "    %-16s %-9s %-12s %s" % (
+            fname, shown, bounds_of(field),
+            (field.description or "").split(".")[0]
+        )
+
+    blocks: list[str] = []
+    for member in typing.get_args(typing.get_args(AnyOp)[0]):
+        fields = member.model_fields
+        literal = typing.get_args(fields["op"].annotation)[0]
+        doc = (member.__doc__ or "").strip().split("\n\n")[0]
+        lines = ["OP %s" % literal, "  %s" % " ".join(doc.split())]
+        is_creator = issubclass(member, Creator)
+        for fname, field in fields.items():
+            if fname == "op" or (is_creator and fname in shared):
+                continue
+            lines.append(line(fname, field))
+        if is_creator:
+            lines.append("    (plus the placement fields above)")
+        blocks.append("\n".join(lines))
+
+    placement = ["EVERY SHAPE ALSO TAKES THESE. They are the same on all of them."]
+    for fname, field in Creator.model_fields.items():
+        placement.append(line(fname, field))
+
+    return (
+        "\n".join(placement)
+        + "\n\n"
+        + "\n\n".join(blocks)
+        + (
+            "\n\nANCHOR NAMES: %s"
+            "\nEDGE GROUPS:  %s"
+            % (", ".join(sorted(FACE_FRAMES)), ", ".join(sorted(EDGE_GROUPS)))
+        )
+    )
+
+
+def build_dsl_prompt(
+    request: str,
+    material: str,
+    nozzle_mm: float,
+    layer_mm: float,
+    why_escalated: str = "",
+    clearance_mm: float | None = None,
+) -> str:
+    """
+    The level-2 task: compose ops, because no template fitted.
+
+    `clearance_mm` is the running-fit gap for this material, read from config
+    where it was harvested off parts that actually printed. It is passed in
+    rather than assumed: PETG's 0.30 mm is proven by a pivot and a
+    print-in-place linkage, TPU's is deliberately UNSET, and a clearance
+    guessed for a flexible material is worse than none. When it is None the
+    moving-parts section is left out entirely - no number, no advice.
+    """
+    parts = ["Requested part:", "  %s" % request.strip(), ""]
+    if why_escalated:
+        parts += [
+            "No template could be made to fit. The last attempt failed with:",
+            "  %s" % why_escalated.split("\n")[0][:300],
+            "",
+        ]
+    parts += [
+        "Build it from primitive operations instead.",
+        "",
+        "Fixed settings - copy these into your answer unchanged:",
+        "  material: %s" % material,
+        "  nozzle_mm: %g" % nozzle_mm,
+        "  layer_mm: %g" % layer_mm,
+        "",
+        # A worked example, not a description of one. Ollama does not enforce
+        # the per-op fields even when the schema declares them, so a model given
+        # only the catalogue reliably answers {"op": "rounded_prism"} with no
+        # numbers at all. Showing one complete valid answer fixes that far more
+        # reliably than any amount of instruction.
+        "EVERY op needs its numbers. An op with only its name is rejected.",
+        "",
+        # THE TWO RULES A REAL RUN GOT WRONG, STATED IN WORDS.
+        #
+        # Both are already shown correctly in SECOND_EXAMPLE and stated in the
+        # op docstrings, and the model still broke both on the first level-2
+        # part it was asked for: asked for "two 5 mm holes 60 mm apart" in a
+        # 6 mm plate it emitted discs 2 mm long at z 0 - blind pockets opening
+        # downward - one at x -30 and one at x 50, which is off an 80 mm plate
+        # entirely. It shipped with one hole. An example is not an instruction.
+        "WHERE THINGS GO. x_mm and y_mm are measured from the CENTRE of the",
+        "part, not from a corner or an edge, and they may be negative. z_mm 0",
+        "is the bottom face, the one on the bed. So two holes 60 mm apart,",
+        "centred, are at x_mm -30 and x_mm 30 - NOT 0 and 60.",
+        "",
+        "CUTS MUST GO ALL THE WAY THROUGH, and both of these are rejected: a",
+        "cut that lands off the part, and a cut that stops inside it.",
+        "",
+        "  z_mm      = -2",
+        "  height_mm = the part's thickness + 4",
+        "",
+        "For a hole through a 6 mm plate that is z_mm -2 and height_mm 10. Not",
+        "7. The cut has to START below the bottom face and END above the top",
+        "face, so it overshoots at BOTH ends - thickness + 1 still stops",
+        "inside and leaves a blind pocket with a roof over it, and a cut",
+        "exactly as thick as the part leaves two faces lying on each other.",
+        "",
+        "Here is a complete, valid answer for a different part - a hollow box",
+        "80 mm wide, 60 mm tall and 50 mm deep with a 20 mm recess in the front:",
+        "",
+        WORKED_EXAMPLE,
+        "",
+        "And a second one, showing a shape placed away from the centre, a",
+        "repeat, and a shape in cut mode making a hole - a 160 x 100 x 40 mm",
+        "tray with three dividers and a drain hole:",
+        "",
+        SECOND_EXAMPLE,
+        "",
+        "Now do the same for the part requested above. Use whichever operations",
+        "fit it - do not copy the shape of these examples.",
+    ]
+
+    if clearance_mm:
+        parts += [
+            "",
+            # THE ORDERING RULE. A cut applies to EVERYTHING built so far, and
+            # there is no way to aim one at a single body. Building a captive
+            # washer the obvious way - plate, post, ring, then bore the ring's
+            # clearance - cuts the post in half, because the bore is wider
+            # than the post and the post is already there. It leaves a stub
+            # floating 9 mm in the air, and it still exports as a watertight
+            # mesh with three bodies.
+            "IF ANYTHING HAS TO MOVE - a hinge, a wheel, a lid that swings, a",
+            "ring that turns - it is TWO SEPARATE BODIES with a gap between",
+            "them, printed where they sit. Two rules make that work:",
+            "",
+            "  1. Leave %.2f mm between them. That is the measured running"
+            % clearance_mm,
+            "     clearance for %s. Less and it welds solid; much more and it" % material,
+            "     rattles.",
+            "  2. FINISH THE MOVING BODY FIRST, before the rest exists. A cut",
+            "     hits everything built up to that point, so a clearance bore",
+            "     placed after the shaft will cut the shaft in half. Emit the",
+            "     moving piece, cut its clearance, and only then add the base",
+            "     and the shaft it turns on.",
+            "",
+            "The gap must be a gap in the geometry. Two shapes that touch are",
+            "one body and nothing moves.",
+            "",
+            "Here is a complete, valid answer that does it - a ring that turns",
+            "on a post, printed in one go. Note the ORDER: the ring and its",
+            "bore come first, while the post does not exist yet.",
+            "",
+            mechanism_example(clearance_mm),
+        ]
+
+    parts += [
+        "",
+        "Operations available:",
+        "",
+        dsl_catalogue(),
+    ]
+    return "\n".join(parts)
+
+
+def dsl_schema() -> dict:
+    """Constrained shape for a level-2 answer."""
+    from whittle.spec.dsl import OP_NAMES
+
+    return {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string"},
+            "material": {"type": "string"},
+            "nozzle_mm": {"type": "number"},
+            "layer_mm": {"type": "number"},
+            "print_axis": {"type": "string", "enum": ["x", "y", "z"]},
+            "ops": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                    "type": "object",
+                    "properties": {"op": {"type": "string", "enum": list(OP_NAMES)}},
+                    "required": ["op"],
+                },
+            },
+        },
+        "required": ["name", "ops"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# refinement: changing a part you have already built
+# ---------------------------------------------------------------------------
+
+REFINE_OPS_SYSTEM = """You adjust an existing 3D part built from primitive operations.
+
+You do NOT write CAD code. You are given a list of operations that already
+builds, and one instruction about what to change. You reply with the COMPLETE
+updated list.
+
+Rules:
+- Reply with JSON only. No prose, no markdown fences.
+- Return {"ops": [...]} holding the whole list, in order, with every operation
+  carrying all of its numbers. An operation with only its name is rejected.
+- Keep the operations that were already right. Change, add or remove only what
+  the instruction asks for.
+- The FIRST operation must create geometry: rounded_prism, disc or arc_rod.
+- Faces are addressed by NAME - top_face, front_face and so on. Never by a
+  selector like ">Z".
+- A cavity must open along the print direction, never against it.
+- Every dimension is in millimetres and every angle is in degrees.
+"""
+
+
+REFINE_SYSTEM = """You adjust an existing 3D part specification.
+
+You do NOT write CAD code and you do NOT rewrite the whole specification. You
+are given a part that already builds, and one instruction about what to change.
+You reply with ONLY the parameters that must change.
+
+Rules:
+- Reply with JSON only. No prose, no markdown fences.
+- Return a "params" object holding ONLY the parameters you are changing.
+  Everything you leave out keeps its current value.
+- To let a parameter go back to being derived from the frame, set it to null.
+- Never change a parameter the instruction did not ask about. Changing
+  everything "to be safe" is the wrong answer - it throws away values that
+  were derived to fit and were already right.
+- If the instruction asks for a FEATURE that no parameter can express - a
+  perch, a feeding tray, a second compartment - do NOT approximate it by
+  changing sizes. Answer {"cannot": "what you were asked for"} and say so.
+  Making the part bigger is not a feeding area.
+- Every dimension is in millimetres and every angle is in degrees.
+- Respect the stated bounds.
+"""
+
+
+def build_refine_ops_prompt(
+    spec,
+    instruction: str,
+    report=None,
+) -> str:
+    """
+    Refining a part built from primitives.
+
+    The WHOLE operation list is asked for rather than a diff. Operations are
+    ordered and they compose - a pocket cuts whatever is under it at the time -
+    so "change op 2" is ambiguous in a way that "change wall_mm" is not. Asking
+    for the full list costs tokens and removes the ambiguity.
+    """
+    import json
+
+    lines = ["The part is currently built from these operations:", ""]
+    lines.append(json.dumps({"ops": [dict(o) for o in (spec.ops or [])]}, indent=2))
+    lines.append("")
+
+    if report is not None:
+        m = report.mesh
+        lines += [
+            "What that actually built:",
+            "  envelope   %.1f x %.1f x %.1f mm" % m.bbox_mm,
+            "  volume     %.1f cm3" % m.volume_cm3,
+            "  solid      %.0f%% of its own bounding box" % (100 * m.solidity),
+        ]
+        for w in getattr(m, "warnings", []):
+            lines.append("  NOTE       %s" % w.split(".")[0])
+        lines.append("")
+
+    lines += [
+        "Change requested:",
+        "  %s" % instruction.strip(),
+        "",
+        "Operations available:",
+        "",
+        dsl_catalogue(),
+        "",
+        "Reply with {\"ops\": [...]} - the complete updated list, every operation",
+        "carrying all of its numbers.",
+    ]
+    return "\n".join(lines)
+
+
+def build_refine_prompt(
+    spec,
+    instruction: str,
+    template_info: dict | None = None,
+    report=None,
+    measurements: dict | None = None,
+) -> str:
+    """
+    The current part, what it measured, and the one thing to change.
+
+    Showing the MEASURED result rather than only the parameters matters: an
+    instruction like "make it thinner" is about the part that came out, and the
+    model needs to see what came out to know which parameter moves it.
+    """
+    import yaml
+
+    from whittle.spec import registry
+
+    lines: list[str] = ["The current specification:", ""]
+    current = {
+        "template": spec.template,
+        "params": dict(spec.params or {}),
+    }
+    lines.append(yaml.safe_dump(current, sort_keys=False).rstrip())
+    lines.append("")
+
+    if report is not None:
+        m = report.mesh
+        lines += [
+            "What that actually built:",
+            "  envelope   %.2f x %.2f x %.2f mm" % m.bbox_mm,
+            "  volume     %.3f cm3" % m.volume_cm3,
+            "  bodies     %d" % m.body_count,
+            "  supports   %s" % ("needed" if report.overhang.supports_needed else "none"),
+        ]
+        if report.features is not None:
+            smallest = report.features.checks[:3]
+            for c in smallest:
+                lines.append("  %-24s %.3f mm  %s" % (c.name, c.value_mm, c.status))
+        lines.append("")
+
+    if measurements:
+        lines.append("Measured from the reference image. These are MEASURED, not")
+        lines.append("estimated - prefer them over anything in the instruction text:")
+        for k, v in measurements.items():
+            lines.append("  %s: %s" % (k, v))
+        lines.append("")
+
+    lines += ["Change requested:", "  %s" % instruction.strip(), ""]
+
+    if template_info is None and spec.template:
+        try:
+            t = registry.get(spec.template)
+            template_info = {"params": t.params_model.model_fields}
+        except Exception:
+            template_info = None
+
+    if spec.template:
+        lines.append("Parameters you may change on template %r:" % spec.template)
+        lines.append("")
+        lines.append(_param_lines(spec.template))
+
+    lines.append("")
+    lines.append("Reply with the parameters that change, and nothing else.")
+    return "\n".join(lines)
+
+
+def _param_lines(template: str) -> str:
+    """One line per parameter: name, current bounds, and what it does."""
+    from whittle.spec import registry
+
+    try:
+        model = registry.get(template).params_model
+    except Exception:
+        return "(unknown template)"
+
+    out = []
+    for fname, field in model.model_fields.items():
+        bounds = []
+        for meta in field.metadata:
+            for attr, label in (("ge", ">="), ("gt", ">"), ("le", "<="), ("lt", "<")):
+                v = getattr(meta, attr, None)
+                if v is not None:
+                    bounds.append("%s %g" % (label, v))
+        out.append(
+            "  %-22s %-18s %s"
+            % (fname, ", ".join(bounds), (field.description or "").split(".")[0])
+        )
+    return "\n".join(out)
+
+
+def refine_schema(template: str) -> dict:
+    """
+    Constrain a refinement to a params object.
+
+    Deliberately NOT the whole spec: asking a small model to restate a
+    specification it was not asked to change is asking it to make mistakes in
+    the parts it was supposed to leave alone.
+    """
+    return {
+        "type": "object",
+        "properties": {
+            "params": {
+                "type": "object",
+                "description": "Only the parameters that change.",
+            },
+            "note": {
+                "type": "string",
+                "description": "One short sentence on what you changed and why.",
+            },
+            "cannot": {
+                "type": "string",
+                "description": (
+                    "Set this INSTEAD of params if no parameter can express what "
+                    "was asked for. Say what was asked for."
+                ),
+            },
+        },
+    }

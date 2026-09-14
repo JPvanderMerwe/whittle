@@ -12,7 +12,7 @@
 // whose cable is out, which is the single most likely way this screen is ever
 // seen. So every line's value and its pass/fail comes from what /api/health
 // actually returned, and the screen will happily say `model ... none` in
-// amber and let you carry on, because a bpcad with no model still opens every
+// amber and let you carry on, because a whittle with no model still opens every
 // part you already have.
 //
 // WHY THERE IS A START BUTTON AT ALL rather than falling straight through: the
@@ -30,7 +30,7 @@ import 'tokens.dart';
 class BootScreen extends StatefulWidget {
   const BootScreen({super.key, required this.api, required this.onStart});
 
-  final BpcadApi api;
+  final WhittleApi api;
 
   /// Handed the health the self-test read, so the app behind this screen does
   /// not fetch it a second time.
@@ -74,11 +74,11 @@ class _BootScreenState extends State<BootScreen>
         // can act on is which machine was not answering, and the fix is
         // nearly always the cable or the port.
         //
-        // It is appended rather than substituted because BpcadUnreachable's
+        // It is appended rather than substituted because WhittleUnreachable's
         // own message says WHAT went wrong ("connection refused", "timed
         // out") and not WHERE - the two halves are both needed and neither
         // one implies the other.
-        final why = error is BpcadUnreachable ? error.why : error.toString();
+        final why = error is WhittleUnreachable ? error.why : error.toString();
         _problem = '$why — at ${widget.api.baseUrl}';
         _done = true;
       });
@@ -122,7 +122,7 @@ class _BootScreenState extends State<BootScreen>
                   if (_problem != null) _unreachable(),
                   _start(),
                   const Spacer(flex: 7),
-                  Text('bit primitive — bpcad',
+                  Text('bit primitive — whittle',
                       style: TextStyle(
                           fontFamily: BpType.mono,
                           fontSize: BpType.micro,
@@ -138,7 +138,7 @@ class _BootScreenState extends State<BootScreen>
 
   /// The mark ABOVE the wordmark, and both left-aligned.
   ///
-  /// The design stacks them: a 44px mark, then `bpcad` beneath it at title
+  /// The design stacks them: a 44px mark, then `whittle` beneath it at title
   /// size. Side by side at 72px with the wordmark at display 27 - which is
   /// what this was - is a logo lockup, and the design does not have one.
   Widget _wordmark() => Column(
@@ -147,7 +147,7 @@ class _BootScreenState extends State<BootScreen>
           Image.asset('assets/app-icon.png',
               width: 44, height: 44, filterQuality: FilterQuality.medium),
           const SizedBox(height: BpSpace.base),
-          Text('bpcad',
+          Text('whittle',
               style: TextStyle(
                   fontFamily: BpType.mono,
                   fontSize: BpType.title,
@@ -164,7 +164,7 @@ class _BootScreenState extends State<BootScreen>
       // The pulsing line IS the indicator - the design's own 1.4s opacity
       // pulse on the line that is still resolving. A caliper beside it would
       // be two marks for one wait.
-      return _line('link', 'checking…', BpcadColors.inkDim, pulsing: true);
+      return _line('link', 'checking…', WhittleColors.inkDim, pulsing: true);
     }
     final health = _health;
     if (health == null) {
@@ -222,7 +222,7 @@ class _BootScreenState extends State<BootScreen>
                     style: const TextStyle(
                         fontFamily: BpType.mono,
                         fontSize: BpType.micro,
-                        color: BpcadColors.inkDim)),
+                        color: WhittleColors.inkDim)),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -261,7 +261,7 @@ class _BootScreenState extends State<BootScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('The computer running bpcad is not answering',
+              Text('The computer running whittle is not answering',
                   style: TextStyle(
                       fontFamily: BpType.mono,
                       fontSize: BpType.label,
@@ -272,20 +272,20 @@ class _BootScreenState extends State<BootScreen>
                       fontFamily: BpType.prose,
                       fontSize: BpType.label,
                       height: 1.5,
-                      color: BpcadColors.inkDim)),
+                      color: WhittleColors.inkDim)),
               const SizedBox(height: BpSpace.snug),
               // WHAT TO DO, not just what went wrong. The whole geometry
               // engine is Python on a computer; the phone is a window onto it,
               // and that is worth saying once rather than leaving somebody to
               // conclude the app is broken.
-              Text('bpcad builds parts on a computer, not on the phone. Start '
-                  '`bpcad web` there and check both are on the same network. '
+              Text('whittle builds parts on a computer, not on the phone. Start '
+                  '`whittle web` there and check both are on the same network. '
                   'Parts already downloaded stay readable.',
                   style: TextStyle(
                       fontFamily: BpType.prose,
                       fontSize: BpType.micro,
                       height: 1.55,
-                      color: BpcadColors.inkFaint)),
+                      color: WhittleColors.inkFaint)),
             ],
           ),
         ),
@@ -295,7 +295,7 @@ class _BootScreenState extends State<BootScreen>
         width: double.infinity,
         height: 48,   // the design's own height for a primary action
         child: FilledButton(
-          // Enabled either way: a bpcad with no server still opens what is
+          // Enabled either way: a whittle with no server still opens what is
           // already on the phone, and a dead button would say otherwise.
           onPressed: _done ? () => widget.onStart(_health) : null,
           child: Text(_problem == null ? 'Start' : 'Carry on anyway',

@@ -16,9 +16,9 @@ import math
 import pytest
 import trimesh
 
-from bpcad import api
-from bpcad.measure.prism import fit_prism, simplify, to_dsl_ops
-from bpcad.verify.fit import mesh_of_solid
+from whittle import api
+from whittle.measure.prism import fit_prism, simplify, to_dsl_ops
+from whittle.verify.fit import mesh_of_solid
 
 
 def solid_mesh(builder):
@@ -41,7 +41,7 @@ def rebuild(fit, name):
         "name": name, "level": 2, "material": "petg",
         "nozzle_mm": 0.4, "layer_mm": 0.24, "ops": to_dsl_ops(fit),
     })
-    return api.build(spec=spec, out_dir="/tmp/bpcad_prism_test_" + name, render=False)
+    return api.build(spec=spec, out_dir="/tmp/whittle_prism_test_" + name, render=False)
 
 
 # ---------------------------------------------------------------------------
@@ -147,7 +147,7 @@ def test_a_fitted_part_is_then_editable():
 
     spec = api.validate_spec({"name": "thicker", "level": 2, "material": "petg",
                               "nozzle_mm": 0.4, "layer_mm": 0.24, "ops": ops})
-    built = api.build(spec=spec, out_dir="/tmp/bpcad_prism_edit", render=False)
+    built = api.build(spec=spec, out_dir="/tmp/whittle_prism_edit", render=False)
     assert built.report.mesh.bbox_mm[2] == pytest.approx(14.0, rel=0.02)
     assert built.report.mesh.body_count == 1
 

@@ -12,9 +12,9 @@ import math
 import numpy as np
 import pytest
 
-from bpcad.build.helpers import BuildLog, probe
-from bpcad.build.templates.enclosure import EnclosureParams, build_box, derive
-from bpcad.verify.fit import mesh_of_solid
+from whittle.build.helpers import BuildLog, probe
+from whittle.build.templates.enclosure import EnclosureParams, build_box, derive
+from whittle.verify.fit import mesh_of_solid
 
 FINISHES = ("plain", "board", "slat")
 
@@ -102,8 +102,8 @@ def test_the_groove_width_is_recorded_so_the_nozzle_check_sees_it():
     looks exactly like a successful one. Recording it as a feature is what
     makes the existing linter catch that, with no new code.
     """
-    from bpcad.build.templates.enclosure import build
-    from bpcad.spec.schema import PartSpec
+    from whittle.build.templates.enclosure import build
+    from whittle.spec.schema import PartSpec
 
     spec = PartSpec(name="x", level=1, material="petg", nozzle_mm=0.4,
                     layer_mm=0.24, template="enclosure",

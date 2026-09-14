@@ -305,7 +305,7 @@ class Waiting extends StatelessWidget {
                 style: const TextStyle(
                     fontFamily: BpType.mono,
                     fontSize: BpType.label,
-                    color: BpcadColors.inkDim)),
+                    color: WhittleColors.inkDim)),
           ],
         ),
       );
@@ -355,7 +355,7 @@ class _SkeletonState extends State<Skeleton>
             style: TextStyle(
                 fontFamily: BpType.mono,
                 fontSize: 9.5,
-                color: BpcadColors.inkFaint)),
+                color: WhittleColors.inkFaint)),
       );
     }
     return AnimatedBuilder(
@@ -427,7 +427,7 @@ class BpChip extends StatelessWidget {
           color: selected
               ? accent.withValues(alpha: 0.18)
               : Colors.transparent,
-          border: Border.all(color: selected ? accent : BpcadColors.edge),
+          border: Border.all(color: selected ? accent : WhittleColors.edge),
           borderRadius: BorderRadius.circular(BpRadius.control),
         ),
         child: Padding(
@@ -437,7 +437,7 @@ class BpChip extends StatelessWidget {
                   fontFamily: BpType.mono,
                   fontSize: BpType.label,
                   height: 1.15,
-                  color: selected ? accent : BpcadColors.inkDim)),
+                  color: selected ? accent : WhittleColors.inkDim)),
         ),
       ),
     );

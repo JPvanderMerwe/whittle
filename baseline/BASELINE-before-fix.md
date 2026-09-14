@@ -7,7 +7,7 @@ Measured before any prompt tuning, as the build brief requires. Raw rows in
     models       qwen2.5-coder:7b primary, hermes3:latest small
     code         fingerprint 42744ae2dd8e
     date         2026-08-27
-    command      bpcad gen "<prompt>" --no-render
+    command      whittle gen "<prompt>" --no-render
 
 Every row records the code fingerprint. An earlier attempt at this measurement
 was discarded because the source changed while it ran, so runs 1-2 and runs 3+

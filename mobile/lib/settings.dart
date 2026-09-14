@@ -4,7 +4,7 @@
 //
 // It was a compile-time constant of `http://localhost:8765`, which works over
 // a USB cable with `adb reverse` and nowhere else. That is a testing path, not
-// a product: bpcad runs on a computer with a GPU and the phone is a window
+// a product: whittle runs on a computer with a GPU and the phone is a window
 // onto it, so the address of that computer is the single setting without which
 // the app does nothing at all on somebody else's desk.
 //
@@ -34,9 +34,9 @@ class Settings {
 
   final SharedPreferences _store;
 
-  static const String _serverKey = 'bpcad.server';
-  static const String _materialKey = 'bpcad.material';
-  static const String _effectsKey = 'bpcad.effects';
+  static const String _serverKey = 'whittle.server';
+  static const String _materialKey = 'whittle.material';
+  static const String _effectsKey = 'whittle.effects';
 
   /// Over a USB cable with `adb reverse tcp:8765 tcp:8765`, the phone's own
   /// localhost is the computer. That is what a fresh install should try, since
@@ -76,7 +76,7 @@ class Settings {
   ///
   /// A HOST WITH NO SCHEME GETS http://, because nobody types the scheme and
   /// a bare `192.168.0.14:8765` would otherwise be parsed as a path. A missing
-  /// PORT gets bpcad's own 8765, because that is the port `bpcad web` opens
+  /// PORT gets whittle's own 8765, because that is the port `whittle web` opens
   /// unless told otherwise and it is the only sensible guess.
   ///
   /// It does NOT correct a typo in a host name or fall back to localhost when

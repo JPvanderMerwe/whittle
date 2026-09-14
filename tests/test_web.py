@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from bpcad.web import server as web
+from whittle.web import server as web
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -85,7 +85,7 @@ def test_the_page_and_its_assets_are_served(base_url):
 def test_the_interface_is_not_cached_but_the_renders_are(base_url):
     """
     The upgrade bug. Caching app.js for an hour means someone who updates
-    bpcad keeps being served the old interface, with nothing to tell them
+    whittle keeps being served the old interface, with nothing to tell them
     that is what is happening. Renders may be cached hard - a built part's
     geometry never changes, because a refinement writes a new part.
     """
@@ -192,7 +192,7 @@ def test_a_stored_part_serves_the_verdict_it_was_given(base_url):
     0.3s against that same part's recorded build time of 151s.
 
     What is still forbidden is inventing one. A part with no run.json - an
-    import, or one made before bpcad kept one - carries no `checks` key at
+    import, or one made before whittle kept one - carries no `checks` key at
     all, which is a real "not known" rather than a manufactured PASS.
     """
     name = _first_built(base_url)["name"]
@@ -245,7 +245,7 @@ def test_every_stage_the_clients_show_can_actually_be_reached(base_url):
     translation with the kinds the engine really emits and checks that every
     pattern the clients match on comes out of it.
     """
-    from bpcad import api
+    from whittle import api
 
     class FakeReport:
         verdict = "PASS, with warnings"
@@ -296,7 +296,7 @@ def test_an_internal_event_name_never_leaks_into_the_log(base_url):
     watching a build was shown "measurement_rejected" - an internal
     identifier, in the one log they read, with nothing they can do about it.
     """
-    from bpcad import api
+    from whittle import api
 
     def fake_generate(request, **kwargs):
         emit = kwargs["on_event"]
@@ -339,7 +339,7 @@ def test_a_photo_reaches_the_model_as_facts_and_not_as_a_measurement(base_url):
     No model is called here: api.generate is replaced, because what is being
     checked is which argument the server fills.
     """
-    from bpcad import api
+    from whittle import api
 
     seen = {}
 
@@ -379,7 +379,7 @@ def test_a_photo_that_cannot_be_measured_still_builds_from_the_words(base_url):
     the sentence still describes a part. It is a reason to SAY so, in the log
     the user is watching, and carry on.
     """
-    from bpcad import api
+    from whittle import api
 
     seen = {}
 
@@ -524,7 +524,7 @@ def a_built_part(base_url) -> dict:
     parts = get_json(base_url + "/api/parts")["parts"]
     built = [p for p in parts if p.get("built")]
     if not built:
-        pytest.skip("no part has been built yet - run `bpcad build parts/<name>/spec.yaml`")
+        pytest.skip("no part has been built yet - run `whittle build parts/<name>/spec.yaml`")
     return built[0]
 
 
@@ -567,7 +567,7 @@ def test_the_viewer_page_is_served_with_its_renderer_beside_it(base_url):
     and the browser loads the same URL, which is the only way the two show a
     part the same way rather than nearly the same way.
 
-    The script is vendored rather than fetched from a CDN because bpcad works
+    The script is vendored rather than fetched from a CDN because whittle works
     with the cable out - a viewer that needs unpkg is a viewer that fails in a
     workshop with no signal. So the test is that the page is there AND that
     nothing in it points off this machine.
@@ -1092,21 +1092,21 @@ def test_the_desktop_entry_point_reaches_the_web_ui():
 
     A console script shim records the import path it was generated with. An
     editable install updates the modules and NOT the shim, so repointing
-    `bpcad-gui` in pyproject.toml changes nothing until somebody reinstalls -
+    `whittle-gui` in pyproject.toml changes nothing until somebody reinstalls -
     and the symptom is launching the old interface and concluding the work was
     never done. Both paths must land on the shell.
     """
-    # READ THE SOURCE, DO NOT IMPORT IT. bpcad.gui.app pulls in PySide6 at
+    # READ THE SOURCE, DO NOT IMPORT IT. whittle.gui.app pulls in PySide6 at
     # module scope, and importing Qt inside a pytest process that is already
     # running an HTTP server hangs indefinitely - the test suite stopped dead
     # at this point with no output. The fact under test is textual anyway.
     from pathlib import Path
 
-    src = Path("bpcad/gui/app.py").read_text()
+    src = Path("whittle/gui/app.py").read_text()
     assert "def classic_main(" in src, "--classic has nothing to reach"
     forward = src[src.index("def main("):]
     assert "shell_main" in forward, (
-        "bpcad.gui.app.main no longer forwards to the shell, so a stale "
+        "whittle.gui.app.main no longer forwards to the shell, so a stale "
         "console script shim will launch the old Qt app"
     )
 
@@ -1115,11 +1115,11 @@ def test_the_shell_serves_the_same_files_the_phone_gets():
     """One UI means one set of files, not a desktop port of them."""
     from pathlib import Path
 
-    from bpcad.web import server as web_server
+    from whittle.web import server as web_server
 
     # Same reason as above: gui.shell is read, not imported.
-    src = Path("bpcad/gui/shell.py").read_text()
-    assert "from bpcad.web.server import Handler" in src, (
+    src = Path("whittle/gui/shell.py").read_text()
+    assert "from whittle.web.server import Handler" in src, (
         "the desktop shell no longer serves the web app's own handler, so the "
         "two front ends can diverge again"
     )
@@ -1217,7 +1217,7 @@ def test_no_gpu_is_reported_as_slow_and_never_as_broken():
     step is slow. Telling somebody their working machine is broken is worse
     than telling them nothing.
     """
-    from bpcad.capability import Capability
+    from whittle.capability import Capability
 
     cap = Capability(gpu=False, model_available=True, model_name="qwen2.5-coder:7b")
     headline = cap.headline().lower()
@@ -1228,7 +1228,7 @@ def test_no_gpu_is_reported_as_slow_and_never_as_broken():
 
 
 def test_the_wait_is_stated_before_it_is_endured():
-    from bpcad.capability import Capability
+    from whittle.capability import Capability
 
     cpu = Capability(gpu=False, model_available=True, model_name="m")
     gpu = Capability(gpu=True, model_on_gpu=True, model_available=True, model_name="m")
@@ -1244,7 +1244,7 @@ def test_no_model_still_offers_the_rest_of_the_program():
     message has to say so, or somebody with no Ollama concludes the app is
     useless to them.
     """
-    from bpcad.capability import Capability
+    from whittle.capability import Capability
 
     cap = Capability(model_available=False)
     assert cap.tier == "no-model"
@@ -1259,7 +1259,7 @@ def test_requiring_a_gpu_explains_what_still_works():
     """
     import pytest as _pytest
 
-    from bpcad.capability import Capability, require_gpu
+    from whittle.capability import Capability, require_gpu
 
     with _pytest.raises(RuntimeError) as exc:
         require_gpu("Generating a mesh", Capability(gpu=False))
@@ -1280,7 +1280,7 @@ def test_nothing_in_the_program_currently_requires_a_gpu():
     import subprocess
 
     out = subprocess.run(
-        ["grep", "-rn", "require_gpu", "bpcad/"],
+        ["grep", "-rn", "require_gpu", "whittle/"],
         capture_output=True, text=True,
     )
     callers = [line for line in out.stdout.splitlines()

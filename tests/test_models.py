@@ -14,26 +14,26 @@ from pathlib import Path
 import httpx
 import pytest
 
-from bpcad.agent import prompts
-from bpcad.agent.handoff import (
+from whittle.agent import prompts
+from whittle.agent.handoff import (
     WHOLE_SECTION,
     FieldProblem,
     problems_from_validation_error,
     render_draft,
     write_handoff,
 )
-from bpcad.agent.loop import SpecRejected, validate_reply
-from bpcad.config import load_config
-from bpcad.models.base import NonLocalEndpointError
-from bpcad.models.null import NullBackend, NullBackendError
-from bpcad.models.ollama import (
+from whittle.agent.loop import SpecRejected, validate_reply
+from whittle.config import load_config
+from whittle.models.base import NonLocalEndpointError
+from whittle.models.null import NullBackend, NullBackendError
+from whittle.models.ollama import (
     JSON_MODE,
     SCHEMA_NATIVE,
     OllamaBackend,
     OllamaError,
     OllamaTimeout,
 )
-from bpcad.models.selector import (
+from whittle.models.selector import (
     Profile,
     ProfileError,
     detect_machine,
@@ -259,27 +259,27 @@ def test_cuda_detection_never_crashes_without_a_driver():
 
 def test_detection_picks_laptop_with_no_cuda(monkeypatch):
     cfg = load_config(CONFIG)
-    monkeypatch.delenv("BPCAD_MACHINE", raising=False)
-    monkeypatch.setattr("bpcad.models.selector.has_cuda_device", lambda: False)
+    monkeypatch.delenv("WHITTLE_MACHINE", raising=False)
+    monkeypatch.setattr("whittle.models.selector.has_cuda_device", lambda: False)
     assert detect_machine(cfg) == "laptop"
 
 
 def test_detection_picks_desktop_with_cuda(monkeypatch):
     cfg = load_config(CONFIG)
-    monkeypatch.delenv("BPCAD_MACHINE", raising=False)
-    monkeypatch.setattr("bpcad.models.selector.has_cuda_device", lambda: True)
+    monkeypatch.delenv("WHITTLE_MACHINE", raising=False)
+    monkeypatch.setattr("whittle.models.selector.has_cuda_device", lambda: True)
     assert detect_machine(cfg) == "desktop"
 
 
 def test_the_env_var_overrides_detection(monkeypatch):
     cfg = load_config(CONFIG)
-    monkeypatch.setenv("BPCAD_MACHINE", "desktop")
+    monkeypatch.setenv("WHITTLE_MACHINE", "desktop")
     assert detect_machine(cfg) == "desktop"
 
 
 def test_an_unknown_machine_lists_the_real_ones(monkeypatch):
     cfg = load_config(CONFIG)
-    monkeypatch.setenv("BPCAD_MACHINE", "workshop")
+    monkeypatch.setenv("WHITTLE_MACHINE", "workshop")
     with pytest.raises(ProfileError) as exc:
         detect_machine(cfg)
     assert "laptop" in str(exc.value) and "desktop" in str(exc.value)
@@ -288,7 +288,7 @@ def test_an_unknown_machine_lists_the_real_ones(monkeypatch):
 def test_an_unset_model_tag_refuses_rather_than_guessing(monkeypatch):
     """Nothing gets pinned before it has been benchmarked on the hardware."""
     cfg = load_config(CONFIG)
-    monkeypatch.delenv("BPCAD_MACHINE", raising=False)
+    monkeypatch.delenv("WHITTLE_MACHINE", raising=False)
     if cfg.machine("desktop")["model_primary"] != "UNSET":
         pytest.skip("desktop has been benchmarked and pinned")
     with pytest.raises(ProfileError) as exc:
@@ -363,7 +363,7 @@ def ladder_profile(**kw):
 def test_the_ladder_retries_the_same_model_before_dropping(monkeypatch):
     seen = []
     monkeypatch.setattr(
-        "bpcad.models.selector.make_backend",
+        "whittle.models.selector.make_backend",
         lambda profile, model=None: FakeBackend(model or profile.model_primary),
     )
 
@@ -378,7 +378,7 @@ def test_the_ladder_retries_the_same_model_before_dropping(monkeypatch):
 
 def test_the_ladder_stops_as_soon_as_something_validates(monkeypatch):
     monkeypatch.setattr(
-        "bpcad.models.selector.make_backend",
+        "whittle.models.selector.make_backend",
         lambda profile, model=None: FakeBackend(model or profile.model_primary),
     )
     calls = {"n": 0}
@@ -397,7 +397,7 @@ def test_the_ladder_stops_as_soon_as_something_validates(monkeypatch):
 def test_the_ladder_does_not_retry_a_daemon_problem(monkeypatch):
     """A retry cannot fix a daemon that is not running."""
     monkeypatch.setattr(
-        "bpcad.models.selector.make_backend",
+        "whittle.models.selector.make_backend",
         lambda profile, model=None: FakeBackend(model or profile.model_primary),
     )
 
@@ -414,7 +414,7 @@ def test_the_ladder_never_reaches_a_model_when_nothing_is_available(monkeypatch)
             return False
 
     monkeypatch.setattr(
-        "bpcad.models.selector.make_backend",
+        "whittle.models.selector.make_backend",
         lambda profile, model=None: Unavailable(model or profile.model_primary),
     )
     result = run_ladder(ladder_profile(), lambda b: "never")
@@ -429,7 +429,7 @@ def test_one_model_configured_twice_is_only_tried_once():
 
 def test_the_ladder_times_every_attempt(monkeypatch):
     monkeypatch.setattr(
-        "bpcad.models.selector.make_backend",
+        "whittle.models.selector.make_backend",
         lambda profile, model=None: FakeBackend(model or profile.model_primary),
     )
     result = run_ladder(ladder_profile(), lambda b: "ok")
@@ -472,7 +472,7 @@ def test_the_model_can_say_no_template_fits():
 
 
 def test_declining_a_template_is_not_treated_as_an_error():
-    from bpcad.agent.loop import NoTemplateFits, validate_reply
+    from whittle.agent.loop import NoTemplateFits, validate_reply
 
     with pytest.raises(NoTemplateFits):
         validate_reply(
@@ -503,9 +503,9 @@ def test_the_critique_leads_with_the_fix():
 
 
 def test_the_critique_strips_advice_the_model_cannot_use():
-    """A model cannot run `bpcad spec explain`. Telling it to is noise."""
-    text = prompts.critique_prompt("{}", "bad\nRun `bpcad spec explain x` for help", "")
-    assert "bpcad spec explain" not in text
+    """A model cannot run `whittle spec explain`. Telling it to is noise."""
+    text = prompts.critique_prompt("{}", "bad\nRun `whittle spec explain x` for help", "")
+    assert "whittle spec explain" not in text
 
 
 @pytest.mark.parametrize(
@@ -583,7 +583,7 @@ def test_the_pitch_error_names_a_value_that_works():
     fails at this frame size, so the first attempt always fails and the reader
     needs to be told what to put.
     """
-    from bpcad.build.templates.louvre_vent import LouvreVentParams
+    from whittle.build.templates.louvre_vent import LouvreVentParams
     from pydantic import ValidationError
 
     with pytest.raises(ValidationError) as exc:
@@ -610,8 +610,8 @@ def test_the_draft_marks_every_bad_field_inline(tmp_path):
     assert "WHAT IS WRONG (3)" in text
     assert "legal  : > 10.0" in text          # inline, above the field
     assert "MISSING" in text and "material" in text
-    assert "bpcad build" in text and "spec.yaml" in text
-    assert "bpcad spec explain keyring_device" in text
+    assert "whittle build" in text and "spec.yaml" in text
+    assert "whittle spec explain keyring_device" in text
     assert "316.5s" in text and "laptop" in text
 
 
@@ -636,7 +636,7 @@ def test_the_draft_is_valid_yaml_once_the_values_are_fixed(tmp_path):
 
 
 def test_a_validation_error_becomes_per_field_problems():
-    from bpcad.build.templates.louvre_vent import LouvreVentParams
+    from whittle.build.templates.louvre_vent import LouvreVentParams
     from pydantic import ValidationError
 
     with pytest.raises(ValidationError) as exc:
@@ -654,7 +654,7 @@ def test_a_public_host_is_refused_at_profile_load_not_mid_generation(tmp_path):
     surfaces as a traceback from inside the generation loop, after printing a
     banner containing the offending URL as though it were about to be used.
     """
-    from bpcad.config import load_config
+    from whittle.config import load_config
 
     text = CONFIG.read_text().replace(
         'host = "http://127.0.0.1:11434"', 'host = "https://api.openai.com/v1"'
@@ -674,7 +674,7 @@ def test_a_public_host_does_not_stop_the_deterministic_pipeline(tmp_path):
     or `measure`. They never touch the model layer, and that has to stay true
     even when the model layer is configured wrongly.
     """
-    from bpcad.build.compile import compile_spec, load_spec
+    from whittle.build.compile import compile_spec, load_spec
 
     spec, base = load_spec(Path(__file__).resolve().parent.parent / "parts" / "vent" / "spec.yaml")
     assert compile_spec(spec, base_dir=base).solid is not None

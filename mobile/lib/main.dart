@@ -1,4 +1,4 @@
-// bpcad on a phone. Design handoff, task C2.
+// whittle on a phone. Design handoff, task C2.
 //
 // The app shell and the library. Boot leads in once, then a tab bar with the
 // composer on a centre button - the design's own arrangement, and it puts the
@@ -15,7 +15,7 @@
 // and a Plans screen with three tiers and prices. There is no account system,
 // no credit ledger and no billing, and the handoff itself lists store IAP
 // rules as an open blocker that must not be built against. So the second tab
-// says what bpcad is and what this machine is doing, which is true, instead of
+// says what whittle is and what this machine is doing, which is true, instead of
 // showing "12 credits" - a number that would be a fabrication sitting in the
 // middle of a product whose entire promise is that every figure on screen was
 // measured.
@@ -34,25 +34,25 @@ import 'settings.dart';
 import 'theme.dart';
 import 'tokens.dart';
 
-void main() => runApp(const BpcadApp());
+void main() => runApp(const WhittleApp());
 
 /// What a fresh install tries first. The real address is a SETTING now - see
 /// settings.dart - because a compile-time constant of localhost works over a
-/// USB cable and nowhere else, and bpcad runs on a computer the phone has to
+/// USB cable and nowhere else, and whittle runs on a computer the phone has to
 /// be told about.
 ///
 /// Kept as an alias so the tests and any caller that just wants "the default"
 /// have one name for it rather than two.
 const String kDefaultServer = Settings.defaultServer;
 
-class BpcadApp extends StatelessWidget {
-  const BpcadApp({super.key});
+class WhittleApp extends StatelessWidget {
+  const WhittleApp({super.key});
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'bpcad',
+        title: 'whittle',
         debugShowCheckedModeBanner: false,
-        theme: bpcadTheme(),
+        theme: whittleTheme(),
         home: const Shell(),
       );
 }
@@ -67,13 +67,13 @@ class Shell extends StatefulWidget {
 class _ShellState extends State<Shell> {
   /// THE CLIENT IS REBUILT WHEN THE ADDRESS CHANGES, not mutated.
   ///
-  /// BpcadApi holds its base URL, and every screen below takes the instance
+  /// WhittleApi holds its base URL, and every screen below takes the instance
   /// rather than looking one up - so pointing the phone at a different
   /// computer means a new client and a fresh self-test, and the `key` on the
   /// tab body is what makes the screens throw away what they read from the
   /// old one.
   Settings? _settings;
-  BpcadApi _api = BpcadApi(Settings.defaultServer);
+  WhittleApi _api = WhittleApi(Settings.defaultServer);
 
   /// Boot runs once. Brief 6.6 allows exactly one boot moment and it must not
   /// repeat on a later screen - which means it cannot live in the tab stack.
@@ -92,13 +92,13 @@ class _ShellState extends State<Shell> {
     if (!mounted) return;
     setState(() {
       _settings = settings;
-      _api = BpcadApi(settings.server);
+      _api = WhittleApi(settings.server);
     });
   }
 
   void _useServer(String address) {
     setState(() {
-      _api = BpcadApi(address);
+      _api = WhittleApi(address);
       _health = null;
     });
     // Re-read the machine straight away, so the panel above the address field
@@ -192,7 +192,7 @@ class _TabBar extends StatelessWidget {
         child: Container(
           height: 62,
           decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: BpcadColors.edge))),
+              border: Border(top: BorderSide(color: WhittleColors.edge))),
           child: Row(
             children: [
               Expanded(
@@ -237,7 +237,7 @@ class _TabBar extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            mark(on ? BpCore.phosphor : BpcadColors.inkFaint),
+            mark(on ? BpCore.phosphor : WhittleColors.inkFaint),
             const SizedBox(height: 5),
             // The word as well as the icon. Colour never carries meaning
             // alone - brief 6.7.
@@ -245,7 +245,7 @@ class _TabBar extends StatelessWidget {
                 style: TextStyle(
                     fontFamily: BpType.mono,
                     fontSize: 9.5,
-                    color: on ? BpCore.phosphor : BpcadColors.inkFaint)),
+                    color: on ? BpCore.phosphor : WhittleColors.inkFaint)),
           ],
         ),
       );
@@ -255,7 +255,7 @@ class _TabBar extends StatelessWidget {
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key, required this.api, this.health});
 
-  final BpcadApi api;
+  final WhittleApi api;
   final Health? health;
 
   @override
@@ -365,7 +365,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       // A phone that cannot see the computer is the ordinary case, not a
       // crash.
       setState(() {
-        _problem = error is BpcadUnreachable ? error.why : error.toString();
+        _problem = error is WhittleUnreachable ? error.why : error.toString();
         _loading = false;
       });
     }
@@ -388,7 +388,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       child: RefreshIndicator(
         onRefresh: _refresh,
         color: BpCore.phosphor,
-        backgroundColor: BpcadColors.bezel,
+        backgroundColor: WhittleColors.bezel,
         child: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(child: _header()),
@@ -448,7 +448,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       fontFamily: BpType.mono,
                       fontSize: BpType.title,
                       fontWeight: FontWeight.w600,
-                      color: BpcadColors.ink)),
+                      color: WhittleColors.ink)),
               const Spacer(),
               // THE DESIGN'S PILL, carrying a fact rather than a balance.
               //
@@ -461,7 +461,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 padding: const EdgeInsets.symmetric(
                     horizontal: BpSpace.snug, vertical: 4),
                 decoration: BoxDecoration(
-                  border: Border.all(color: BpcadColors.edge),
+                  border: Border.all(color: WhittleColors.edge),
                   borderRadius: BorderRadius.circular(BpRadius.control),
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -477,7 +477,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       style: const TextStyle(
                           fontFamily: BpType.mono,
                           fontSize: BpType.label,
-                          color: BpcadColors.ink,
+                          color: WhittleColors.ink,
                           fontFeatures: [FontFeature.tabularFigures()])),
                 ]),
               ),
@@ -492,7 +492,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 // parts and versions`. It is the same prompt character the
                 // command line uses, which is the point - this field takes
                 // words, like every other input in the product.
-                const TypeMark.search(colour: BpcadColors.inkFaint),
+                const TypeMark.search(colour: WhittleColors.inkFaint),
                 const SizedBox(width: BpSpace.snug),
                 Expanded(
                   child: TextField(
@@ -503,7 +503,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     style: const TextStyle(
                         fontFamily: BpType.mono,
                         fontSize: BpType.body,
-                        color: BpcadColors.ink),
+                        color: WhittleColors.ink),
                     decoration: const InputDecoration(
                       filled: false,
                       isDense: true,
@@ -516,7 +516,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       hintStyle: TextStyle(
                           fontFamily: BpType.mono,
                           fontSize: BpType.body,
-                          color: BpcadColors.inkFaint),
+                          color: WhittleColors.inkFaint),
                     ),
                   ),
                 ),
@@ -526,7 +526,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     borderRadius: BorderRadius.circular(BpRadius.edge),
                     child: const Padding(
                       padding: EdgeInsets.all(6),
-                      child: TypeMark.close(colour: BpcadColors.inkDim),
+                      child: TypeMark.close(colour: WhittleColors.inkDim),
                     ),
                   ),
               ]),
@@ -570,7 +570,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 fontFamily: BpType.prose,
                 fontSize: BpType.body,
                 height: 1.55,
-                color: BpcadColors.inkFaint)),
+                color: WhittleColors.inkFaint)),
       );
     }
 
@@ -589,7 +589,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   fontFamily: BpType.prose,
                   fontSize: BpType.body,
                   height: 1.55,
-                  color: BpcadColors.inkFaint)),
+                  color: WhittleColors.inkFaint)),
           const SizedBox(height: BpSpace.base),
           SizedBox(
             height: BpMetric.tap,
@@ -603,7 +603,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 });
               },
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: BpcadColors.edge),
+                side: const BorderSide(color: WhittleColors.edge),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(BpRadius.control)),
               ),
@@ -611,7 +611,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   style: TextStyle(
                       fontFamily: BpType.mono,
                       fontSize: BpType.label,
-                      color: BpcadColors.ink)),
+                      color: WhittleColors.ink)),
             ),
           ),
         ],
@@ -629,7 +629,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Cannot see the computer running bpcad',
+              const Text('Cannot see the computer running whittle',
                   style: TextStyle(
                       fontFamily: BpType.mono,
                       fontSize: BpType.label,
@@ -640,7 +640,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       fontFamily: BpType.prose,
                       fontSize: BpType.label,
                       height: 1.5,
-                      color: BpcadColors.inkDim)),
+                      color: WhittleColors.inkDim)),
             ],
           ),
         ),
@@ -680,7 +680,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           fontFamily: BpType.prose,
                           fontSize: BpType.label,
                           height: 1.5,
-                          color: BpcadColors.inkDim)),
+                          color: WhittleColors.inkDim)),
                 ],
               ),
             ),
@@ -704,14 +704,14 @@ class _Card extends StatelessWidget {
   });
 
   final PartSummary part;
-  final BpcadApi api;
+  final WhittleApi api;
   final int renderVersion;
   final VoidCallback onTap;
 
   /// The status badge, bordered in its pen colour with the word spelled out.
   /// Colour never carries status alone - brief 6.7.
   (String, Color)? get _badge {
-    if (!part.built) return ('draft', BpcadColors.inkFaint);
+    if (!part.built) return ('draft', WhittleColors.inkFaint);
     if ((part.bodies ?? 1) > 1) return ('moves', BpPen.pass);
     if (part.sizeMm == null) return ('no scale', BpCore.phosphor);
     return ('ok', BpPen.pass);
@@ -766,7 +766,7 @@ class _Card extends StatelessWidget {
                                       style: TextStyle(
                                           fontFamily: BpType.mono,
                                           fontSize: 9.5,
-                                          color: BpcadColors.inkFaint)),
+                                          color: WhittleColors.inkFaint)),
                                 ),
                               )
                             : const Center(
@@ -776,7 +776,7 @@ class _Card extends StatelessWidget {
                                         fontFamily: BpType.mono,
                                         fontSize: 9.5,
                                         height: 1.5,
-                                        color: BpcadColors.inkFaint)),
+                                        color: WhittleColors.inkFaint)),
                               ),
                       ),
                     ),
@@ -791,7 +791,7 @@ class _Card extends StatelessWidget {
                         style: const TextStyle(
                             fontFamily: BpType.mono,
                             fontSize: 9,
-                            color: BpcadColors.inkFaint)),
+                            color: WhittleColors.inkFaint)),
                   ),
                   if (badge != null)
                     Positioned(
@@ -825,7 +825,7 @@ class _Card extends StatelessWidget {
                           fontFamily: BpType.mono,
                           fontSize: BpType.label,
                           height: 1.2,
-                          color: BpcadColors.ink)),
+                          color: WhittleColors.ink)),
                   // The design's second line is `v4 · 32 mm · moving` - a
                   // version, the headline dimension and what it does. There is
                   // no stored version number, so it is the measured envelope,
@@ -936,7 +936,7 @@ class MachineScreen extends StatefulWidget {
     this.health,
   });
 
-  final BpcadApi api;
+  final WhittleApi api;
   final Settings settings;
 
   /// Handed the new address so the shell can rebuild its client and re-run
@@ -1039,7 +1039,7 @@ class _MachineScreenState extends State<MachineScreen> {
       if (!mounted) return;
       setState(() {
         _parts = const [];
-        _libraryProblem = error is BpcadUnreachable ? error.why : '$error';
+        _libraryProblem = error is WhittleUnreachable ? error.why : '$error';
       });
     }
   }
@@ -1057,7 +1057,7 @@ class _MachineScreenState extends State<MachineScreen> {
       _tested = false;
     });
     try {
-      final health = await BpcadApi(address).health();
+      final health = await WhittleApi(address).health();
       if (!mounted) return;
       setState(() {
         _reachable = true;
@@ -1073,7 +1073,7 @@ class _MachineScreenState extends State<MachineScreen> {
         _tested = true;
         // The address is in the message. "Could not connect" with no address
         // is the least useful sentence an app can print.
-        _testing = error is BpcadUnreachable
+        _testing = error is WhittleUnreachable
             ? '${error.why} — at $address'
             : 'nothing answered at $address';
       });
@@ -1108,7 +1108,7 @@ class _MachineScreenState extends State<MachineScreen> {
       child: RefreshIndicator(
         onRefresh: _refresh,
         color: BpCore.phosphor,
-        backgroundColor: BpcadColors.bezel,
+        backgroundColor: WhittleColors.bezel,
         child: ListView(
           padding: const EdgeInsets.all(BpSpace.base),
           physics: const AlwaysScrollableScrollPhysics(),
@@ -1118,7 +1118,7 @@ class _MachineScreenState extends State<MachineScreen> {
                     fontFamily: BpType.mono,
                     fontSize: BpType.title,
                     fontWeight: FontWeight.w600,
-                    color: BpcadColors.ink)),
+                    color: WhittleColors.ink)),
             const SizedBox(height: BpSpace.base),
             _workPanel(),
             const SizedBox(height: BpSpace.base),
@@ -1163,7 +1163,7 @@ class _MachineScreenState extends State<MachineScreen> {
                 style: TextStyle(
                     fontFamily: BpType.mono,
                     fontSize: BpType.micro,
-                    color: BpcadColors.inkDim)),
+                    color: WhittleColors.inkDim)),
             const Spacer(),
             if (running.isNotEmpty) const Caliper(height: 12),
           ]),
@@ -1176,12 +1176,12 @@ class _MachineScreenState extends State<MachineScreen> {
                 style: const TextStyle(
                     fontFamily: BpType.mono,
                     fontSize: BpType.label,
-                    color: BpcadColors.inkFaint)),
+                    color: WhittleColors.inkFaint)),
           for (final job in running) _jobRow(job),
           if (running.isNotEmpty && finished.isNotEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: BpSpace.snug),
-              child: Divider(height: 1, color: BpcadColors.edge),
+              child: Divider(height: 1, color: WhittleColors.edge),
             ),
           for (final job in finished) _jobRow(job),
         ],
@@ -1224,7 +1224,7 @@ class _MachineScreenState extends State<MachineScreen> {
                           fontFamily: BpType.mono,
                           fontSize: BpType.label,
                           height: 1.35,
-                          color: BpcadColors.ink)),
+                          color: WhittleColors.ink)),
                   const SizedBox(height: 2),
                   Text(
                       // THE ENGINE'S LAST WORDS. Not a stage this app worked
@@ -1242,7 +1242,7 @@ class _MachineScreenState extends State<MachineScreen> {
                           fontSize: BpType.micro,
                           color: job.done && !job.ok
                               ? BpPen.fail
-                              : BpcadColors.inkDim,
+                              : WhittleColors.inkDim,
                           fontFeatures: const [
                             FontFeature.tabularFigures()
                           ])),
@@ -1252,7 +1252,7 @@ class _MachineScreenState extends State<MachineScreen> {
             if (job.done && job.ok)
               const Padding(
                 padding: EdgeInsets.only(left: BpSpace.snug, top: 2),
-                child: TypeMark('›', colour: BpcadColors.inkFaint),
+                child: TypeMark('›', colour: WhittleColors.inkFaint),
               ),
           ],
         ),
@@ -1263,7 +1263,7 @@ class _MachineScreenState extends State<MachineScreen> {
   /// THE ONE SETTING WITHOUT WHICH THE APP DOES NOTHING.
   ///
   /// It was a compile-time constant of localhost:8765, which works over a USB
-  /// cable with `adb reverse` and nowhere else on earth. bpcad runs on a
+  /// cable with `adb reverse` and nowhere else on earth. whittle runs on a
   /// computer and the phone is a window onto it, so the address of that
   /// computer is not a preference - it is the product's one piece of wiring.
   Widget _serverPanel() => GlassSurface(
@@ -1272,11 +1272,11 @@ class _MachineScreenState extends State<MachineScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('the computer running bpcad',
+            const Text('the computer running whittle',
                 style: TextStyle(
                     fontFamily: BpType.mono,
                     fontSize: BpType.micro,
-                    color: BpcadColors.inkDim)),
+                    color: WhittleColors.inkDim)),
             const SizedBox(height: BpSpace.snug),
             GlassSurface(
               depth: GlassDepth.well,
@@ -1291,7 +1291,7 @@ class _MachineScreenState extends State<MachineScreen> {
                 style: const TextStyle(
                     fontFamily: BpType.mono,
                     fontSize: BpType.body,
-                    color: BpcadColors.ink),
+                    color: WhittleColors.ink),
                 decoration: const InputDecoration(
                   filled: false,
                   isDense: true,
@@ -1304,7 +1304,7 @@ class _MachineScreenState extends State<MachineScreen> {
                   hintStyle: TextStyle(
                       fontFamily: BpType.mono,
                       fontSize: BpType.body,
-                      color: BpcadColors.inkFaint),
+                      color: WhittleColors.inkFaint),
                 ),
               ),
             ),
@@ -1316,7 +1316,7 @@ class _MachineScreenState extends State<MachineScreen> {
                   child: OutlinedButton(
                     onPressed: _test,
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: BpcadColors.edge),
+                      side: const BorderSide(color: WhittleColors.edge),
                       shape: RoundedRectangleBorder(
                           borderRadius:
                               BorderRadius.circular(BpRadius.control)),
@@ -1325,7 +1325,7 @@ class _MachineScreenState extends State<MachineScreen> {
                         style: TextStyle(
                             fontFamily: BpType.mono,
                             fontSize: BpType.label,
-                            color: BpcadColors.ink)),
+                            color: WhittleColors.ink)),
                   ),
                 ),
               ),
@@ -1353,7 +1353,7 @@ class _MachineScreenState extends State<MachineScreen> {
                       fontSize: BpType.micro,
                       height: 1.5,
                       color: !_tested
-                          ? BpcadColors.inkDim
+                          ? WhittleColors.inkDim
                           : _reachable
                               ? BpPen.pass
                               : BpPen.fail)),
@@ -1362,12 +1362,12 @@ class _MachineScreenState extends State<MachineScreen> {
             const Text(
                 'Over a USB cable with `adb reverse tcp:8765 tcp:8765`, '
                 'localhost is the computer. On wifi, use its address and the '
-                'port `bpcad web` opened.',
+                'port `whittle web` opened.',
                 style: TextStyle(
                     fontFamily: BpType.prose,
                     fontSize: BpType.micro,
                     height: 1.55,
-                    color: BpcadColors.inkFaint)),
+                    color: WhittleColors.inkFaint)),
           ],
         ),
       );
@@ -1425,7 +1425,7 @@ class _MachineScreenState extends State<MachineScreen> {
               style: TextStyle(
                   fontFamily: BpType.mono,
                   fontSize: BpType.micro,
-                  color: BpcadColors.inkDim)),
+                  color: WhittleColors.inkDim)),
           const SizedBox(height: BpSpace.snug),
           if (_libraryProblem != null)
             Text(_libraryProblem!,
@@ -1442,7 +1442,7 @@ class _MachineScreenState extends State<MachineScreen> {
                   style: TextStyle(
                       fontFamily: BpType.mono,
                       fontSize: BpType.label,
-                      color: BpcadColors.inkFaint)),
+                      color: WhittleColors.inkFaint)),
           ],
         ],
       ),
@@ -1470,7 +1470,7 @@ class _MachineScreenState extends State<MachineScreen> {
               style: const TextStyle(
                   fontFamily: BpType.mono,
                   fontSize: BpType.micro,
-                  color: BpcadColors.inkDim)),
+                  color: WhittleColors.inkDim)),
           const SizedBox(height: BpSpace.snug),
           Wrap(
             spacing: 6,
@@ -1502,7 +1502,7 @@ class _MachineScreenState extends State<MachineScreen> {
                   fontFamily: BpType.prose,
                   fontSize: BpType.micro,
                   height: 1.55,
-                  color: BpcadColors.inkFaint)),
+                  color: WhittleColors.inkFaint)),
         ],
       ),
     );
@@ -1531,7 +1531,7 @@ class _MachineScreenState extends State<MachineScreen> {
               style: TextStyle(
                   fontFamily: BpType.mono,
                   fontSize: BpType.micro,
-                  color: BpcadColors.inkDim)),
+                  color: WhittleColors.inkDim)),
           const SizedBox(height: BpSpace.snug),
           Wrap(
             spacing: 6,
@@ -1555,7 +1555,7 @@ class _MachineScreenState extends State<MachineScreen> {
                   fontFamily: BpType.prose,
                   fontSize: BpType.micro,
                   height: 1.55,
-                  color: BpcadColors.inkFaint)),
+                  color: WhittleColors.inkFaint)),
         ],
       ),
     );
@@ -1573,7 +1573,7 @@ class _MachineScreenState extends State<MachineScreen> {
                     style: TextStyle(
                         fontFamily: BpType.mono,
                         fontSize: BpType.label,
-                        color: BpcadColors.ink)),
+                        color: WhittleColors.ink)),
                 SizedBox(height: 3),
                 Text('Off is cheaper on an older phone. The design says a '
                     'low-end GPU should be able to refuse them.',
@@ -1581,7 +1581,7 @@ class _MachineScreenState extends State<MachineScreen> {
                         fontFamily: BpType.prose,
                         fontSize: BpType.micro,
                         height: 1.5,
-                        color: BpcadColors.inkFaint)),
+                        color: WhittleColors.inkFaint)),
               ],
             ),
           ),
@@ -1609,7 +1609,7 @@ class _MachineScreenState extends State<MachineScreen> {
                 style: TextStyle(
                     fontFamily: BpType.mono,
                     fontSize: BpType.micro,
-                    color: BpcadColors.inkDim)),
+                    color: WhittleColors.inkDim)),
             const SizedBox(height: BpSpace.snug),
             _row('printer', health?.printer ?? '—'),
             if (health?.bedMm != null)
@@ -1632,7 +1632,7 @@ class _MachineScreenState extends State<MachineScreen> {
                     fontFamily: BpType.prose,
                     fontSize: BpType.micro,
                     height: 1.55,
-                    color: BpcadColors.inkFaint)),
+                    color: WhittleColors.inkFaint)),
           ],
         ),
       );
@@ -1648,7 +1648,7 @@ class _MachineScreenState extends State<MachineScreen> {
                   style: const TextStyle(
                       fontFamily: BpType.mono,
                       fontSize: BpType.label,
-                      color: BpcadColors.inkDim)),
+                      color: WhittleColors.inkDim)),
             ),
             Expanded(
               child: Text(value,
@@ -1681,14 +1681,14 @@ class _Switch extends StatelessWidget {
           padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(
             border: Border.all(
-                color: on ? BpCore.phosphor : BpcadColors.edge),
+                color: on ? BpCore.phosphor : WhittleColors.edge),
           ),
           child: Align(
             alignment: on ? Alignment.centerRight : Alignment.centerLeft,
             child: Container(
               width: 14,
               height: 14,
-              color: on ? BpCore.phosphor : BpcadColors.inkFaint,
+              color: on ? BpCore.phosphor : WhittleColors.inkFaint,
             ),
           ),
         ),

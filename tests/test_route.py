@@ -12,8 +12,8 @@ place it can be caught is before the template is chosen.
 
 from __future__ import annotations
 
-from bpcad.agent.route import route
-from bpcad.spec import registry
+from whittle.agent.route import route
+from whittle.spec import registry
 
 
 # Requests the templates genuinely make. Each names a thing that is in some
@@ -143,7 +143,7 @@ def _profile():
     refuses every call, so "ask() did not decline on the route" is proved by
     the run getting far enough to be refused by the backend instead.
     """
-    from bpcad.models.selector import Profile
+    from whittle.models.selector import Profile
 
     return Profile(
         name="test", backend_kind="null", host="http://127.0.0.1:11434",
@@ -155,11 +155,11 @@ def _profile():
 def test_ask_declines_a_plate_without_calling_a_model():
     """
     The first wiring of this put the decision in api.generate(), so the web app
-    routed correctly and `bpcad gen` did not - it went on handing drilled
+    routed correctly and `whittle gen` did not - it went on handing drilled
     plates to the enclosure template. The decision belongs in ask(), which both
     drivers call, and a decline must cost no model call at all.
     """
-    from bpcad.agent.loop import ask
+    from whittle.agent.loop import ask
 
     def explode(*_args, **_kwargs):
         raise AssertionError("a model was called for a request no template makes")
@@ -181,7 +181,7 @@ def test_ask_declines_a_plate_without_calling_a_model():
 
 def test_ask_still_asks_when_a_template_claims_the_request():
     """A decline must not swallow the requests templates genuinely serve."""
-    from bpcad.agent.loop import ask
+    from whittle.agent.loop import ask
 
     result = ask(
         request="a birdhouse with a 32 mm entrance",

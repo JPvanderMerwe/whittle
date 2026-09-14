@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 import trimesh
 
-from bpcad.render import raster as R
+from whittle.render import raster as R
 
 
 def quad(size, z):

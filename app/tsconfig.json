@@ -1,0 +1,17 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    // The tests run under node's own runner and its TypeScript stripping, so
+    // they import `../src/glb.ts` by its real filename - node resolves the
+    // file on disk, it does not rewrite extensions the way a bundler does.
+    "allowImportingTsExtensions": true,
+    // EXPLICIT, because expo's base sets `customConditions: ["react-native"]`
+    // and @types/node then stops being picked up automatically - which shows
+    // up as "Cannot find name 'node:test'" on a package that is installed.
+    "types": ["node", "react"],
+    "noEmit": true
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules"]
+}

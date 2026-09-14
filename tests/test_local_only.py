@@ -1,13 +1,13 @@
 """
 The local-inference-only guarantee.
 
-If any of these fail, bpcad can send a prompt off the machine. That is the one
+If any of these fail, whittle can send a prompt off the machine. That is the one
 thing this project must never do, so these are the first tests in the repo.
 """
 
 import pytest
 
-from bpcad.models.base import (
+from whittle.models.base import (
     NonLocalEndpointError,
     assert_local_endpoint,
     is_local_host,

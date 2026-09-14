@@ -67,7 +67,7 @@ class ComposerScreen extends StatefulWidget {
     this.seed = '',
   });
 
-  final BpcadApi api;
+  final WhittleApi api;
   final Health? health;
 
   /// The material the user last chose, from Settings. Empty means "whatever
@@ -83,7 +83,7 @@ class ComposerScreen extends StatefulWidget {
   State<ComposerScreen> createState() => _ComposerScreenState();
 }
 
-/// Starting points, and every one is a part bpcad can actually make.
+/// Starting points, and every one is a part whittle can actually make.
 ///
 /// A BLANK BOX IS THE HARDEST THING TO ANSWER. The whole product turns on
 /// somebody typing a sentence, and "describe a part" with nothing else on
@@ -289,7 +289,7 @@ class _ComposerScreenState extends State<ComposerScreen>
         error.code.contains('access') ||
         error.code == 'photo_access_denied';
     _stop(denied
-        ? 'bpcad has not been allowed to reach $what. Grant it in the '
+        ? 'whittle has not been allowed to reach $what. Grant it in the '
             'phone\'s app settings and try again.'
         : error.message ?? error.code);
   }
@@ -308,7 +308,7 @@ class _ComposerScreenState extends State<ComposerScreen>
         _thumbnail = bytes;
         _uploading = false;
       });
-    } on BpcadUnreachable catch (error) {
+    } on WhittleUnreachable catch (error) {
       // THE SERVER'S OWN WORDS. It is the authority on what it will accept -
       // it checks the magic bytes, not the name - and paraphrasing "that is
       // not a JPEG, PNG or WebP" into "unsupported file" would lose the one
@@ -428,7 +428,7 @@ class _ComposerScreenState extends State<ComposerScreen>
                 // that does not exist yet. What is true is what it costs in
                 // time on this machine.
                 widget.health == null
-                    ? 'the computer running bpcad is not answering'
+                    ? 'the computer running whittle is not answering'
                     : widget.health!.promptSeconds > 90
                         ? 'about ${(widget.health!.promptSeconds / 60).round()}'
                             ' minutes on ${widget.health!.printer.isEmpty
@@ -437,7 +437,7 @@ class _ComposerScreenState extends State<ComposerScreen>
                 style: const TextStyle(
                     fontFamily: BpType.mono,
                     fontSize: BpType.micro,
-                    color: BpcadColors.inkFaint),
+                    color: WhittleColors.inkFaint),
               ),
             ],
           ),
@@ -466,7 +466,7 @@ class _ComposerScreenState extends State<ComposerScreen>
                   fontFamily: BpType.prose,
                   fontSize: BpType.reading,
                   height: 1.5,
-                  color: BpcadColors.ink),
+                  color: WhittleColors.ink),
               decoration: const InputDecoration(
                 filled: false,
                 border: InputBorder.none,
@@ -480,7 +480,7 @@ class _ComposerScreenState extends State<ComposerScreen>
                     fontFamily: BpType.prose,
                     fontSize: BpType.reading,
                     height: 1.5,
-                    color: BpcadColors.inkFaint),
+                    color: WhittleColors.inkFaint),
               ),
             ),
             const SizedBox(height: BpSpace.base),
@@ -507,15 +507,15 @@ class _ComposerScreenState extends State<ComposerScreen>
             style: const TextStyle(
                 fontFamily: BpType.mono,
                 fontSize: BpType.micro,
-                color: BpcadColors.inkDim)),
+                color: WhittleColors.inkDim)),
       ]);
     }
 
     return Row(children: [
-      _tile('camera', const CameraMark(colour: BpcadColors.inkFaint),
+      _tile('camera', const CameraMark(colour: WhittleColors.inkFaint),
           _fromCamera),
       const SizedBox(width: BpSpace.snug),
-      _tile('files', const TypeMark.plus(colour: BpcadColors.inkFaint),
+      _tile('files', const TypeMark.plus(colour: WhittleColors.inkFaint),
           _fromFiles),
       const SizedBox(width: BpSpace.base),
       const Expanded(
@@ -526,7 +526,7 @@ class _ComposerScreenState extends State<ComposerScreen>
                 fontFamily: BpType.prose,
                 fontSize: BpType.micro,
                 height: 1.5,
-                color: BpcadColors.inkFaint)),
+                color: WhittleColors.inkFaint)),
       ),
     ]);
   }
@@ -546,7 +546,7 @@ class _ComposerScreenState extends State<ComposerScreen>
           width: 56,
           height: 56,
           decoration: BoxDecoration(
-            border: Border.all(color: BpcadColors.edge),
+            border: Border.all(color: WhittleColors.edge),
             borderRadius: BorderRadius.circular(BpRadius.control),
           ),
           child: Column(
@@ -558,7 +558,7 @@ class _ComposerScreenState extends State<ComposerScreen>
                   style: const TextStyle(
                       fontFamily: BpType.mono,
                       fontSize: 9.5,
-                      color: BpcadColors.inkFaint)),
+                      color: WhittleColors.inkFaint)),
             ],
           ),
         ),
@@ -614,14 +614,14 @@ class _ComposerScreenState extends State<ComposerScreen>
                           style: const TextStyle(
                               fontFamily: BpType.mono,
                               fontSize: BpType.body,
-                              color: BpcadColors.ink,
+                              color: WhittleColors.ink,
                               fontFeatures: [FontFeature.tabularFigures()])),
                       const SizedBox(height: 2),
                       Text('aspect ${reference.aspect}',
                           style: const TextStyle(
                               fontFamily: BpType.mono,
                               fontSize: BpType.micro,
-                              color: BpcadColors.inkDim,
+                              color: WhittleColors.inkDim,
                               fontFeatures: [FontFeature.tabularFigures()])),
                     ] else
                       Text(
@@ -641,7 +641,7 @@ class _ComposerScreenState extends State<ComposerScreen>
                 borderRadius: BorderRadius.circular(BpRadius.edge),
                 child: const Padding(
                   padding: EdgeInsets.all(6),
-                  child: TypeMark.close(colour: BpcadColors.inkDim),
+                  child: TypeMark.close(colour: WhittleColors.inkDim),
                 ),
               ),
             ]),
@@ -658,7 +658,7 @@ class _ComposerScreenState extends State<ComposerScreen>
                       fontFamily: BpType.prose,
                       fontSize: BpType.micro,
                       height: 1.55,
-                      color: BpcadColors.inkDim)),
+                      color: WhittleColors.inkDim)),
               const SizedBox(height: BpSpace.snug),
               Wrap(
                 spacing: 6,
@@ -680,7 +680,7 @@ class _ComposerScreenState extends State<ComposerScreen>
               style: TextStyle(
                   fontFamily: BpType.mono,
                   fontSize: BpType.micro,
-                  color: BpcadColors.inkDim)),
+                  color: WhittleColors.inkDim)),
           const SizedBox(height: BpSpace.snug),
           Wrap(
             spacing: 6,
@@ -722,7 +722,7 @@ class _ComposerScreenState extends State<ComposerScreen>
             style: TextStyle(
                 fontFamily: BpType.mono,
                 fontSize: BpType.micro,
-                color: BpcadColors.inkDim)),
+                color: WhittleColors.inkDim)),
         const SizedBox(height: BpSpace.snug),
         Wrap(
           spacing: 6,
@@ -783,7 +783,7 @@ class _ComposerScreenState extends State<ComposerScreen>
                     style: const TextStyle(
                         fontFamily: BpType.mono,
                         fontSize: BpType.label,
-                        color: BpcadColors.ink)),
+                        color: WhittleColors.ink)),
                 const SizedBox(height: 3),
                 Text(
                     withPhoto
@@ -797,7 +797,7 @@ class _ComposerScreenState extends State<ComposerScreen>
                         fontFamily: BpType.prose,
                         fontSize: BpType.label,
                         height: 1.5,
-                        color: BpcadColors.inkDim)),
+                        color: WhittleColors.inkDim)),
               ],
             ),
           ),
@@ -815,7 +815,7 @@ class _ComposerScreenState extends State<ComposerScreen>
                   fontFamily: BpType.mono,
                   fontSize: BpType.micro,
                   letterSpacing: .06,
-                  color: BpcadColors.inkDim)),
+                  color: WhittleColors.inkDim)),
           const SizedBox(height: BpSpace.snug),
           GlassSurface(
             depth: GlassDepth.panel,
@@ -842,7 +842,7 @@ class _ComposerScreenState extends State<ComposerScreen>
                         fontFamily: BpType.prose,
                         fontSize: BpType.micro,
                         height: 1.55,
-                        color: BpcadColors.inkFaint)),
+                        color: WhittleColors.inkFaint)),
               ],
             ),
           ),
@@ -862,7 +862,7 @@ class _ComposerScreenState extends State<ComposerScreen>
                     fontFamily: BpType.prose,
                     fontSize: BpType.label,
                     height: 1.5,
-                    color: BpcadColors.inkDim)),
+                    color: WhittleColors.inkDim)),
           ),
         ],
       );
@@ -895,7 +895,7 @@ class _ComposerScreenState extends State<ComposerScreen>
                       fontFamily: BpType.prose,
                       fontSize: BpType.label,
                       height: 1.5,
-                      color: BpcadColors.inkDim)),
+                      color: WhittleColors.inkDim)),
             ),
           ],
         ),

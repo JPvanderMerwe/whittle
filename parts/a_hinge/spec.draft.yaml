@@ -1,4 +1,4 @@
-# bpcad handoff - the model could not produce a valid spec.
+# whittle handoff - the model could not produce a valid spec.
 #
 # Requested:
 #   a hinge
@@ -9,11 +9,11 @@
 # No field-level problems were recorded - see the error below.
 #
 # WHEN YOU HAVE FIXED IT:
-#   bpcad build parts/a_hinge/spec.yaml
+#   whittle build parts/a_hinge/spec.yaml
 #
 # Useful while editing:
-#   bpcad spec list                 # what templates exist
-#   bpcad spec ops                  # level-2 operations and anchors
+#   whittle spec list                 # what templates exist
+#   whittle spec ops                  # level-2 operations and anchors
 
 name: hinge
 print_axis: z

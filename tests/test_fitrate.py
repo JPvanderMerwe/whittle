@@ -175,7 +175,7 @@ def test_the_corpus_exercises_the_geometry_that_makes_a_part_look_designed():
 
     Compared side by side with Prusa's Extruder-cable-clip, which ships on
     every MK3S: 874 triangles, watertight, an arched snap-over section blended
-    into a mounting foot. bpcad's mesh quality beat it comfortably - finer
+    into a mounting foot. whittle's mesh quality beat it comfortably - finer
     tessellation, no slivers - and the SHAPE was a rectangular block.
 
     This floor rises as entries are added. It is deliberately not a demand for
@@ -184,7 +184,7 @@ def test_the_corpus_exercises_the_geometry_that_makes_a_part_look_designed():
     """
     import yaml
 
-    from bpcad.spec.dsl import OP_NAMES
+    from whittle.spec.dsl import OP_NAMES
 
     def ops_in(obj, seen):
         if isinstance(obj, dict):

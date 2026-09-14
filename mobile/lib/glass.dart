@@ -84,11 +84,11 @@ class GlassSurface extends StatelessWidget {
 
     final pane = DecoratedBox(
       decoration: BoxDecoration(
-        color: flatten ? BpcadColors.bezel : fill,
+        color: flatten ? WhittleColors.bezel : fill,
         borderRadius: radius,
         border: border
             ? Border.all(
-                color: flatten ? (tint?.color ?? BpcadColors.edge) : line,
+                color: flatten ? (tint?.color ?? WhittleColors.edge) : line,
                 width: 1)
             : null,
         // The light catching the top edge of the pane. An inset line rather
@@ -146,13 +146,13 @@ class AmbientLight extends StatelessWidget {
     // Suppressed with the glass: somebody who asked for high contrast is not
     // served by two coloured washes under their text.
     if (MediaQuery.of(context).highContrast) {
-      return ColoredBox(color: BpcadColors.bed, child: child);
+      return ColoredBox(color: WhittleColors.bed, child: child);
     }
 
     return Stack(
       fit: StackFit.passthrough,
       children: [
-        const ColoredBox(color: BpcadColors.bed),
+        const ColoredBox(color: WhittleColors.bed),
         // Two layers because a BoxDecoration carries one gradient, and the
         // design specifies two washes from opposite corners. Painted in the
         // token's order so the amber sits over the cyan, as on the web.

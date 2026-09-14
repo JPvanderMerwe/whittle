@@ -2,7 +2,7 @@
 #
 # This file is the durable artifact. The model is a convenience layer that
 # writes one of these; everything downstream is deterministic Python. Edit it
-# by hand freely - `bpcad spec explain keyring_device` prints every parameter
+# by hand freely - `whittle spec explain keyring_device` prints every parameter
 # with its units, default and bounds.
 
 name: loop_keyring

@@ -1,4 +1,4 @@
-# CLAUDE.md - working rules for bpcad
+# CLAUDE.md - working rules for whittle
 
 These are not style preferences. Most of them are a bug that cost real
 debugging time, written down so it does not happen twice.
@@ -102,13 +102,13 @@ debugging time, written down so it does not happen twice.
 27. **The height map is the primary geometry-verification visual**, not the
     shaded render. A flat-shaded renderer cannot show a recess whose floor
     shares a normal with the surrounding face.
-28. **No part is done until `bpcad verify` passes and a height map has been
+28. **No part is done until `whittle verify` passes and a height map has been
     generated and looked at.**
 
 ## Config
 
 29. **A value with no measured source is written `"UNSET"` and reading it
-    raises.** bpcad does not substitute a plausible number. A wrong tolerance is
+    raises.** whittle does not substitute a plausible number. A wrong tolerance is
     worse than no tolerance.
 30. **`reference/` is read-only.** It holds working, verified code and it is the
     source of truth for the algorithms. Port and generalise it; do not rewrite
@@ -118,7 +118,7 @@ debugging time, written down so it does not happen twice.
 ## Coverage
 
 31. **A template is an optimisation, never the boundary of the product.**
-    bpcad is a parametric modeller you talk to. It is not a template catalogue
+    whittle is a parametric modeller you talk to. It is not a template catalogue
     with a chat box on the front, and any change that makes it more of one is
     the wrong change.
 

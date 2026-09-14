@@ -1,4 +1,4 @@
-// What can be tested without a bpcad to talk to.
+// What can be tested without a whittle to talk to.
 //
 // The app is a client: almost everything it does needs a server, and a test
 // that mocks the whole API would mostly assert that the mock works. So these
@@ -6,11 +6,11 @@
 // without a server present, and that it says so honestly rather than showing
 // an empty library that reads as "you have made nothing".
 
-import 'package:bpcad_app/api.dart';
-import 'package:bpcad_app/main.dart';
-import 'package:bpcad_app/tokens.dart';
+import 'package:whittle_app/api.dart';
+import 'package:whittle_app/main.dart';
+import 'package:whittle_app/tokens.dart';
 import 'package:flutter/material.dart';
-import 'package:bpcad_app/result_screen.dart';
+import 'package:whittle_app/result_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -30,10 +30,10 @@ void main() {
     // decoration saying "ok" while nothing works, on a phone whose cable is
     // out, which is the single most likely way this screen is ever seen.
     //
-    // So with no server: it still says bpcad, it says plainly that nothing
+    // So with no server: it still says whittle, it says plainly that nothing
     // answered, and it NAMES THE ADDRESS. The fix is nearly always the cable
     // or the port and the user cannot guess which.
-    await tester.pumpWidget(const BpcadApp());
+    await tester.pumpWidget(const WhittleApp());
     // One pump for the settings read, then the health call.
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
@@ -41,11 +41,11 @@ void main() {
     // settling waits for animations to stop.
     await tester.pump(const Duration(seconds: 2));
 
-    expect(find.text('bpcad'), findsOneWidget);
+    expect(find.text('whittle'), findsOneWidget);
     expect(find.textContaining('not answering'), findsOneWidget);
     expect(find.textContaining(kDefaultServer), findsOneWidget);
 
-    // And it lets you in anyway: a bpcad with no server still opens the parts
+    // And it lets you in anyway: a whittle with no server still opens the parts
     // already on the phone, and a dead button would say otherwise.
     expect(find.text('Carry on anyway'), findsOneWidget);
   });
@@ -55,7 +55,7 @@ void main() {
     // The counterpart to the above. Whatever the screen prints for `link`, it
     // must not be the pass pen when nothing answered - a green "ok" beside a
     // dead server is the exact lie this screen exists to avoid.
-    await tester.pumpWidget(const BpcadApp());
+    await tester.pumpWidget(const WhittleApp());
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 2));
@@ -87,7 +87,7 @@ void main() {
     // change for different reasons - a new camera angle must not throw away
     // every cached mesh, and a new baked colour must not throw away every
     // cached frame.
-    final api = BpcadApi('http://localhost:8765');
+    final api = WhittleApi('http://localhost:8765');
     expect(api.glb('hinge_pip', meshVersion: 2).toString(),
         'http://localhost:8765/api/part/hinge_pip/glb?mv=2');
     expect(api.frame('hinge_pip', 3, renderVersion: 2).toString(),
@@ -98,13 +98,13 @@ void main() {
   });
 
   test('the viewer url names the part and nothing else', () {
-    // One page, served by bpcad, loaded by both clients - which is the only
+    // One page, served by whittle, loaded by both clients - which is the only
     // way the phone and the browser show a part the same way rather than
     // nearly the same way. The page asks the server for the mesh version
     // itself, so a number is not repeated in Dart and in JavaScript.
-    final api = BpcadApi('http://localhost:8765');
+    final api = WhittleApi('http://localhost:8765');
     // `flutter test` is a debug build, so the camera readout is asked for -
-    // see BpcadApi.viewer. It is off in every release build.
+    // see WhittleApi.viewer. It is off in every release build.
     expect(api.viewer('hinge_pip').toString(),
         'http://localhost:8765/static/viewer.html?part=hinge_pip&debug=1');
     // A name with a space has to survive the trip; the page validates it
@@ -128,7 +128,7 @@ void main() {
     // was being created, before any image request went out.
     await tester.pumpWidget(MaterialApp(
       home: ResultScreen(
-        api: BpcadApi('http://localhost:8765'),
+        api: WhittleApi('http://localhost:8765'),
         name: 'hinge_pip',
       ),
     ));
@@ -173,7 +173,7 @@ void main() {
     // say it fills, whatever its children happen to be that frame.
     await tester.pumpWidget(MaterialApp(
       home: ResultScreen(
-        api: BpcadApi('http://localhost:8765'),
+        api: WhittleApi('http://localhost:8765'),
         name: 'hinge_pip',
       ),
     ));

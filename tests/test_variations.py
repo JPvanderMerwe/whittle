@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from bpcad import api
-from bpcad.agent import variations
+from whittle import api
+from whittle.agent import variations
 
 
 def spec_for(template, params=None):
@@ -115,7 +115,7 @@ def test_a_size_change_has_to_prove_itself_on_the_geometry():
 ])
 def test_a_prompt_yields_several_buildable_options(template, params, least):
     built = variations.build_variants(spec_for(template, params), api.config(),
-                                      count=4, out_root="/tmp/bpcad_var_test")
+                                      count=4, out_root="/tmp/whittle_var_test")
     assert len(built) >= least, "only %d options for %s" % (len(built), template)
     for variant in built:
         assert variant.verdict, "%s has no verdict" % variant.label
@@ -131,7 +131,7 @@ def test_every_option_offered_actually_builds():
     built = variations.build_variants(
         spec_for("vessel", {"profile": "flared", "outer_dia_mm": 180.0,
                             "height_mm": 70.0, "wall_mm": 2.6}),
-        api.config(), count=4, out_root="/tmp/bpcad_var_test2")
+        api.config(), count=4, out_root="/tmp/whittle_var_test2")
     for variant in built:
         assert not variant.verdict.upper().startswith("FAIL")
 
@@ -140,7 +140,7 @@ def test_the_options_are_not_all_the_same_object():
     built = variations.build_variants(
         spec_for("vessel", {"profile": "flared", "outer_dia_mm": 180.0,
                             "height_mm": 70.0, "wall_mm": 2.6}),
-        api.config(), count=4, out_root="/tmp/bpcad_var_test3")
+        api.config(), count=4, out_root="/tmp/whittle_var_test3")
     volumes = [round(v.volume_cm3, 1) for v in built]
     assert len(set(volumes)) == len(volumes), "two options measured identically: %s" % volumes
 
@@ -171,7 +171,7 @@ def test_a_scaled_op_scales_the_outline_too():
     scaled the height and left the outline alone: a 90 x 90 x 70 pot came back
     90 x 90 x 56 - shorter, and never narrower.
     """
-    from bpcad.agent.variations import _scaled_op
+    from whittle.agent.variations import _scaled_op
 
     scaled = _scaled_op({"op": "profile_extrude",
                          "points": [[10.0, 0.0], [10.0, 20.0]],
@@ -183,7 +183,7 @@ def test_a_scaled_op_scales_the_outline_too():
 def test_scaling_leaves_counts_and_angles_alone():
     """Scaling `rotate_deg` makes a different part; scaling `count` is not
     even meaningful."""
-    from bpcad.agent.variations import _scaled_op
+    from whittle.agent.variations import _scaled_op
 
     scaled = _scaled_op({"op": "pattern_polar", "count": 6, "radius_mm": 20.0,
                          "start_deg": 45.0,
@@ -202,9 +202,9 @@ def test_more_versions_of_a_part_with_no_template(tmp_path):
     what I uploaded" mean anything at all. build_variants returns nothing for
     these, by design.
     """
-    from bpcad import api
-    from bpcad.agent.variations import build_scale_variants, build_variants
-    from bpcad.spec.schema import PartSpec
+    from whittle import api
+    from whittle.agent.variations import build_scale_variants, build_variants
+    from whittle.spec.schema import PartSpec
 
     spec = PartSpec(**LEVEL_2_POT)
     assert build_variants(spec, api.config()) == [], "no parameters to vary"

@@ -14,9 +14,9 @@ import math
 import numpy as np
 import pytest
 
-from bpcad.build import cells
-from bpcad.build.helpers import BuildLog, probe
-from bpcad.build.templates.vessel import VesselParams, build_core
+from whittle.build import cells
+from whittle.build.helpers import BuildLog, probe
+from whittle.build.templates.vessel import VesselParams, build_core
 
 CELL_BOWL = dict(pattern="cells", profile="flared", outer_dia_mm=180.0,
                  height_mm=70.0, wall_mm=2.6, cell_count=60, strut_mm=3.2,
@@ -172,8 +172,8 @@ def test_bands_that_leave_no_wall_are_refused():
 
 
 def test_the_strut_is_recorded_so_the_nozzle_check_sees_it():
-    from bpcad.build.templates.vessel import build
-    from bpcad.spec.schema import PartSpec
+    from whittle.build.templates.vessel import build
+    from whittle.spec.schema import PartSpec
 
     p = VesselParams(**CELL_BOWL)
     spec = PartSpec(name="x", level=1, material="petg", nozzle_mm=0.4,
@@ -196,7 +196,7 @@ def test_a_pattern_that_will_not_cut_is_reverted_with_advice():
     What must never happen is a corrupted part: the wall goes back to solid and
     the build carries on.
     """
-    from bpcad.build.templates.vessel import VesselParams, build_core
+    from whittle.build.templates.vessel import VesselParams, build_core
 
     p = VesselParams(
         profile="custom", pattern="cells", cell_count=90, strut_mm=3.0,
@@ -218,7 +218,7 @@ def test_a_pattern_that_will_not_cut_is_reverted_with_advice():
 
 
 def test_more_cells_succeed_where_fewer_failed():
-    from bpcad.build.templates.vessel import VesselParams, build_core
+    from whittle.build.templates.vessel import VesselParams, build_core
 
     points = [(35.4, 0.0), (39.2, 12.6), (41.6, 25.3), (41.5, 37.9),
               (42.2, 50.5), (43.2, 63.2), (42.0, 75.8), (38.5, 88.4),

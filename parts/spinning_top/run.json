@@ -69,7 +69,7 @@
       "degenerate_faces": 0,
       "face_count": 2148,
       "is_volume": true,
-      "path": "/tmp/bpcad-gen-vdcaamvh/out/spinning_top.stl",
+      "path": "/tmp/whittle-gen-vdcaamvh/out/spinning_top.stl",
       "problems": [],
       "vertex_count": 1074,
       "volume_cm3": 22.08639843233125,
@@ -99,7 +99,7 @@
       "unsupported_fraction": 0.0,
       "worst_overhang_deg": 0.0015703585461697975
     },
-    "path": "/tmp/bpcad-gen-vdcaamvh/out/spinning_top.stl",
+    "path": "/tmp/whittle-gen-vdcaamvh/out/spinning_top.stl",
     "print_axis": "z",
     "problems": [],
     "surface_levels": [

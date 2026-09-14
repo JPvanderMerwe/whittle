@@ -16,9 +16,9 @@ import math
 import pytest
 from pydantic import ValidationError
 
-from bpcad import api
-from bpcad.build.templates.enclosure import EnclosureParams, build, derive
-from bpcad.spec.schema import PartSpec, format_validation_error
+from whittle import api
+from whittle.build.templates.enclosure import EnclosureParams, build, derive
+from whittle.spec.schema import PartSpec, format_validation_error
 
 
 def spec(**params) -> PartSpec:
@@ -253,7 +253,7 @@ def test_the_intent_check_uses_the_nominal_size(tmp_path):
     Checking the print layout rejected a correct birdhouse for not being 100 mm
     deep when it was.
     """
-    from bpcad.agent.loop import compile_and_verify
+    from whittle.agent.loop import compile_and_verify
 
     s = spec(width_mm=120.0, depth_mm=100.0, height_mm=140.0)
     request = "a birdhouse, 120 mm wide, 140 mm tall, 100 mm deep"
@@ -285,8 +285,8 @@ def test_the_guard_is_bored_through_not_a_plug():
     """A collar with no hole in it seals the box."""
     import cadquery as cq
 
-    from bpcad.build.helpers import BuildLog
-    from bpcad.build.templates.enclosure import build_box
+    from whittle.build.helpers import BuildLog
+    from whittle.build.templates.enclosure import build_box
 
     p = EnclosureParams(width_mm=140.0, depth_mm=120.0, height_mm=190.0,
                         entrance_dia_mm=32.0, wall_mm=4.0, predator_guard_mm=22.0)
@@ -335,7 +335,7 @@ def test_there_is_deliberately_no_perch():
 
     source = (
         __import__("pathlib").Path(__file__).resolve().parent.parent
-        / "bpcad" / "build" / "templates" / "enclosure.py"
+        / "whittle" / "build" / "templates" / "enclosure.py"
     ).read_text()
     assert "NO PERCH" in source, "the reason must stay next to the decision"
 
@@ -344,8 +344,8 @@ def test_mount_holes_move_to_the_plate_when_there_is_one():
     """
     Inside the box a screwdriver will not reach. On the plate it will.
     """
-    from bpcad.build.helpers import BuildLog
-    from bpcad.build.templates.enclosure import build_box
+    from whittle.build.helpers import BuildLog
+    from whittle.build.templates.enclosure import build_box
 
     a = EnclosureParams(back_plate_mm=45.0, mount_holes=True)
     b = EnclosureParams(back_plate_mm=45.0, mount_holes=False)

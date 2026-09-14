@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from bpcad import api, library
+from whittle import api, library
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -70,7 +70,7 @@ def test_search_matches_what_the_template_makes(entries):
     # enclosure AND the round vessel, because it is not a shape word - a
     # container is as often square as round. Every hit must come from a
     # template that actually claims the word; more than one may.
-    from bpcad.spec import registry
+    from whittle.spec import registry
 
     for e in hits:
         assert "container" in registry.get(e.template).makes, (
@@ -131,7 +131,7 @@ def test_a_shared_spec_rebuilds_identically(tmp_path, entries):
     The argument for specs over meshes, tested rather than asserted: a
     1 kB text file reproduces the part exactly.
     """
-    from bpcad.verify.regression import signature_of
+    from whittle.verify.regression import signature_of
 
     vent = next(e for e in entries if e.name == "vent_louvre")
     shared = api.export_spec(vent, tmp_path / "outbox")

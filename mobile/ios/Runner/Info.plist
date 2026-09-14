@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Bpcad App</string>
+	<string>Whittle App</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>bpcad_app</string>
+	<string>whittle_app</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -43,12 +43,12 @@
 	</array>
 	<!-- WHY THE APP ASKS. A reference photo is measured on the computer and
 	     becomes a reference body; it is never printed and never leaves the
-	     machine running bpcad. The strings say that, because a permission
+	     machine running whittle. The strings say that, because a permission
 	     prompt with a vague reason is one people refuse. -->
 	<key>NSCameraUsageDescription</key>
-	<string>To photograph the object your part has to fit, so bpcad can measure its outline.</string>
+	<string>To photograph the object your part has to fit, so whittle can measure its outline.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>To use a photo you already have as the reference bpcad measures your part against.</string>
+	<string>To use a photo you already have as the reference whittle measures your part against.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
