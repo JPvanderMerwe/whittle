@@ -220,6 +220,38 @@ PROJECTS = Projects()
 # ---------------------------------------------------------------------------
 
 
+def open_part(path: Path, *, nozzle_mm: float,
+              bed_mm: tuple[float, float, float] | None) -> Project:
+    """
+    Put an editing session on a part this machine built.
+
+    WHY THE TWO HALVES HAVE TO MEET. Whittle has two ways in - describe a part
+    and it gets built, or bring a mesh and get sliders - and until this existed
+    they were separate products that happened to share a process. You could
+    describe a bracket, watch it build, look at it, and then have nothing to
+    turn. The parametric spec is behind it, but section 4 is explicit that the
+    durable artefact is a source plus an ordered stack of operations, and a
+    built part had no stack.
+
+    So a part opens exactly as an import does: same ingest, same gate, same
+    nine operations. It is read off disk rather than sent up and back down
+    again, which for a 40 MB STL is the difference between instant and a
+    minute of somebody's morning through the phone.
+
+    THIS DOES NOT TOUCH THE PART. The session works on a copy in memory and the
+    exports come out of the session; parts/<name>/out is left exactly as the
+    build wrote it, because a part on disk is the record of a verified build
+    and an edit session is not a re-verification of it.
+    """
+    if not path.is_file():
+        raise FileNotFoundError(
+            "that part has no mesh on disk to edit - it may have been built "
+            "before its STL was written, in which case build it again")
+
+    return PROJECTS.open(path, nozzle_mm=nozzle_mm, bed_mm=bed_mm,
+                         units="mm")
+
+
 def catalogue() -> dict:
     """
     Every operation a client may offer, and the ones it must not.

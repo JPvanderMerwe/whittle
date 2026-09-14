@@ -146,3 +146,44 @@ debugging time, written down so it does not happen twice.
     produces an 80 x 40 x 6 mm plate whose bores measure 4.9998 mm at 59.998 mm
     centres, watertight, 0.0001% off the analytic volume. What it cannot do is
     describe a shape nobody wrote a template for.*
+
+32. **English is the interface. Parameters are the implementation.**
+
+    Whittle is driven by people describing what they want, the way they would
+    describe it to a person - to CREATE an object and to EDIT one. "Make this
+    roof a triangular roof." "Make it taller and give it a proper lid." "This
+    should look like a birdhouse, not a box." That is the product. Sliders,
+    parameter names and template fields are how it is implemented, and they are
+    the second thing a person reaches for, not the first.
+
+    **This rule outranks any brief.** Where the product brief, the build plan
+    or a design handoff describes a flow that starts with a parameter, this
+    wins: the parameter is still there, it is simply not the way in.
+
+    Three things follow, and they are not optional:
+
+    * **Every capability needs an English route to it.** A parameter the spec
+      supports but no sentence can reach does not exist as far as the product
+      is concerned. `roof_style` is worth nothing if "make the roof
+      triangular" does not set it.
+
+    * **An edit applies to what the person is looking at.** When a part is
+      open, "make it taller" means that part. The language layer resolves
+      against the current selection - it does not ask which object, and it
+      does not start a new one.
+
+    * **What was not understood is said out loud, every time.** Rule 9 does not
+      bend for this: an instruction that mapped to nothing is reported in the
+      words the person used, with the real options beside it. Silently doing
+      three quarters of what was asked is how trust dies, and it is worse here
+      than anywhere else because the person cannot see the parameter that was
+      missed.
+
+    The failure this forbids is the one that keeps coming back: a capability
+    that exists, is tested, is documented, and can only be reached by somebody
+    who has read the schema.
+
+    *Written 2026-09-14 on the owner's explicit instruction, overruling the
+    briefs: "people don't often give parametric changes, so the app needs to
+    know this - to create any object it needs to understand all natural
+    language to create and edit objects or models".*

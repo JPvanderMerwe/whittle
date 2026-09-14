@@ -219,6 +219,17 @@ def _part_payload(part) -> dict:
 
     return {
         "name": part.name,
+        # THE DIRECTORY, WHICH IS THE PART'S REAL IDENTITY.
+        #
+        # `name` comes from the spec, and a refinement keeps the spec's name -
+        # so refining "birdhouse" writes parts/birdhouse_2 and reports itself
+        # as "birdhouse". The client then opened /api/part/birdhouse, got the
+        # ORIGINAL back, and showed somebody the unchanged part they had just
+        # asked to change. It looked exactly like the change had done nothing.
+        #
+        # Every route resolves a part by a name that may be either; the
+        # directory is the one that is unique. Clients navigate by this.
+        "dir": Path(part.part_dir).name,
         "verdict": report.verdict,
         "ok": bool(report.ok),
         "size_mm": size,
@@ -401,8 +412,25 @@ def _refine_work(name: str, instruction: str):
         loaded = api.load_spec(spec_path)
         spec = loaded[0] if isinstance(loaded, tuple) else loaded
 
-        result = api.refine(spec, instruction,
-                            on_event=lambda k, p: job.emit("note", text=str(k)))
+        def on_event(kind: str, payload) -> None:
+            # A RAW EVENT NAME IS NOT A SENTENCE, and this printed "profile",
+            # "closed" and "done" at somebody watching their part change. The
+            # generate path fixed exactly this and refine kept the bug, because
+            # nothing looked at its log until the phone had one.
+            words = {
+                "profile": "choosing a model",
+                "building": "building the geometry",
+                "verified": "running every check",
+                "exporting": "writing the stl and the report",
+            }
+            if kind == "attempt":
+                job.emit("note", text="attempt %s" % getattr(payload, "index", "?"))
+            elif kind in words:
+                job.emit("note", text=words[kind])
+            # Anything else is internal. A silent stage beats a word nobody
+            # can act on.
+
+        result = api.refine(spec, instruction, on_event=on_event)
         if not result.ok or result.part is None:
             return {"ok": False,
                     "message": result.message or "could not apply that change"}
@@ -1243,6 +1271,38 @@ class Handler(BaseHTTPRequestHandler):
                     self._edited(P.set_value, project, op_id, name,
                                  body.get("value"), bool(body.get("final"))))
 
+        if path == "/api/project/from-part":
+            # A PART THIS MACHINE BUILT, OPENED AS AN EDIT SESSION. The mesh is
+            # read off disk rather than sent up from the phone and back down:
+            # same ingest, same gate, same operations as an import, without a
+            # round trip for bytes that never left the machine.
+            from whittle import api
+            from whittle.web import projects as P
+
+            name = (body.get("name") or "").strip()
+            self._check_name(name)
+            part_dir, stl = _resolve_part(name)
+            if stl is None:
+                raise HttpError(
+                    404, "%r has no mesh on disk to edit - it may have been "
+                         "built before its STL was written" % name)
+
+            cfg = api.config()
+            nozzle = float(cfg.print_settings["nozzle_mm"])
+            bed = cfg.data.get("bed", {})
+            bed_mm = None
+            if all(bed.get(k) for k in ("width_mm", "depth_mm", "height_mm")):
+                bed_mm = (float(bed["width_mm"]), float(bed["depth_mm"]),
+                          float(bed["height_mm"]))
+
+            try:
+                project = P.open_part(Path(stl), nozzle_mm=nozzle, bed_mm=bed_mm)
+            except FileNotFoundError as exc:
+                raise HttpError(404, str(exc)) from exc
+            except Exception as exc:
+                raise HttpError(422, str(exc).split("\n")[0][:300]) from exc
+            return self._json(project.payload())
+
         m = re.fullmatch(r"/api/project/([0-9a-f]{6,32})/say", path)
         if m:
             from whittle.web import projects as P
@@ -1523,6 +1583,9 @@ class Handler(BaseHTTPRequestHandler):
         if draft is not None:
             payload["draft"] = draft
 
+        # The same identity the build result carries, for the same reason: two
+        # parts can share a spec name and only the directory tells them apart.
+        payload["dir"] = part_dir.name
         payload["has_stl"] = stl is not None and Path(stl).is_file()
         payload["files"] = sorted({
             f.suffix.lstrip(".").lower()

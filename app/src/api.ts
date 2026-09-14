@@ -183,7 +183,17 @@ export interface PartOption {
 
 export interface BuiltPart {
   ok: boolean;
+  /** The spec's name, which is what a person reads. Not unique. */
   name: string;
+  /**
+   * The part's directory, which IS unique and is what every route resolves.
+   *
+   * A refinement keeps the spec name, so refining "birdhouse" writes
+   * birdhouse_2 and calls itself "birdhouse". Navigating by `name` opened the
+   * ORIGINAL and showed the unchanged part back to somebody who had just
+   * asked to change it.
+   */
+  dir?: string;
   verdict: string;
   size_mm: number[] | null;
   volume_cm3: number | null;
@@ -397,6 +407,36 @@ export class Api {
       { method: 'POST', headers: { 'Content-Type': mime }, body: bytes as any },
       TIMEOUTS.upload,
     );
+  }
+
+
+  /**
+   * Change a built part by describing the change. CLAUDE.md rule 32.
+   *
+   * "Make this roof a triangular roof." The engine reads that against the
+   * part's own template schema first, deterministically, and only asks the
+   * model for what a parser cannot decide - so a shape word takes seconds and
+   * never depends on a 7B model having a good day.
+   *
+   * Returns a job, like a generate: the part is rebuilt from its spec rather
+   * than nudged, so the result is exact rather than a re-roll.
+   */
+  refine(name: string, instruction: string) {
+    return this.post<{ job: string }>(
+      '/api/refine',
+      { name, instruction },
+      TIMEOUTS.quick,
+    );
+  }
+
+  /**
+   * Open a part this machine built as an editing session with sliders.
+   *
+   * The mesh is read off disk on the server - it never left the machine - so
+   * this costs nothing on the wire whatever the part weighs.
+   */
+  projectFromPart(name: string) {
+    return this.post<Project>('/api/project/from-part', { name }, TIMEOUTS.upload);
   }
 
   // -- a project ----------------------------------------------------------

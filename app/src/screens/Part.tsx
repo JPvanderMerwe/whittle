@@ -13,10 +13,19 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 
-import type { Api, BuiltPart, PartOption } from '../api';
-import { core, pen, space } from '../tokens';
+import { ApiError, type Api, type BuiltPart, type PartOption, type Project } from '../api';
+import { core, metric, pen, space, type } from '../tokens';
+import { Rig } from '../Rig';
 import { Button, Mono, Panel, Problem, Prose, Row, Surface, Verdict } from '../ui';
 import { Viewport } from '../Viewport';
 
@@ -27,9 +36,15 @@ interface Props {
   /** Present when we just built it; absent when it came out of the library. */
   built?: BuiltPart;
   onClose: () => void;
+  /** A change was asked for in English; watch it rebuild. */
+  onChanging: (jobId: string, instruction: string) => void;
+  /** Put sliders on it. */
+  onEdit: (project: Project) => void;
 }
 
-export function PartScreen({ api, name, built, onClose }: Props) {
+export function PartScreen({ api, name, built, onClose, onChanging, onEdit }: Props) {
+  const [instruction, setInstruction] = useState('');
+  const [busy, setBusy] = useState(false);
   const [showing, setShowing] = useState(name);
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
   const [glb, setGlb] = useState<ArrayBuffer | null>(null);
@@ -63,8 +78,14 @@ export function PartScreen({ api, name, built, onClose }: Props) {
   // The build's own payload is richer than the library's, but only for the
   // part that was just built - an option is a different part and has to be
   // read off disk like any other.
-  const fresh = built && showing === built.name ? built : undefined;
-  const verdict = (fresh?.verdict ?? (detail?.verdict as string) ?? '') || 'unknown';
+  const fresh = built && (showing === built.dir || showing === built.name) ? built : undefined;
+  // A PART ON DISK MAY HAVE NO STORED VERDICT - it predates run.json, or it
+  // was imported rather than generated. That is "not known", which is not the
+  // same as "failed", and showing a red cross over a part that was never
+  // checked is the kind of false alarm that teaches people to ignore verdicts.
+  const stored = (detail?.checks as { verdict?: string } | undefined)?.verdict;
+  const verdict = fresh?.verdict ?? (detail?.verdict as string) ?? stored ?? '';
+  const known = Boolean(verdict);
   const passed = fresh ? fresh.ok : verdict.toLowerCase().includes('pass');
 
   const size = (fresh?.size_mm ?? (detail?.size_mm as number[] | undefined)) ?? null;
@@ -75,8 +96,43 @@ export function PartScreen({ api, name, built, onClose }: Props) {
   const assumptions = fresh?.assumptions ?? [];
   const options: PartOption[] = fresh?.options ?? [];
 
+  /**
+   * RULE 32, ON THE SCREEN. This is the way in for a change, not a menu of
+   * parameters - "make this roof a triangular roof" is what a person types,
+   * and the engine decides it against this part's own schema.
+   */
+  const change = useCallback(async () => {
+    const text = instruction.trim();
+    if (!text) return;
+    setBusy(true);
+    setProblem(null);
+    try {
+      const { job } = await api.refine(showing, text);
+      setInstruction('');
+      onChanging(job, text);
+    } catch (error: any) {
+      setProblem(error instanceof ApiError ? error.message : String(error?.message ?? error));
+    } finally {
+      setBusy(false);
+    }
+  }, [api, instruction, onChanging, showing]);
+
+  const edit = useCallback(async () => {
+    setBusy(true);
+    setProblem(null);
+    try {
+      onEdit(await api.projectFromPart(showing));
+    } catch (error: any) {
+      setProblem(error instanceof ApiError ? error.message : String(error?.message ?? error));
+    } finally {
+      setBusy(false);
+    }
+  }, [api, onEdit, showing]);
+
   return (
-    <View style={styles.screen}>
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.header}>
         <Pressable onPress={onClose} hitSlop={space.base} style={styles.back}>
           <Mono size="label" color={core.dim}>
@@ -85,8 +141,15 @@ export function PartScreen({ api, name, built, onClose }: Props) {
         </Pressable>
         <View style={styles.headerText}>
           <Mono size="label" weight="medium" numberOfLines={1}>
-            {showing}
+            {fresh?.name ?? (detail?.spec as { name?: string })?.name ?? showing}
           </Mono>
+          {/* The directory, when it is not the same as the name - so it is
+              always possible to tell two refinements of one part apart. */}
+          {showing !== ((fresh?.name ?? (detail?.spec as { name?: string })?.name) ?? showing) ? (
+            <Mono size="micro" color={core.dim}>
+              {showing}
+            </Mono>
+          ) : null}
           {fresh?.elapsed_s !== undefined ? (
             <Mono size="micro" color={core.dim}>
               built in {fresh.elapsed_s}s over {fresh.attempts ?? 1} attempt
@@ -94,6 +157,7 @@ export function PartScreen({ api, name, built, onClose }: Props) {
             </Mono>
           ) : null}
         </View>
+        {busy ? <Rig size={40} /> : null}
       </View>
 
       <View style={styles.viewport}>
@@ -101,7 +165,10 @@ export function PartScreen({ api, name, built, onClose }: Props) {
       </View>
 
       <Surface step="pill" style={styles.verdictBar}>
-        <Verdict state={passed ? 'pass' : 'fail'} text={verdict} />
+        <Verdict
+          state={!known ? 'waiting' : passed ? 'pass' : 'fail'}
+          text={known ? verdict : 'built before this machine recorded verdicts - not re-checked'}
+        />
       </Surface>
 
       <ScrollView style={styles.sheet} contentContainerStyle={styles.sheetBody}>
@@ -182,8 +249,26 @@ export function PartScreen({ api, name, built, onClose }: Props) {
         ) : null}
       </ScrollView>
 
-      <Button label="back to the start" onPress={onClose} />
-    </View>
+      {/* SAY WHAT TO CHANGE. Not a parameter list - the sentence goes to the
+          engine, which reads it against this part's own template. */}
+      <Surface step="pill" style={styles.command}>
+        <TextInput
+          value={instruction}
+          onChangeText={setInstruction}
+          onSubmitEditing={change}
+          returnKeyType="send"
+          placeholder="make this roof a triangular roof"
+          placeholderTextColor={core.dim}
+          style={styles.input}
+        />
+        <Button label="change it" primary onPress={change} disabled={!instruction.trim() || busy} />
+      </Surface>
+
+      <View style={styles.footer}>
+        <Button label="sliders" onPress={edit} disabled={busy} style={styles.footerButton} />
+        <Button label="back" onPress={onClose} style={styles.footerButton} />
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -222,5 +307,26 @@ const styles = StyleSheet.create({
   option: {
     padding: space.snug,
     marginTop: space.tight,
+  },
+  command: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.snug,
+    padding: space.snug,
+  },
+  input: {
+    flex: 1,
+    minHeight: metric.tap,
+    color: core.screen,
+    fontFamily: type.mono,
+    fontSize: type.size.body,
+    paddingHorizontal: space.snug,
+  },
+  footer: {
+    flexDirection: 'row',
+    gap: space.snug,
+  },
+  footerButton: {
+    flex: 1,
   },
 });

@@ -194,6 +194,84 @@ def refine_ops(
     return result
 
 
+
+def _decide_locally(
+    spec: PartSpec,
+    instruction: str,
+    verify_fn: Callable[[PartSpec], Any] | None = None,
+) -> AskResult | None:
+    """
+    Read the instruction against this template's own schema, with no model.
+
+    Returns None when the sentence asks for something the parser cannot decide
+    - which is when the model is worth the minutes it costs. Returns an
+    AskResult with the spec already changed when it can, and that result is
+    the same shape as the model's, so nothing downstream needs a second path.
+
+    A sentence that maps to NOTHING is deliberately handed on rather than
+    refused here: "make it look like a proper birdhouse" is beyond a parser and
+    is exactly the kind of thing worth asking a model about.
+    """
+    if spec.level == 2 or not spec.template:
+        return None
+
+    try:
+        from whittle.spec import language, registry
+
+        template = registry.get(spec.template)
+    except Exception:
+        return None
+
+    current = dict(spec.params or {})
+    reading = language.read(instruction, template.params_model, current)
+    if not reading.changes:
+        return None
+
+    # AMBIGUITY IS NOT DECIDED HERE. If the sentence could mean two fields, the
+    # parser says so and the model gets its turn rather than a coin being
+    # flipped on somebody's part.
+    if reading.questions:
+        return None
+
+    changed = spec.model_copy(deep=True)
+    changed.params = {**current, **reading.as_params()}
+
+    try:
+        template.params_model(**changed.params)
+    except Exception:
+        # The schema refused the combination - out of bounds, or a validator
+        # that knows two fields cannot both be what was asked. That is a real
+        # answer and the model may be able to find a legal way to do it.
+        return None
+
+    # BUILT AND VERIFIED, exactly as the model's answer would be. Skipping this
+    # would return a spec nobody had built, and the caller - which expects a
+    # part - would get None with no explanation. A parser is allowed to be
+    # faster than the model; it is not allowed to be less checked.
+    if verify_fn is not None:
+        try:
+            verify_fn(changed)
+        except Exception:
+            # The change is legal on paper and does not build. The model is
+            # worth asking, because it can choose a different way to get there.
+            return None
+
+    note = "; ".join(c.describe() for c in reading.changes)
+    if reading.unmapped:
+        # RULE 32: what was not understood is said out loud, every time.
+        note += " (nothing geometric in: %s)" % "; ".join(reading.unmapped)
+
+    # AN EMPTY LADDER, NOT NO LADDER. A refinement decided without a model
+    # genuinely made no attempts, and `ladder=None` would make every caller
+    # that reports what was tried into a special case - api.refine reads
+    # `.attempts`, `.never_reached_a_model` and `.last_error` off it. One
+    # shape, one code path.
+    from whittle.models.selector import LadderResult
+
+    return AskResult(spec=changed, request=instruction, level=1, note=note,
+                     ladder=LadderResult(ok=True, value=changed))
+
+
 def refine(
     spec: PartSpec,
     instruction: str,
@@ -210,6 +288,22 @@ def refine(
     not need a second code path for "this was a refinement".
     """
     from whittle.agent.loop import _hint
+
+    # THE PARSER GETS FIRST REFUSAL, AND THE MODEL ONLY SEES WHAT IT CANNOT DO.
+    #
+    # CLAUDE.md rule 32: English is the interface. Most of what people actually
+    # type is a shape word or a dimension of the thing in front of them -
+    # "make this roof a triangular roof" - and that is decidable without a
+    # model, exactly as M3 decided it for the mesh operations.
+    #
+    # Doing it here rather than in the web route means every caller gets it:
+    # the CLI, the phone, and the web client, with one implementation. And it
+    # means an instruction the parser understands NEVER depends on a 7B model
+    # being having a good day, which this repo has measured twice and written
+    # down twice.
+    decided = _decide_locally(spec, instruction, verify_fn)
+    if decided is not None:
+        return decided
 
     # A part built from primitives has no template and no params, so the
     # parameter-diff path has nothing to show the model. Send it to the

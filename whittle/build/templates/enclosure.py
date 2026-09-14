@@ -126,6 +126,28 @@ class EnclosureParams(TemplateParams):
             "no support. 0 gives a flat roof."
         ),
     )
+    roof_style: Literal["flat", "mono", "gable"] = Field(
+        "mono",
+        description=(
+            "Roof shape. 'gable' is the triangular two-sided roof people picture "
+            "when they say birdhouse: two panels meeting at a ridge along the "
+            "width. 'mono' is a single panel leaning one way. 'flat' is a lid. "
+            "All three print flat and are set on afterwards, so none of them "
+            "costs support."
+        ),
+        # HOW PEOPLE ASK FOR IT. CLAUDE.md rule 32: a choice with no English
+        # route to it does not exist as far as the product is concerned, and
+        # nobody types "roof_style gable" - they say "make the roof
+        # triangular". Read by whittle/spec/language.py; the absence of an
+        # entry for any option is a test failure, not an omission.
+        json_schema_extra={"says": {
+            "gable": ["triangular", "pitched", "peaked", "apex", "a-frame",
+                      "two-sided", "proper roof", "house roof"],
+            "flat": ["flat", "lid", "flat lid", "slab"],
+            "mono": ["lean-to", "leanto", "single slope", "sloped one way",
+                     "shed roof"],
+        }},
+    )
     roof_lip_mm: float = Field(
         0.0, ge=0.0, le=40.0,
         description=(
@@ -338,6 +360,16 @@ class _Derived:
     roof_d: float
     roof_rise: float
 
+    #: One gable panel's length along its own slope. A panel has to cover half
+    #: the roof's depth HORIZONTALLY, and it is tilted, so it is longer than
+    #: that half: roof_d/2 is the projection, this is the hypotenuse. Cutting
+    #: the panels to roof_d/2 leaves a gap at the eaves the width of the
+    #: overhang - which looks like a modelling mistake and is arithmetic.
+    panel_len: float
+
+    #: How far the ridge stands above the eaves on a gable.
+    ridge_rise: float
+
 
 def derive(p: EnclosureParams) -> _Derived:
     return _Derived(
@@ -350,6 +382,15 @@ def derive(p: EnclosureParams) -> _Derived:
         roof_d=p.depth_mm + 2 * p.roof_overhang_mm,
         roof_rise=(p.depth_mm + 2 * p.roof_overhang_mm)
         * math.tan(math.radians(p.roof_pitch_deg)) / 2.0,
+        # A GABLE PANEL IS THE HYPOTENUSE, NOT THE HALF-DEPTH. It covers
+        # roof_d/2 horizontally while lying at roof_pitch_deg, so its own
+        # length is that half divided by the cosine. At 18 degrees over a
+        # 140 mm roof that is 73.6 mm rather than 70 - a 3.6 mm strip of open
+        # sky at each eave if the difference is skipped.
+        panel_len=(p.depth_mm + 2 * p.roof_overhang_mm) / 2.0
+        / math.cos(math.radians(p.roof_pitch_deg)),
+        ridge_rise=(p.depth_mm + 2 * p.roof_overhang_mm) / 2.0
+        * math.tan(math.radians(p.roof_pitch_deg)),
     )
 
 
@@ -679,11 +720,87 @@ def build_roof(p: EnclosureParams, d: _Derived, log: BuildLog) -> cq.Workplane:
     return slab
 
 
+def build_gable_panel(p: EnclosureParams, d: _Derived,
+                      log: BuildLog) -> cq.Workplane:
+    """
+    ONE side of a triangular roof, FLAT, in print orientation.
+
+    A gable is the roof people actually picture when they say birdhouse: two
+    panels leaning against each other over a ridge. The comment on the old
+    pivot said it outright - "one flat printed slab cannot be a gable, it can
+    only be a lean-to" - and that is still true. So a gable is two pieces.
+
+    Each is a plain flat slab, printed lying down exactly as the single lid
+    was, which is why this costs no support either. It is `panel_len` long
+    rather than half the roof depth, because a tilted panel has to be its own
+    hypotenuse to cover that half - see _Derived.panel_len.
+
+    NO LIP ON A GABLE PANEL. The lid's lip drops into the cavity to locate it;
+    a panel that meets another panel at a ridge has nothing to drop into, and
+    the existing validator already refuses a lip on a pitched roof because it
+    cannot swing into place. Gable panels are glued at the ridge, and the
+    report says so.
+    """
+    # NO SECOND FILLET. rrect has already rounded the vertical corners, and
+    # asking OCC to fillet an edge that is now an arc is a request it refuses -
+    # harmlessly, because rule 18 makes edge work attempt-and-revert, but it
+    # recorded four rejections per build in the report somebody has to read.
+    return rrect(d.roof_w, d.panel_len, p.corner_r_mm + p.roof_overhang_mm * 0.2,
+                 -d.panel_len / 2.0, p.roof_thick_mm)
+
+
+def _seat_gable(p: EnclosureParams, d: _Derived, log: BuildLog) -> list:
+    """
+    Both panels, turned up onto the ridge and seated on the box.
+
+    The ridge runs along X - the width - which is the way round a birdhouse is
+    built: the entrance is in a gable end and the slopes shed to the sides.
+
+    Each panel is rotated about the RIDGE line rather than its own centre, for
+    the same reason the mono roof pivots on the rim edge: turning a panel about
+    its middle drops half of it through the box, and the render looks right
+    while the solid is two bodies in the same space.
+    """
+    ridge_z = p.height_mm + d.ridge_rise
+    panels = []
+
+    for sign in (+1.0, -1.0):
+        panel = build_gable_panel(p, d, log)
+
+        # Lay it so one long edge sits ON the ridge line (y=0) and the rest
+        # runs away in +y, then tilt it down about that edge.
+        panel = panel.translate((0, d.panel_len / 2.0, ridge_z))
+        # NEGATIVE. A positive rotation about X carries +y up, which lifts the
+        # far edge ABOVE the ridge and makes a valley instead of a roof - it
+        # measured a 191 mm ridge where the arithmetic says 163. The panel has
+        # to fall away from the ridge to the eaves.
+        panel = panel.rotate((0, 0, ridge_z), (1, 0, ridge_z), -p.roof_pitch_deg)
+
+        if sign < 0:
+            # The other slope is the mirror, taken by turning the whole panel
+            # about the vertical axis rather than by building a second one with
+            # negated arithmetic - one panel, one set of numbers, no chance of
+            # the two halves disagreeing.
+            panel = panel.rotate((0, 0, 0), (0, 0, 1), 180.0)
+
+        panels.append(panel)
+
+    return panels
+
+
 def build_core(p: EnclosureParams, d: _Derived, log: BuildLog) -> cq.Workplane:
     """ASSEMBLED orientation: the roof sitting on the box, pitched."""
     box = build_box(p, d, log)
     if not p.roof:
         return box
+
+    from whittle.build.helpers import compound_of
+
+    if p.roof_style == "gable":
+        # TWO PANELS AND A RIDGE. A compound for the same reason the lid is one:
+        # these are separate pieces that are glued, and fusing them here would
+        # destroy the joint nobody could then measure.
+        return compound_of([box] + _seat_gable(p, d, log))
 
     # THE ROOF PRINTS LIP-UP AND IS ASSEMBLED LIP-DOWN, so the assembled view
     # has to turn it over. Without the flip the lip points at the sky, locates
@@ -696,7 +813,7 @@ def build_core(p: EnclosureParams, d: _Derived, log: BuildLog) -> cq.Workplane:
     # so lifting by height + thickness seats the slab on the rim and puts the
     # lip in the cavity.
     roof = roof.translate((0, 0, p.height_mm + p.roof_thick_mm))
-    if p.roof_pitch_deg:
+    if p.roof_pitch_deg and p.roof_style != "flat":
         # PIVOT ON THE FRONT RIM EDGE, NOT THE CENTRE. One flat printed slab
         # cannot be a gable, it can only be a lean-to. Tilting it about the
         # centre of the box drives its low half straight down through the wall
@@ -711,8 +828,6 @@ def build_core(p: EnclosureParams, d: _Derived, log: BuildLog) -> cq.Workplane:
     # the lip and the clearance - so fusing it to the box in the assembled view
     # is wrong twice over: it is not what the object is, and it destroys the
     # gap, so nothing can then measure whether the lid actually fits.
-    from whittle.build.helpers import compound_of
-
     return compound_of([box, roof])
 
 
@@ -728,11 +843,22 @@ def build_print(p: EnclosureParams, d: _Derived, log: BuildLog) -> cq.Workplane:
     if not p.roof:
         return box
 
-    roof = build_roof(p, d, log)
-    gap = 8.0
-    roof = roof.translate((p.width_mm / 2.0 + d.roof_w / 2.0 + gap, 0, 0))
-
     from whittle.build.helpers import compound_of
+
+    gap = 8.0
+    if p.roof_style == "gable":
+        # BOTH PANELS LIE FLAT, side by side beyond the box. Two pieces to
+        # print instead of one, each of them still a flat slab - which is the
+        # whole reason a gable is affordable here.
+        first = p.width_mm / 2.0 + d.roof_w / 2.0 + gap
+        panels = [
+            build_gable_panel(p, d, log).translate((first, 0, 0)),
+            build_gable_panel(p, d, log).translate((first + d.roof_w + gap, 0, 0)),
+        ]
+        return compound_of([box] + panels)
+
+    roof = build_roof(p, d, log)
+    roof = roof.translate((p.width_mm / 2.0 + d.roof_w / 2.0 + gap, 0, 0))
 
     return compound_of([box, roof])
 
@@ -811,8 +937,20 @@ def build(params: EnclosureParams, spec, base_dir: Path | None = None):
             "roof_d_mm": d.roof_d if params.roof else 0.0,
             "roof_rise_mm": d.roof_rise if params.roof else 0.0,
         },
-        body_count_expected=2 if params.roof else 1,
-        body_roles=("box", "roof") if params.roof else ("box",),
+        # A GABLE IS THREE PIECES, NOT TWO. The box, and one panel per slope -
+        # they are printed separately and glued at the ridge. Declaring 2 here
+        # made the verifier refuse every gable with "exported 3 separate
+        # bodies, expected 2", which is the check working exactly as intended:
+        # a template that changes how many pieces it produces has to say so.
+        body_count_expected=(
+            1 if not params.roof
+            else 3 if params.roof_style == "gable"
+            else 2),
+        body_roles=(
+            ("box",) if not params.roof
+            else ("box", "roof left", "roof right")
+            if params.roof_style == "gable"
+            else ("box", "roof")),
         # The box itself, not the roof overhang and not the print layout.
         nominal_mm=(params.width_mm, params.depth_mm, params.height_mm),
     )

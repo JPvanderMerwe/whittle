@@ -431,11 +431,22 @@ function Library({
   return (
     <>
       {parts.map((part) => (
-        <Pressable key={part.name} onPress={() => onPart(part.name)}>
+        <Pressable key={part.dir} onPress={() => onPart(part.dir)}>
           <Panel>
             <Mono size="label" weight="medium">
               {part.name}
             </Mono>
+            {/* A REFINEMENT KEEPS THE SPEC'S NAME. Ask for a triangular roof
+                on "birdhouse" and the result is also called "birdhouse", in
+                its own directory - so three cards read identically and the
+                only way to tell which is which is to open them. The directory
+                is the part's real identity, and it is shown whenever it
+                differs from the name. */}
+            {part.dir !== part.name ? (
+              <Mono size="micro" color={core.dim}>
+                {part.dir}
+              </Mono>
+            ) : null}
             {part.prompt ? (
               <Prose size="body" color={core.dim}>
                 {part.prompt}

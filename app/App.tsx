@@ -63,13 +63,23 @@ export default function App() {
               api={api}
               jobId={where.jobId}
               request={where.request}
-              onBuilt={(built) => setWhere({ at: 'part', name: built.name, built })}
+              onBuilt={(built) => setWhere({ at: 'part', name: built.dir ?? built.name, built })}
               onGiveUp={start}
             />
           ) : null}
 
           {where.at === 'part' ? (
-            <PartScreen api={api} name={where.name} built={where.built} onClose={start} />
+            <PartScreen
+              api={api}
+              name={where.name}
+              built={where.built}
+              onClose={start}
+              // A CHANGE IS A BUILD. Asking for a triangular roof rebuilds the
+              // part from its spec, so it goes through the same screen a first
+              // generate does - same log, same rig, same result.
+              onChanging={(jobId, request) => setWhere({ at: 'making', jobId, request })}
+              onEdit={(project) => setWhere({ at: 'editing', project })}
+            />
           ) : null}
 
           {where.at === 'editing' ? (
