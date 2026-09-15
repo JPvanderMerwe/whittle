@@ -157,6 +157,68 @@ shrink_pct = 0.0
 clearance_mm = "UNSET"
 shrink_pct = "UNSET"
 
+# ---------------------------------------------------------------------------
+# THE REST OF THE SHOP'S STOCK
+# ---------------------------------------------------------------------------
+# Added 2026-09-14. Source for the LIST is the shop catalogue that prices every
+# quote - bit_2_prim/api/seed/catalog.json - which is the single source of
+# truth for what Bit Primitive actually keeps on the shelf. Whittle offered
+# only pla, petg and tpu, so a customer could not ask it for the ASA part that
+# is the shop's own default answer for anything that lives on deck.
+#
+# THEIR TOLERANCES ARE UNSET AND THAT IS NOT AN OVERSIGHT. The list of
+# materials is measured; the clearance and shrink of each one is not. Nobody
+# has run a fit test in ASA or in a fibre-filled PETG on this machine, so there
+# is no number to write. Rule 29 applies: whittle raises rather than guessing,
+# and running_clearance_mm returns None so the moving-parts advice is simply
+# left out - exactly as it already is for TPU. A part in one of these prints
+# and verifies normally; only running-fit advice is withheld.
+#
+# TO SET ONE: print a test fit in that material, measure the gap that turns
+# freely, and replace the UNSET. One measured number per line, no estimates.
+#
+# pla_cf is deliberately NOT here. The catalogue records it as not stocked
+# locally - a 14-16 working day lead time, which defeats the 48-hour promise -
+# and offering a material that cannot be printed this week is worse than not
+# offering it.
+
+[materials.pla_silk]
+# PLA Silk. High-gloss, cosmetic rather than structural: plaques, nameplates,
+# trophies. Same base polymer as PLA, but the additives change how it lays
+# down, so PLA's measured 0.20 is NOT assumed to carry over.
+clearance_mm = "UNSET"
+shrink_pct = "UNSET"
+
+[materials.petg_gf]
+# PETG with chopped glass fibre. Stiffer and more dimensionally stable under
+# load than plain PETG.
+clearance_mm = "UNSET"
+shrink_pct = "UNSET"
+
+[materials.petg_cf]
+# PETG with carbon fibre. The stiffest material the shop stocks and the most
+# dimensionally stable under load.
+clearance_mm = "UNSET"
+shrink_pct = "UNSET"
+
+[materials.asa]
+# ASA. The UV and saltwater material - the one that belongs on deck, and the
+# shop's default for anything exterior on a boat in Cape Town.
+clearance_mm = "UNSET"
+shrink_pct = "UNSET"
+
+[materials.pla_standard]
+# Standard PLA. The base polymer and the cheapest on the shelf. PLA's measured
+# 0.20 is NOT assumed to carry over: PLA+ is a toughened blend and this is not,
+# so its fit behaviour has not been shown to be the same.
+clearance_mm = "UNSET"
+shrink_pct = "UNSET"
+
+[materials.pla_matte]
+# Matte PLA. Matte additives change how it lays down, so the same applies.
+clearance_mm = "UNSET"
+shrink_pct = "UNSET"
+
 
 # ---------------------------------------------------------------------------
 # MACHINE PROFILES
