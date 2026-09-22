@@ -118,6 +118,45 @@ class Config:
         return (float(b["width_mm"]), float(b["depth_mm"]), float(b["height_mm"]))
 
     @property
+    def printers(self) -> dict[str, dict[str, Any]]:
+        """
+        Every machine this engine knows how to check a part against.
+
+        WHY THIS EXISTS. Every verdict whittle gives is measured against a
+        real printer - a bed the part has to fit, a nozzle that decides the
+        thinnest wall it can print. That printer was one printer, the one in
+        this workshop, so anybody else running whittle was being told their
+        part fits a bed they do not own.
+
+        EACH ENTRY CARRIES ITS SOURCE, and they are not equal. The workshop's
+        own machine was measured with a tape - which is why its height is 255
+        and not the 260 the box claims. The rest are manufacturers' published
+        specifications: a real source, and a weaker one, because a published
+        build volume is a maximum that ignores clips and cable chains. The
+        `source` string travels with the numbers so anything showing a bed
+        size can say which kind it is.
+        """
+        return {key: dict(value)
+                for key, value in dict(self.data.get("printers", {})).items()}
+
+    def printer_choice(self, key: str) -> dict[str, Any]:
+        """
+        One machine from the catalogue, by its key.
+
+        RAISES ON AN UNKNOWN KEY rather than falling back to the default.
+        Silently checking a part against the wrong printer is the failure
+        this whole catalogue exists to prevent, and a fallback would do
+        exactly that whenever a name was misspelled.
+        """
+        found = self.printers.get(key)
+        if found is None:
+            raise KeyError(
+                "no printer called %r. Known: %s"
+                % (key, ", ".join(sorted(self.printers)))
+            )
+        return found
+
+    @property
     def limits(self) -> dict[str, Any]:
         return dict(self.data["limits"])
 

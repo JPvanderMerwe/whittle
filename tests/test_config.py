@@ -45,8 +45,49 @@ def test_export_tolerances_are_the_ones_that_stay_watertight(cfg):
     assert cfg.export["stl_angular_tolerance"] == 0.05
 
 
-def test_the_three_materials_are_configured(cfg):
-    assert cfg.material_names == ["petg", "pla", "tpu"]
+def test_the_stocked_materials_are_configured(cfg):
+    """
+    The list is the shop's stock, so it GROWS - and this used to pin it.
+
+    It read `== ["petg", "pla", "tpu"]`, which is a snapshot rather than a rule.
+    The day the rest of the shop's catalogue went into the config the test
+    failed while nothing was wrong: an exact list against something people add
+    to is a test that reports restocking as a regression.
+
+    What is actually load-bearing is that the three whittle has always built
+    with are still there. Anything else is inventory.
+    """
+    for name in ("petg", "pla", "tpu"):
+        assert name in cfg.material_names, "%s is no longer configured" % name
+    assert cfg.material_names == sorted(cfg.material_names), (
+        "material_names is documented as sorted, and clients rely on it"
+    )
+
+
+def test_no_material_is_half_measured(cfg):
+    """
+    A material has BOTH of its numbers or NEITHER. Rule 29, applied to the
+    thing rule 29 is about.
+
+    The two are measured together - print a test fit, measure the gap that
+    turns freely, measure what the part came out at - so a material with a
+    clearance and an UNSET shrink is not a partially-filled row, it is a number
+    somebody guessed and a number they did not. That is the exact shape of
+    mistake this catches, and it is invisible in the file: both lines look
+    equally deliberate.
+    """
+    unset = set(cfg.unset_fields())
+    for name in cfg.material_names:
+        missing = {
+            field for field in ("clearance_mm", "shrink_pct")
+            if "materials.%s.%s" % (name, field) in unset
+        }
+        assert missing in (set(), {"clearance_mm", "shrink_pct"}), (
+            "%s has %s measured and %s UNSET. Measure both or neither - a "
+            "clearance without the shrink it was measured at is a fit that "
+            "works on one printer."
+            % (name, sorted({"clearance_mm", "shrink_pct"} - missing), sorted(missing))
+        )
 
 
 def test_harvested_material_numbers_are_readable(cfg):
@@ -134,12 +175,43 @@ def test_the_desktop_is_still_unbenchmarked(cfg):
 
 
 def test_unset_fields_are_listed(cfg):
+    """
+    Everything with no measured source behind it, named.
+
+    THE COUNT IS DERIVED, NOT WRITTEN DOWN. This asserted `len(unset) == 4`
+    with "# TPU x 2, desktop x 2" beside it, and the arithmetic was correct on
+    the day it was written - which is the problem. Stocking four more materials
+    nobody has run a fit test in is not a regression, it is the honest state of
+    a shelf, and the test called it one.
+
+    So the expected number is worked out from the same rule the comment
+    described: two fields per unmeasured material, plus the two on an
+    unbenchmarked machine. A material that is HALF unset breaks
+    test_no_material_is_half_measured rather than quietly changing this total.
+    """
     unset = cfg.unset_fields()
+
+    # The ones that are measured stay out of the list, and the ones that are
+    # not stay in it. These four are the named cases the rest is derived from.
     assert "materials.tpu.clearance_mm" in unset
     assert "materials.pla.clearance_mm" not in unset
     assert "machines.desktop.model_primary" in unset
     assert "machines.laptop.model_primary" not in unset   # benchmarked and pinned
-    assert len(unset) == 4         # TPU x 2, desktop x 2
+
+    materials = sum(
+        1 for name in cfg.material_names
+        if "materials.%s.clearance_mm" % name in unset
+    )
+    machines = sum(
+        1 for name in cfg.machine_names
+        if "machines.%s.model_primary" % name in unset
+    )
+    assert len(unset) == 2 * materials + 2 * machines, (
+        "unset_fields() lists %d entries; %d unmeasured materials and %d "
+        "unbenchmarked machines account for %d. Something is unset that this "
+        "rule does not describe - look at it rather than at the number."
+        % (len(unset), materials, machines, 2 * materials + 2 * machines)
+    )
 
 
 def test_format_config_flags_every_unset_value(cfg):

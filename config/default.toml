@@ -42,6 +42,116 @@ width_mm = 260.0
 depth_mm = 260.0
 height_mm = 255.0
 
+# ---------------------------------------------------------------------------
+# OTHER PRINTERS SOMEBODY MIGHT HAVE
+# ---------------------------------------------------------------------------
+# WHY A CATALOGUE AT ALL. Everything this engine checks is checked against a
+# real machine - a part is measured against a bed it has to fit, a nozzle that
+# decides the thinnest wall, a layer height that decides what a chamfer looks
+# like. That machine was one machine, named above, because it is the one in
+# the building. Anybody else running whittle was being told their part fits a
+# bed they do not own.
+#
+# EVERY FIGURE HERE CARRIES WHERE IT CAME FROM, and none of them came from
+# this workshop. The entry above is measured - somebody put a tape on it, and
+# the note says the height is 255 rather than 260 for exactly that reason.
+# These are the manufacturers' published specifications, which is a real
+# source and a weaker one: a published build volume is a maximum, it ignores
+# clips and cable chains, and machines vary. So each says so, and `source`
+# travels with the numbers into anything that reads them.
+#
+# CONFIRM YOURS BEFORE TRUSTING IT. Picking a printer here is better than
+# being checked against somebody else's, and measuring your own is better
+# than both - which is what `[bed]` above is for.
+#
+# The nozzle is what the machine ships with. Anybody who has changed theirs
+# knows they have, and the app lets it be set per part.
+
+[printers.creality_i7]
+name = "Creality Sparkx i7"
+bed_mm = [260.0, 260.0, 255.0]
+nozzle_mm = 0.40
+source = "measured on the machine in this workshop, 2026-08-31"
+
+[printers.ender_3]
+name = "Creality Ender 3 / 3 Pro / 3 V2"
+bed_mm = [220.0, 220.0, 250.0]
+nozzle_mm = 0.40
+source = "Creality published specification - not measured here"
+
+[printers.ender_3_s1]
+name = "Creality Ender 3 S1 / S1 Pro"
+bed_mm = [220.0, 220.0, 270.0]
+nozzle_mm = 0.40
+source = "Creality published specification - not measured here"
+
+[printers.ender_5]
+name = "Creality Ender 5 / 5 Pro"
+bed_mm = [220.0, 220.0, 300.0]
+nozzle_mm = 0.40
+source = "Creality published specification - not measured here"
+
+[printers.cr_10]
+name = "Creality CR-10"
+bed_mm = [300.0, 300.0, 400.0]
+nozzle_mm = 0.40
+source = "Creality published specification - not measured here"
+
+[printers.k1]
+name = "Creality K1"
+bed_mm = [220.0, 220.0, 250.0]
+nozzle_mm = 0.40
+source = "Creality published specification - not measured here"
+
+[printers.k1_max]
+name = "Creality K1 Max"
+bed_mm = [300.0, 300.0, 300.0]
+nozzle_mm = 0.40
+source = "Creality published specification - not measured here"
+
+[printers.prusa_mk4]
+name = "Prusa MK4 / MK3S+"
+bed_mm = [250.0, 210.0, 220.0]
+nozzle_mm = 0.40
+source = "Prusa published specification - not measured here"
+
+[printers.prusa_mini]
+name = "Prusa MINI+"
+bed_mm = [180.0, 180.0, 180.0]
+nozzle_mm = 0.40
+source = "Prusa published specification - not measured here"
+
+[printers.bambu_a1]
+name = "Bambu Lab A1"
+bed_mm = [256.0, 256.0, 256.0]
+nozzle_mm = 0.40
+source = "Bambu Lab published specification - not measured here"
+
+[printers.bambu_a1_mini]
+name = "Bambu Lab A1 mini"
+bed_mm = [180.0, 180.0, 180.0]
+nozzle_mm = 0.40
+source = "Bambu Lab published specification - not measured here"
+
+[printers.bambu_p1s]
+name = "Bambu Lab P1S / P1P / X1 Carbon"
+bed_mm = [256.0, 256.0, 256.0]
+nozzle_mm = 0.40
+source = "Bambu Lab published specification - not measured here"
+
+[printers.elegoo_neptune_4]
+name = "Elegoo Neptune 4"
+bed_mm = [225.0, 225.0, 265.0]
+nozzle_mm = 0.40
+source = "Elegoo published specification - not measured here"
+
+[printers.anycubic_kobra_2]
+name = "Anycubic Kobra 2"
+bed_mm = [220.0, 220.0, 250.0]
+nozzle_mm = 0.40
+source = "Anycubic published specification - not measured here"
+
+
 [limits]
 # Smallest printable feature, as a multiple of the nozzle width. 1.0 x nozzle
 # per the brief. verify/features.py flags anything within 10% as MARGINAL.
@@ -145,13 +255,32 @@ backend = "null"
 device = "auto"
 marching_resolution = 256
 
+# FILAMENT DENSITY, AND WHY IT IS HERE AT ALL.
+#
+# A slicer only reports a WEIGHT if its filament profile carries a density.
+# PrusaSlicer's stock profile ships with `filament_density = 0`, so a real
+# slice of a real hinge came back "total filament used [g] = 0.00" - and a
+# screen showing 0 g for a part that plainly weighs something is a figure
+# somebody would load a spool against.
+#
+# THESE ARE PUBLISHED FIGURES, NOT MEASURED ONES. They are the nominal
+# densities the filament makers state, and real spools vary with pigment and
+# fill - so `density_source` says what kind of number it is, the same way the
+# printer catalogue does. Weigh a spool and a known print if you need better,
+# and put your own figure here.
+#
+# g/cm3.
 [materials.pla]
 clearance_mm = 0.20
 shrink_pct = 0.0
+density_g_cm3 = 1.24
+density_source = "filament makers' published nominal figure - not measured here"
 
 [materials.petg]
 clearance_mm = 0.30
 shrink_pct = 0.0
+density_g_cm3 = 1.27
+density_source = "filament makers' published nominal figure - not measured here"
 
 [materials.tpu]
 clearance_mm = "UNSET"
@@ -255,11 +384,54 @@ max_attempts_per_level = 3
 # others restate the whole catalogue, which is not wrong but costs 2-3x the
 # wall-clock for no extra information.
 #
-# timeout_s is 420 to leave headroom over the slowest measured run.
+# RE-MEASURED 2026-09-15, AND THE ORDER ABOVE HAS INVERTED. Every generate on
+# this machine had begun failing, and the run records said why: the fallback
+# "did not answer within 420s". Two runs of each, same prompt, same num_ctx:
+#
+#   hermes3:latest     133.7s   365 gen tokens   2.7 tok/s   28 params
+#   qwen2.5-coder:7b   318.8s   105 gen tokens   0.3 tok/s    5 params
+#                      331.0s                                (first run)
+#
+# THE PROMPT GREW, which is the whole explanation. It was ~1700 tokens in
+# August and is 3825 now - the template catalogue gained templates, choices and
+# the words that reach them. qwen's generation rate collapses at that context
+# and hermes3's does not, so the August conclusion was correct in August and is
+# wrong today. Both still parse and both still produce a valid spec.
+#
+# So the two are swapped. qwen stays as the fallback rather than being dropped:
+# it emits a minimal spec, which is the better answer when it arrives, and as
+# the second attempt its cost is only paid when the first one failed anyway.
+#
+# timeout_s is 900. It was 420, set for headroom over a 309s measurement that
+# no longer holds - at 3825 tokens the fallback could not finish inside it AT
+# ALL, so every escalation ended in a timeout and every failed generate looked
+# like a broken engine rather than a slow one. 900 is ~2.7x the slowest run
+# measured today.
+# WHICH MODEL, MEASURED ON THE REAL PROMPTS RATHER THAN CHOSEN BY SIZE.
+#
+# Three requests - "Redbull can", "a phone stand", "a bracket for a 35 mm
+# pipe" - put through the actual level-2 prompt and the actual validator, on
+# 2026-09-22:
+#
+#   gemma4:latest      3 of 3 valid   238 - 306 s
+#   hermes3:latest     1 of 3 valid   332 - 809 s   (3 of 3 once the
+#                                                    unknown-field repair
+#                                                    is applied)
+#   qwen2.5-coder:7b   1 of 3 valid   229 - 366 s
+#
+# gemma4 is BOTH more accurate and faster here, which is the opposite of what
+# its size suggests - 10 GB against 4.7 GB on a CPU-only machine. Measured,
+# not reasoned about, and that is why the figures are written down: the next
+# person to look at this will assume the big model is the slow one too.
+#
+# hermes3 stays as the fallback. It is the one that was proven over months of
+# this project, its failures are now mostly repaired deterministically, and a
+# second model that fails differently is worth more than a second copy of the
+# first.
 backend = "ollama"
 host = "http://127.0.0.1:11434"
-model_primary = "qwen2.5-coder:7b"
+model_primary = "gemma4:latest"
 model_small = "hermes3:latest"
 num_ctx = 8192
-timeout_s = 420
+timeout_s = 900
 max_attempts_per_level = 2
