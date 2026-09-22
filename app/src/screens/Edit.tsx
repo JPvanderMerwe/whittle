@@ -10,6 +10,14 @@
  *   model   what arrived - size, format, units, what the repair changed
  *   edits   what has been done to it, every step still a slider
  *   checks  whether it prints, and what to do about it if not
+ *   save    the edited mesh, written to a folder on the phone
+ *
+ * THE FOURTH TAB IS NEW AND IT CLOSES A HOLE THE APP HAD EVERYWHERE: there
+ * was no way to get a model out of it. You could import an STL, repair it,
+ * hollow it, cut it to fit the bed, watch every check pass - and the result
+ * stayed on the machine. `/api/project/<id>/export.stl` has always existed.
+ * The export is the full mesh and never the preview proxy, which is why the
+ * viewport says which one it is drawing.
  *
  * WHAT MAKES THE DRAG USABLE
  * --------------------------
@@ -39,13 +47,30 @@ import {
   type Edit as EditOp,
   type Parameter,
   type Project,
+  type Said,
 } from '../api';
+import { FORMAT_NOTE, SAVEABLE, saveName, saveToFolder } from '../save';
+import { meshTweaks, operationLabel } from '../tweaks';
 import { core, metric, pen, radius, space, type } from '../tokens';
-import { Button, Mono, Panel, Problem, Prose, Row, Segmented, Surface, Verdict } from '../ui';
+import {
+  Button,
+  Chip,
+  Empty,
+  Header,
+  Mono,
+  Panel,
+  Problem,
+  Prose,
+  Quiet,
+  Row,
+  Segmented,
+  Surface,
+  Verdict,
+} from '../ui';
 import { Rig } from '../Rig';
 import { Viewport } from '../Viewport';
 
-const TABS = ['model', 'edits', 'checks'] as const;
+const TABS = ['change it', 'model', 'checks', 'save'] as const;
 type Tab = (typeof TABS)[number];
 
 interface Props {
@@ -56,14 +81,20 @@ interface Props {
 }
 
 export function EditScreen({ api, project, onProject, onClose }: Props) {
-  const [tab, setTab] = useState<Tab>('checks');
+  // THE CHANGE TAB LEADS, as it does on a built part. Somebody who has just
+  // imported a model is here to do something to it; the verdict is one line at
+  // the top whichever tab is open.
+  const [tab, setTab] = useState<Tab>('change it');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [catalogue, setCatalogue] = useState<Catalogue | null>(null);
   const [glb, setGlb] = useState<ArrayBuffer | null>(null);
   const [simplified, setSimplified] = useState(false);
   const [sentence, setSentence] = useState('');
-  const [echo, setEcho] = useState<string | null>(null);
+  /** What the language layer made of the last sentence. See Understood. */
+  const [echo, setEcho] = useState<Said | null>(null);
+  /** The last thing a save did, said back. */
+  const [saved, setSaved] = useState<string | null>(null);
 
   // Bumped on every change to the geometry. The preview follows this rather
   // than the project object, so a report refresh that changed no geometry does
@@ -173,9 +204,32 @@ export function EditScreen({ api, project, onProject, onClose }: Props) {
     );
     if (result) {
       setSentence('');
-      setEcho(describeSaid(result));
+      setEcho(result);
     }
   }, [api, project.id, run, sentence]);
+
+  const save = useCallback(
+    async (format: 'stl' | 'glb') => {
+      setBusy(true);
+      setProblem(null);
+      setSaved(null);
+      const result = await saveToFolder(
+        api.exportUrl(project.id, format),
+        saveName(project.name.replace(/\.[^.]+$/, ''), format),
+        // GLB IS NOT IN THE SERVER'S PART ALLOW-LIST because that list is for
+        // files sitting in a part's directory; a project export is generated.
+        // So the type is named here rather than looked up and missed.
+        format === 'stl' ? SAVEABLE.stl : 'model/gltf-binary',
+      );
+      setBusy(false);
+      if (result.ok) {
+        setSaved(`${saveName(project.name.replace(/\.[^.]+$/, ''), format)} saved to ${result.where}`);
+      } else if (!result.cancelled) {
+        setProblem(result.message);
+      }
+    },
+    [api, project.id, project.name],
+  );
 
   // -- the screen ---------------------------------------------------------
 
@@ -192,23 +246,18 @@ export function EditScreen({ api, project, onProject, onClose }: Props) {
     <KeyboardAvoidingView
       style={styles.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={styles.header}>
-        <Pressable onPress={onClose} hitSlop={space.base} style={styles.back}>
-          <Mono size="label" color={core.dim}>
-            ‹ library
-          </Mono>
-        </Pressable>
-        <View style={styles.headerText}>
-          <Mono size="label" weight="medium" numberOfLines={1}>
-            {project.name}
-          </Mono>
-          <Mono size="micro" color={core.dim}>
-            {project.size_mm.map((v) => v.toFixed(1)).join(' × ')} mm ·{' '}
-            {project.triangles.toLocaleString()} triangles
-          </Mono>
-        </View>
-        {busy ? <Rig size={40} /> : null}
-      </View>
+      {/* The back label used to say "library" and did not go there. A word
+          on a back arrow is a promise about where it lands. */}
+      <Header
+        back={onClose}
+        backLabel="back"
+        title={project.name}
+        subtitle={
+          `${project.size_mm.map((v) => v.toFixed(1)).join(' × ')} mm · ` +
+          `${project.triangles.toLocaleString()} triangles`
+        }
+        right={busy ? <Rig size={40} /> : undefined}
+      />
 
       <View style={styles.viewport}>
         <Viewport glb={glb} simplified={simplified} placeholder="drawing the model…" />
@@ -218,7 +267,7 @@ export function EditScreen({ api, project, onProject, onClose }: Props) {
         <Verdict state={state} text={headline} />
       </Surface>
 
-      <Segmented options={TABS} value={tab} onChange={setTab} style={styles.tabs} />
+      <Segmented options={TABS} value={tab} onChange={setTab} />
 
       <ScrollView
         style={styles.sheet}
@@ -227,7 +276,7 @@ export function EditScreen({ api, project, onProject, onClose }: Props) {
         {problem ? <Problem text={problem} /> : null}
 
         {tab === 'model' ? <ModelTab project={project} /> : null}
-        {tab === 'edits' ? (
+        {tab === 'change it' ? (
           <EditsTab
             project={project}
             catalogue={catalogue}
@@ -250,18 +299,16 @@ export function EditScreen({ api, project, onProject, onClose }: Props) {
                 (r) => r.project,
               )
             }
+            onSay={setSentence}
           />
         ) : null}
         {tab === 'checks' ? <ChecksTab project={project} /> : null}
+        {tab === 'save' ? (
+          <SaveTab project={project} onSave={save} busy={busy} saved={saved} />
+        ) : null}
       </ScrollView>
 
-      {echo ? (
-        <Surface step="well" style={styles.echo}>
-          <Prose size="body" color={core.dim}>
-            {echo}
-          </Prose>
-        </Surface>
-      ) : null}
+      {echo ? <Understood said={echo} onDismiss={() => setEcho(null)} /> : null}
 
       <Surface step="pill" style={styles.command}>
         <TextInput
@@ -280,21 +327,67 @@ export function EditScreen({ api, project, onProject, onClose }: Props) {
 }
 
 /**
- * What the language layer understood, in the words it used.
+ * What the language layer made of the sentence - including the part it did not.
  *
- * Section 12 is explicit that an instruction it could not map is surfaced
- * every time - "pretending otherwise is how trust dies" - so `unmapped` and
- * the questions are shown, not just the operations that landed.
+ * RULE 32'S THIRD REQUIREMENT, AND IT IS NOT OPTIONAL: "what was not
+ * understood is said out loud, every time... an instruction that mapped to
+ * nothing is reported in the words the person used, with the real options
+ * beside it. Silently doing three quarters of what was asked is how trust
+ * dies, and it is worse here than anywhere else because the person cannot see
+ * the parameter that was missed."
+ *
+ * This was three lines joined with newlines and drawn as one grey paragraph at
+ * the same weight as every other hint on the screen. The half that landed and
+ * the half that did not looked identical, which is the failure the rule names
+ * with the formatting still technically present.
+ *
+ * So the three have three different voices: what was done is a pass, a
+ * question is a question with its real options listed, and an instruction that
+ * reached nothing is a warning in the person's own words.
  */
-function describeSaid(said: { echo: string; unmapped: string[]; questions: any[] }): string {
-  const lines = [said.echo];
-  for (const question of said.questions) {
-    lines.push(`${question.prompt} — ${question.options.join(' · ')}`);
-  }
-  if (said.unmapped.length) {
-    lines.push(`ignored: ${said.unmapped.join('; ')}`);
-  }
-  return lines.join('\n');
+function Understood({ said, onDismiss }: { said: Said; onDismiss: () => void }) {
+  return (
+    <Surface step="card" style={styles.echo}>
+      <View style={styles.echoHead}>
+        <Mono size="micro" color={core.dim} style={styles.echoGrow}>
+          what it did
+        </Mono>
+        <Pressable onPress={onDismiss} hitSlop={space.base}>
+          <Mono size="micro" color={core.dim}>
+            dismiss
+          </Mono>
+        </Pressable>
+      </View>
+
+      {said.echo ? <Verdict state="pass" text={said.echo} /> : null}
+
+      {said.questions.map((question, index) => (
+        <View key={index} style={styles.echoBlock}>
+          <Verdict state="waiting" text={question.prompt} />
+          {/* THE REAL OPTIONS BESIDE IT, which is the half of the rule that is
+              easiest to drop: a question with no answers listed is a dead end
+              for anybody who has not read the schema. */}
+          {question.options.length ? (
+            <Mono size="micro" color={core.dim}>
+              {question.options.join('  ·  ')}
+            </Mono>
+          ) : null}
+        </View>
+      ))}
+
+      {said.unmapped.length ? (
+        <View style={styles.echoBlock}>
+          {said.unmapped.map((text, index) => (
+            <Verdict key={index} state="warn" text={`nothing matched "${text}"`} />
+          ))}
+          <Prose size="body" color={core.dim}>
+            That part of the sentence changed nothing. Try naming a dimension - taller, wider,
+            thicker - or use the sliders on the edits tab.
+          </Prose>
+        </View>
+      ) : null}
+    </Surface>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -369,6 +462,7 @@ function EditsTab({
   onToggle,
   onRemove,
   onAdd,
+  onSay,
 }: {
   project: Project;
   catalogue: Catalogue | null;
@@ -376,17 +470,40 @@ function EditsTab({
   onToggle: (op: EditOp) => void;
   onRemove: (op: EditOp) => void;
   onAdd: (kind: string) => void;
+  onSay: (sentence: string) => void;
 }) {
   const already = new Set(project.edits.map((op) => op.kind));
+  const suggestions = meshTweaks(catalogue);
+  /** Which step's remove has been armed. One at a time, cleared on any other tap. */
+  const [confirming, setConfirming] = useState<string | null>(null);
 
   return (
     <>
+      {/* WHAT TO SAY, FIRST. An empty box labelled "say what you want" works
+          for somebody who already knows what the parser accepts, and this is
+          the screen a person reaches by opening a file they downloaded - they
+          have no idea what this thing can do to it. Every phrase here is one
+          whittle/edit/intent.py actually matches. */}
+      {suggestions.length ? (
+        <Panel title={project.edits.length ? 'or say something else' : 'try saying'}>
+          <Prose size="body" color={core.dim}>
+            Tap one to put it in the box at the bottom, change the numbers if you like, then send
+            it. It takes any sentence - these are the ones that come up.
+          </Prose>
+          <View style={styles.suggestions}>
+            {suggestions.map((tweak) => (
+              <Chip key={tweak.say} label={tweak.say} onPress={() => onSay(tweak.say)} />
+            ))}
+          </View>
+        </Panel>
+      ) : null}
+
       {project.edits.length === 0 ? (
         <Panel>
-          <Prose size="body" color={core.dim}>
-            Nothing has been done to this model yet. Add a step below, or say what you want in
-            the line at the bottom.
-          </Prose>
+          <Empty
+            title="nothing has been done to this model yet"
+            hint="Say what you want in the box at the bottom, or add a step by hand below. Every step stays a slider you can drag afterwards - nothing here is one-shot."
+          />
         </Panel>
       ) : null}
 
@@ -394,16 +511,44 @@ function EditsTab({
         <Panel key={op.id}>
           <View style={styles.opHead}>
             <View style={styles.opTitle}>
+              {/* THE OPERATION'S NAME AS A PERSON WOULD SAY IT. The registry's
+                  names are identifiers - `thicken_thin_walls` - and this
+                  screen was printing them raw. Rule 32's split, on the one
+                  screen where the operations ARE the interface. */}
               <Mono size="label" weight="medium" color={op.enabled ? core.screen : core.dim}>
-                {op.kind}
+                {operationLabel(op.kind)}
               </Mono>
               <Prose size="body" color={core.dim}>
                 {op.summary}
               </Prose>
             </View>
+            {/* A TOGGLE THAT READS AS ITS STATE, and a remove that cannot be
+                hit by accident.
+
+                These were two identical buttons side by side, one labelled
+                "on" and one "remove" - so the control for "try it without this
+                step" sat a thumb's width from the one that destroys the step,
+                and the toggle looked like a command rather than a state. A
+                step somebody spent five minutes tuning is not a thing to lose
+                to a mistap. */}
             <View style={styles.opActions}>
-              <Button label={op.enabled ? 'on' : 'off'} onPress={() => onToggle(op)} />
-              <Button label="remove" onPress={() => onRemove(op)} />
+              <Chip
+                label={op.enabled ? 'on' : 'off'}
+                active={op.enabled}
+                onPress={() => onToggle(op)}
+              />
+              <Quiet
+                label={confirming === op.id ? 'tap to confirm' : 'remove'}
+                color={confirming === op.id ? pen.fail : core.dim}
+                onPress={() => {
+                  if (confirming === op.id) {
+                    setConfirming(null);
+                    onRemove(op);
+                  } else {
+                    setConfirming(op.id);
+                  }
+                }}
+              />
             </View>
           </View>
 
@@ -423,15 +568,33 @@ function EditsTab({
             itself, so a client cannot offer an operation the engine has never
             heard of, nor quietly stop offering one that was added. */}
         {catalogue ? (
-          <View style={styles.chips}>
+          // A ROW OF IDENTIFIERS IS NOT A MENU. These were bare chips reading
+          // `remove_floaters` and `thicken_thin_walls`, which tells somebody
+          // what the function is called rather than what it does. The registry
+          // carries a summary for every one of them and it was going unused.
+          <View style={styles.steps}>
             {catalogue.operations.map((entry) => (
               <Pressable
                 key={entry.kind}
                 onPress={() => onAdd(entry.kind)}
-                style={[styles.chip, already.has(entry.kind) && styles.chipUsed]}>
-                <Mono size="label" color={core.screen}>
-                  {entry.kind}
-                </Mono>
+                style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}>
+                <Surface
+                  step="well"
+                  style={[styles.step, already.has(entry.kind) && styles.stepUsed]}>
+                  <View style={styles.stepHead}>
+                    <Mono size="label" weight="medium" style={styles.stepName}>
+                      {operationLabel(entry.kind)}
+                    </Mono>
+                    {already.has(entry.kind) ? (
+                      <Mono size="micro" color={core.phosphor}>
+                        on the stack
+                      </Mono>
+                    ) : null}
+                  </View>
+                  <Prose size="body" color={core.dim}>
+                    {entry.summary}
+                  </Prose>
+                </Surface>
               </Pressable>
             ))}
           </View>
@@ -505,13 +668,34 @@ function ParameterControl({
   }
 
   const numeric = typeof shown === 'number' ? shown : Number(shown);
-  const readout = `${Number.isFinite(numeric) ? numeric.toFixed(2) : String(shown)}${
-    parameter.units ? ` ${parameter.units}` : ''
-  }`;
+  // TWO DECIMALS ON A LENGTH, NONE ON A COUNT. `2.00 holes` is not a number
+  // anybody writes, and `0.8 mm` with the trailing zero dropped stops reading
+  // as a measurement - so the precision follows what the thing is.
+  const figure = Number.isFinite(numeric)
+    ? parameter.kind === 'count'
+      ? String(Math.round(numeric))
+      : numeric.toFixed(2)
+    : String(shown);
 
   return (
     <View style={styles.parameterBlock}>
-      <Row label={parameter.name} value={readout} valueColor={core.phosphor} />
+      {/* THE VALUE IS THE THING BEING ADJUSTED, so it is the biggest text in
+          the block rather than the smallest. It was a label-sized figure on
+          the right of a row, the same weight as the name beside it - on a
+          screen whose entire purpose is moving that number. */}
+      <View style={styles.parameterHead}>
+        <Mono size="label" color={core.dim} style={styles.grow} numberOfLines={1}>
+          {parameter.name.replace(/_mm$|_deg$/, '').replace(/_/g, ' ')}
+        </Mono>
+        <Mono size="figure" weight="medium" color={core.phosphor}>
+          {figure}
+        </Mono>
+        {parameter.units ? (
+          <Mono size="micro" color={core.dim}>
+            {parameter.units}
+          </Mono>
+        ) : null}
+      </View>
       {parameter.description ? (
         <Prose size="body" color={core.dim}>
           {parameter.description}
@@ -544,10 +728,14 @@ function ParameterControl({
               limits are part of the answer. */}
           <View style={styles.bounds}>
             <Mono size="micro" color={core.dim}>
-              {parameter.low!.toFixed(2)}
+              {trimBound(parameter.low!)}
             </Mono>
+            {/* THE ENDS ARE MEASURED OFF THIS MESH, which is worth saying once
+                - a wall that stops at 2.67 mm stops there because that is what
+                the geometry allows, not because somebody picked a round
+                number. */}
             <Mono size="micro" color={core.dim}>
-              {parameter.high!.toFixed(2)}
+              {trimBound(parameter.high!)}
             </Mono>
           </View>
         </>
@@ -606,6 +794,99 @@ function ChecksTab({ project }: { project: Project }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// taking it away
+// ---------------------------------------------------------------------------
+
+/**
+ * The edited mesh, written to a folder on the phone.
+ *
+ * THE EXPORT IS NEVER THE PROXY. The viewport may be drawing a simplified copy
+ * so a drag stays responsive on a 40 MB mesh, and the file written here is
+ * built from the real stack - which is why the viewport says which of the two
+ * it is showing rather than leaving somebody to wonder why the render and the
+ * export disagree.
+ *
+ * SAVE WHILE A CHECK IS FAILING? YES, AND WITHOUT A WARNING DIALOGUE. The
+ * checks tab already says in words what stops it printing, and a second
+ * confirmation over the top of that is a product deciding it knows better than
+ * the person holding the printer. Plenty of legitimate reasons exist to export
+ * a mesh that this profile will not print: a different machine, a different
+ * nozzle, or a part that is going to be cut up next.
+ */
+function SaveTab({
+  project,
+  onSave,
+  busy,
+  saved,
+}: {
+  project: Project;
+  onSave: (format: 'stl' | 'glb') => void;
+  busy: boolean;
+  saved: string | null;
+}) {
+  const formats: { format: 'stl' | 'glb'; note: string }[] = [
+    { format: 'stl', note: FORMAT_NOTE.stl },
+    { format: 'glb', note: 'mesh with its materials - for a viewer, not a slicer' },
+  ];
+
+  return (
+    <>
+      {saved ? (
+        <Panel>
+          <Verdict state="pass" text={saved} />
+        </Panel>
+      ) : null}
+
+      <Panel title="save it">
+        <Prose size="body" color={core.dim}>
+          Pick a folder on the phone and the file is written there. This is the full mesh with
+          every step of the stack applied, not the preview.
+        </Prose>
+        {formats.map(({ format, note }) => (
+          <View key={format} style={styles.saveRow}>
+            <View style={styles.saveWhat}>
+              <Mono size="label" weight="medium">
+                {format.toUpperCase()}
+              </Mono>
+              <Mono size="micro" color={core.dim}>
+                {note}
+              </Mono>
+            </View>
+            <Button
+              label="save"
+              primary={format === 'stl'}
+              onPress={() => onSave(format)}
+              disabled={busy}
+            />
+          </View>
+        ))}
+      </Panel>
+
+      {!project.report.printable && !project.report.stale ? (
+        <Panel>
+          {/* SAID, NOT BLOCKED. See the note above this component. */}
+          <Verdict
+            state="warn"
+            text="a check is failing on this profile - the file still saves, and the checks tab says which"
+          />
+        </Panel>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * A bound as a person reads it.
+ *
+ * `2.6666666666666665` is what a bound derived from the mesh's own thickness
+ * actually is, and printing it whole turns the one number that explains why a
+ * slider stops into noise. Two decimals, trailing zeros gone.
+ */
+function trimBound(value: number): string {
+  return String(Number(value.toFixed(2)));
+}
+
 /** A measurement as the engine gave it, without inventing a precision. */
 function formatMeasurement(value: unknown): string {
   if (typeof value === 'number') {
@@ -624,17 +905,6 @@ const styles = StyleSheet.create({
     gap: space.snug,
     padding: space.base,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.base,
-  },
-  back: {
-    paddingVertical: space.tight,
-  },
-  headerText: {
-    flex: 1,
-  },
   viewport: {
     flex: 1,
     minHeight: 220,
@@ -645,7 +915,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.base,
     paddingVertical: space.snug,
   },
-  tabs: {},
   sheet: {
     maxHeight: '42%',
   },
@@ -679,28 +948,63 @@ const styles = StyleSheet.create({
     paddingTop: space.snug,
     gap: space.tight,
   },
+  parameterHead: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: space.snug,
+  },
+  grow: {
+    flex: 1,
+  },
   bounds: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  chips: {
+  suggestions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: space.tight,
   },
-  chip: {
-    minHeight: metric.tap - space.base,
-    justifyContent: 'center',
-    paddingHorizontal: space.base,
-    borderRadius: radius.control,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: core.etch,
+  steps: {
+    gap: space.snug,
   },
-  chipUsed: {
+  step: {
+    padding: space.snug,
+    gap: space.hair,
+  },
+  stepUsed: {
     borderColor: core.phosphor,
   },
+  stepHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.snug,
+  },
+  stepName: {
+    flex: 1,
+  },
   echo: {
-    padding: space.snug,
+    padding: space.base,
+    gap: space.snug,
+  },
+  echoHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  echoGrow: {
+    flex: 1,
+  },
+  echoBlock: {
+    gap: space.tight,
+  },
+  saveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.base,
+    paddingTop: space.tight,
+  },
+  saveWhat: {
+    flex: 1,
   },
   command: {
     flexDirection: 'row',

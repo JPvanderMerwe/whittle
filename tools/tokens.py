@@ -510,6 +510,8 @@ def to_ts(tokens: dict[str, Any]) -> str:
         "// annotation. A pen colour on chrome is a bug, and so is a hex literal",
         "// anywhere else in the app - including a glass alpha.",
         "",
+        "import { Platform } from 'react-native';",
+        "",
         "/** The machine's own colours. */",
         "export const core = {",
     ]
@@ -532,15 +534,34 @@ def to_ts(tokens: dict[str, Any]) -> str:
     lines.append("} as const;")
     lines.append("")
 
-    mono = tokens["type"]["mono"]["stack"].split(",")[0].strip().strip("'\"")
-    prose = tokens["type"]["prose"]["stack"].split(",")[0].strip().strip("'\"")
+    # THE NATIVE FAMILY, NOT THE HEAD OF THE CSS STACK. React Native takes one
+    # family name and has no fallback list: a name the device does not have is
+    # drawn in the system default, silently. Taking `stack[0]` asked Android
+    # for 'IBM Plex Mono' and 'Inter', got neither, and rendered the two
+    # families identically - which is the one thing the type tokens exist to
+    # prevent. `native` names what the platform actually ships.
+    mono = tokens["type"]["mono"]["native"]
+    prose = tokens["type"]["prose"]["native"]
+
+    def family(spec: dict) -> str:
+        return ("Platform.select({ android: '%s', ios: '%s', "
+                "default: '%s' }) as string" % (spec["android"], spec["ios"],
+                                                spec["android"]))
+
     lines += [
-        "/** Two families, and the scale they are set at. */",
+        "/**",
+        " * Two families, and the scale they are set at.",
+        " *",
+        " * These are the families the DEVICE has. The CSS stacks in the token",
+        " * source fall back down a list; a native client gets one name and no",
+        " * fallback, so a font nobody installed is not a near miss - it is the",
+        " * system default, drawn for both families at once.",
+        " */",
         "export const type = {",
         "  /** %s */" % tokens["type"]["mono"]["use"],
-        "  mono: '%s'," % mono,
+        "  mono: %s," % family(mono),
         "  /** %s */" % tokens["type"]["prose"]["use"],
-        "  prose: '%s'," % prose,
+        "  prose: %s," % family(prose),
         "  size: {",
     ]
     for name, size in _clean(tokens["type"]["scale"]).items():

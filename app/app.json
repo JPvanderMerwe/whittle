@@ -30,7 +30,51 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "./plugins/withLoopbackCleartext"
+      "./plugins/withLoopbackCleartext",
+      "./plugins/withShareTarget",
+      [
+        "expo-font",
+        {
+          "android": {
+            "fonts": [
+              {
+                "fontFamily": "Space Grotesk",
+                "fontDefinitions": [
+                  {
+                    "path": "./assets/fonts/SpaceGrotesk-400.ttf",
+                    "weight": 400
+                  },
+                  {
+                    "path": "./assets/fonts/SpaceGrotesk-500.ttf",
+                    "weight": 500
+                  },
+                  {
+                    "path": "./assets/fonts/SpaceGrotesk-600.ttf",
+                    "weight": 600
+                  }
+                ]
+              },
+              {
+                "fontFamily": "JetBrains Mono",
+                "fontDefinitions": [
+                  {
+                    "path": "./assets/fonts/JetBrainsMono-400.ttf",
+                    "weight": 400
+                  },
+                  {
+                    "path": "./assets/fonts/JetBrainsMono-500.ttf",
+                    "weight": 500
+                  },
+                  {
+                    "path": "./assets/fonts/JetBrainsMono-600.ttf",
+                    "weight": 600
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
     ]
   }
 }

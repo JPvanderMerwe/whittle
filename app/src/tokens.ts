@@ -6,6 +6,8 @@
 // annotation. A pen colour on chrome is a bug, and so is a hex literal
 // anywhere else in the app - including a glass alpha.
 
+import { Platform } from 'react-native';
+
 /** The machine's own colours. */
 export const core = {
   /** app background, the machine's shell */
@@ -43,12 +45,19 @@ export const pen = {
   fail: '#E8489B',
 } as const;
 
-/** Two families, and the scale they are set at. */
+/**
+ * Two families, and the scale they are set at.
+ *
+ * These are the families the DEVICE has. The CSS stacks in the token
+ * source fall back down a list; a native client gets one name and no
+ * fallback, so a font nobody installed is not a near miss - it is the
+ * system default, drawn for both families at once.
+ */
 export const type = {
   /** labels, parameters, numbers, dimensions, the command line, the coordinate readout, buttons */
-  mono: 'IBM Plex Mono',
+  mono: Platform.select({ android: 'JetBrains Mono', ios: 'Menlo', default: 'JetBrains Mono' }) as string,
   /** anything longer than two lines */
-  prose: 'Inter',
+  prose: Platform.select({ android: 'Space Grotesk', ios: 'System', default: 'Space Grotesk' }) as string,
   size: {
     micro: 10.5,
     label: 12,
@@ -149,17 +158,24 @@ export const tinted = {
 export const ambient = [
   {
     rgb: [255, 176, 0] as const,
-    alpha: 0.16,
+    alpha: 0.2,
     at: [0.78, 0.04] as const,
     size: [1.2, 0.6] as const,
     stop: 0.62,
   },
   {
     rgb: [53, 198, 232] as const,
-    alpha: 0.1,
+    alpha: 0.16,
     at: [0.1, 0.96] as const,
     size: [0.9, 0.44] as const,
     stop: 0.66,
+  },
+  {
+    rgb: [255, 176, 0] as const,
+    alpha: 0.07,
+    at: [0.12, 0.46] as const,
+    size: [0.8, 0.4] as const,
+    stop: 0.7,
   },
 ] as const;
 

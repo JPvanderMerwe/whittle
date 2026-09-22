@@ -1,0 +1,273 @@
+{
+ "not_built_yet": [
+  "auto_orient",
+  "add_base",
+  "drain_holes",
+  "split_bodies",
+  "merge_bodies",
+  "boolean_primitive",
+  "emboss_text",
+  "engrave_text",
+  "add_loop",
+  "smooth",
+  "decimate",
+  "scale_axis"
+ ],
+ "operations": [
+  {
+   "affects_print": true,
+   "kind": "cut_plane",
+   "parameters": [
+    {
+     "affects_print": true,
+     "choices": [],
+     "default": 0.0,
+     "description": "Where the cut goes, in model space.",
+     "dynamic": true,
+     "high": null,
+     "kind": "length",
+     "low": null,
+     "name": "at_mm",
+     "units": "mm"
+    },
+    {
+     "affects_print": true,
+     "choices": [
+      "x",
+      "y",
+      "z"
+     ],
+     "default": "z",
+     "description": "",
+     "dynamic": false,
+     "high": null,
+     "kind": "axis",
+     "low": null,
+     "name": "axis",
+     "units": ""
+    },
+    {
+     "affects_print": true,
+     "choices": [
+      "both",
+      "upper",
+      "lower"
+     ],
+     "default": "both",
+     "description": "",
+     "dynamic": false,
+     "high": null,
+     "kind": "choice",
+     "low": null,
+     "name": "keep",
+     "units": ""
+    }
+   ],
+   "summary": "Split the model, to fit the bed or to print it in parts."
+  },
+  {
+   "affects_print": true,
+   "kind": "flatten_base",
+   "parameters": [
+    {
+     "affects_print": true,
+     "choices": [],
+     "default": 1.0,
+     "description": "How much to slice off the bottom.",
+     "dynamic": true,
+     "high": null,
+     "kind": "length",
+     "low": null,
+     "name": "depth_mm",
+     "units": "mm"
+    },
+    {
+     "affects_print": true,
+     "choices": [
+      "x",
+      "y",
+      "z"
+     ],
+     "default": "z",
+     "description": "",
+     "dynamic": false,
+     "high": null,
+     "kind": "axis",
+     "low": null,
+     "name": "axis",
+     "units": ""
+    }
+   ],
+   "summary": "Cut a flat face so the model stands on the bed."
+  },
+  {
+   "affects_print": true,
+   "kind": "hollow",
+   "parameters": [
+    {
+     "affects_print": true,
+     "choices": [],
+     "default": 2.0,
+     "description": "How thick the wall should be.",
+     "dynamic": true,
+     "high": null,
+     "kind": "length",
+     "low": null,
+     "name": "wall_mm",
+     "units": "mm"
+    }
+   ],
+   "summary": "Take the middle out, leaving a wall."
+  },
+  {
+   "affects_print": true,
+   "kind": "mirror",
+   "parameters": [
+    {
+     "affects_print": true,
+     "choices": [
+      "x",
+      "y",
+      "z"
+     ],
+     "default": "x",
+     "description": "",
+     "dynamic": false,
+     "high": null,
+     "kind": "axis",
+     "low": null,
+     "name": "axis",
+     "units": ""
+    }
+   ],
+   "summary": "Flip the model, and fix the winding it reverses."
+  },
+  {
+   "affects_print": true,
+   "kind": "remove_floaters",
+   "parameters": [
+    {
+     "affects_print": true,
+     "choices": [],
+     "default": 0.02,
+     "description": "Keep pieces at least this fraction of the model's size. Below it they are debris.",
+     "dynamic": false,
+     "high": 0.5,
+     "kind": "length",
+     "low": 0.0001,
+     "name": "keep_fraction",
+     "units": ""
+    }
+   ],
+   "summary": "Delete disconnected debris shells."
+  },
+  {
+   "affects_print": true,
+   "kind": "rotate",
+   "parameters": [
+    {
+     "affects_print": true,
+     "choices": [],
+     "default": 90.0,
+     "description": "",
+     "dynamic": false,
+     "high": 360.0,
+     "kind": "angle",
+     "low": -360.0,
+     "name": "degrees",
+     "units": "deg"
+    },
+    {
+     "affects_print": true,
+     "choices": [
+      "x",
+      "y",
+      "z"
+     ],
+     "default": "z",
+     "description": "",
+     "dynamic": false,
+     "high": null,
+     "kind": "axis",
+     "low": null,
+     "name": "axis",
+     "units": ""
+    }
+   ],
+   "summary": "Turn the model about its own centre."
+  },
+  {
+   "affects_print": true,
+   "kind": "scale_to_height",
+   "parameters": [
+    {
+     "affects_print": true,
+     "choices": [],
+     "default": 60.0,
+     "description": "What it should measure.",
+     "dynamic": true,
+     "high": null,
+     "kind": "length",
+     "low": null,
+     "name": "height_mm",
+     "units": "mm"
+    },
+    {
+     "affects_print": false,
+     "choices": [
+      "x",
+      "y",
+      "z"
+     ],
+     "default": "z",
+     "description": "",
+     "dynamic": false,
+     "high": null,
+     "kind": "axis",
+     "low": null,
+     "name": "axis",
+     "units": ""
+    }
+   ],
+   "summary": "Scale so the model measures a given size along one axis."
+  },
+  {
+   "affects_print": true,
+   "kind": "scale_uniform",
+   "parameters": [
+    {
+     "affects_print": true,
+     "choices": [],
+     "default": 1.0,
+     "description": "Multiplier on every dimension.",
+     "dynamic": false,
+     "high": 100.0,
+     "kind": "length",
+     "low": 0.01,
+     "name": "factor",
+     "units": "x"
+    }
+   ],
+   "summary": "Make the whole model bigger or smaller."
+  },
+  {
+   "affects_print": true,
+   "kind": "thicken_thin_walls",
+   "parameters": [
+    {
+     "affects_print": true,
+     "choices": [],
+     "default": 0.8,
+     "description": "The thinnest wall to allow.",
+     "dynamic": true,
+     "high": null,
+     "kind": "length",
+     "low": null,
+     "name": "minimum_mm",
+     "units": "mm"
+    }
+   ],
+   "summary": "Inflate the model so nothing is thinner than the nozzle."
+  }
+ ]
+}

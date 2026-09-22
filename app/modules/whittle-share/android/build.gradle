@@ -1,0 +1,32 @@
+// The share receiver. See ../index.ts for what it is for.
+//
+// A LOCAL EXPO MODULE, deliberately. The native code has to survive
+// `expo prebuild`, which deletes and regenerates android/ - so anything
+// written in there is gone the next time the manifest changes. Autolinking
+// scans ./modules by default (nativeModulesDir in expo-modules-autolinking),
+// which is outside the generated tree.
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.bitprimitive.whittle'
+version = '1.0.0'
+
+expoModule {
+  // NOTHING TO PUBLISH. The plugin's default is to build a maven publication
+  // for every module, which needs a `release` software component and fails
+  // configuration with "SoftwareComponent with name 'release' not found" for a
+  // module that has no publishing variant. This one is built from source in
+  // this app and goes nowhere else - expo-modules-core sets the same flag for
+  // the same reason.
+  canBePublished false
+}
+
+android {
+  namespace 'expo.modules.whittleshare'
+  defaultConfig {
+    versionCode 1
+    versionName '1.0.0'
+  }
+}

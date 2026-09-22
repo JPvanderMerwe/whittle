@@ -193,7 +193,7 @@ class BpAmbient {
   BpAmbient._();
 
   static const Color wash0 = Color(0xFFFFB000);
-  static const double wash0Alpha = 0.16;
+  static const double wash0Alpha = 0.2;
   /// Fractional centre of the wash, as (x, y) of the box.
   static const Alignment wash0At = Alignment(0.56, -0.92);
   /// The wash's extent as a fraction of the box, width
@@ -204,7 +204,7 @@ class BpAmbient {
   static const double wash0Stop = 0.62;
 
   static const Color wash1 = Color(0xFF35C6E8);
-  static const double wash1Alpha = 0.1;
+  static const double wash1Alpha = 0.16;
   /// Fractional centre of the wash, as (x, y) of the box.
   static const Alignment wash1At = Alignment(-0.8, 0.92);
   /// The wash's extent as a fraction of the box, width
@@ -213,6 +213,17 @@ class BpAmbient {
   static const Size wash1Size = Size(0.9, 0.44);
   /// Where the wash has fallen to nothing.
   static const double wash1Stop = 0.66;
+
+  static const Color wash2 = Color(0xFFFFB000);
+  static const double wash2Alpha = 0.07;
+  /// Fractional centre of the wash, as (x, y) of the box.
+  static const Alignment wash2At = Alignment(-0.76, -0.08);
+  /// The wash's extent as a fraction of the box, width
+  /// then height - CSS's two radial-gradient
+  /// percentages, which is an ellipse and not a circle.
+  static const Size wash2Size = Size(0.8, 0.4);
+  /// Where the wash has fallen to nothing.
+  static const double wash2Stop = 0.7;
 
 }
 

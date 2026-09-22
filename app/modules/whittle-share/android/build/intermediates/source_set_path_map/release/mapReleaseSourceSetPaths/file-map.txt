@@ -1,0 +1,7 @@
+expo.modules.whittleshare.whittle-share-pngs-0 /home/jp-van-der-merwe/Documents/whittle/app/modules/whittle-share/android/build/generated/res/pngs/release
+expo.modules.whittleshare.whittle-share-resValues-1 /home/jp-van-der-merwe/Documents/whittle/app/modules/whittle-share/android/build/generated/res/resValues/release
+expo.modules.whittleshare.whittle-share-mergeReleaseResources-2 /home/jp-van-der-merwe/Documents/whittle/app/modules/whittle-share/android/build/intermediates/incremental/release/mergeReleaseResources/merged.dir
+expo.modules.whittleshare.whittle-share-mergeReleaseResources-3 /home/jp-van-der-merwe/Documents/whittle/app/modules/whittle-share/android/build/intermediates/incremental/release/mergeReleaseResources/stripped.dir
+expo.modules.whittleshare.whittle-share-release-4 /home/jp-van-der-merwe/Documents/whittle/app/modules/whittle-share/android/build/intermediates/merged_res/release/mergeReleaseResources
+expo.modules.whittleshare.whittle-share-main-5 /home/jp-van-der-merwe/Documents/whittle/app/modules/whittle-share/android/src/main/res
+expo.modules.whittleshare.whittle-share-release-6 /home/jp-van-der-merwe/Documents/whittle/app/modules/whittle-share/android/src/release/res

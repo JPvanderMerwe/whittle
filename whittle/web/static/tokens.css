@@ -96,8 +96,9 @@
 
   /* ambient light BEHIND the glass. Without it every panel reads flat. */
   --bp-ambient:
-    radial-gradient(120% 60% at 78% 4%, rgba(255 176 0, 0.16), transparent 62%),
-    radial-gradient(90% 44% at 10% 96%, rgba(53 198 232, 0.1), transparent 66%);
+    radial-gradient(120% 60% at 78% 4%, rgba(255 176 0, 0.2), transparent 62%),
+    radial-gradient(90% 44% at 10% 96%, rgba(53 198 232, 0.16), transparent 66%),
+    radial-gradient(80% 40% at 12% 46%, rgba(255 176 0, 0.07), transparent 70%);
 
   /* pinned metrics */
   --bp-tap: 44px;

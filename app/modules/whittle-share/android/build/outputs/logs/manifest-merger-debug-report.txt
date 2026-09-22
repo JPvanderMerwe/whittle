@@ -1,0 +1,16 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /home/jp-van-der-merwe/Documents/whittle/app/modules/whittle-share/android/src/main/AndroidManifest.xml:1:1-72
+INJECTED from /home/jp-van-der-merwe/Documents/whittle/app/modules/whittle-share/android/src/main/AndroidManifest.xml:1:1-72
+	package
+		INJECTED from /home/jp-van-der-merwe/Documents/whittle/app/modules/whittle-share/android/src/main/AndroidManifest.xml
+	xmlns:android
+		ADDED from /home/jp-van-der-merwe/Documents/whittle/app/modules/whittle-share/android/src/main/AndroidManifest.xml:1:11-69
+uses-sdk
+INJECTED from /home/jp-van-der-merwe/Documents/whittle/app/modules/whittle-share/android/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /home/jp-van-der-merwe/Documents/whittle/app/modules/whittle-share/android/src/main/AndroidManifest.xml
+INJECTED from /home/jp-van-der-merwe/Documents/whittle/app/modules/whittle-share/android/src/main/AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from /home/jp-van-der-merwe/Documents/whittle/app/modules/whittle-share/android/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /home/jp-van-der-merwe/Documents/whittle/app/modules/whittle-share/android/src/main/AndroidManifest.xml

@@ -16,6 +16,25 @@
  * POLLED, NOT STREAMED - see Api.job. The route returns the whole event list
  * every time, so a poll that misses a beat, or a phone that locked its screen
  * for a minute, loses nothing.
+ *
+ * "STOP WATCHING" MEANT NOTHING BEFORE, and that was the fault worth fixing
+ * here. The button left the screen and the build carried on, which is correct
+ * and is the whole point of running on the machine - but nothing anywhere in
+ * the app then showed the build, so leaving felt like abandoning it. The
+ * library now carries a live strip of everything running, so this screen says
+ * where the build goes when you leave it, by name.
+ *
+ * NOT EVERY JOB IS A LONG ONE, AND THIS SCREEN USED TO INSIST THEY WERE.
+ * Setting a number rebuilds a part from its spec with no model involved -
+ * measured at six seconds - and it arrived here to be told "leave the screen,
+ * lock the phone, and it carries on under the library tab". Advice about
+ * walking away, for something that finishes before you could. Worse, it made
+ * the two kinds of work look equally expensive, so a slider felt as costly as
+ * a generate and people would hesitate over it.
+ *
+ * The caller knows which it started, so it says so. Nothing here guesses from
+ * elapsed time: a generate that happens to be quick is still a generate, and a
+ * rebuild that is slow because the mesh is enormous is still a rebuild.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -24,20 +43,34 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import type { Api, BuiltPart, JobEvent } from '../api';
 import { core, pen, space } from '../tokens';
 import { Waiting } from '../Rig';
-import { Button, Mono, Panel, Problem, Prose, Verdict } from '../ui';
+import { Button, Header, Mono, Panel, Problem, Prose, Verdict } from '../ui';
 
 /** How often to ask. Slow enough to be nothing on the wire, fast enough to read. */
 const EVERY_MS = 1000;
+
+/**
+ * What kind of work this is, which decides what the screen promises.
+ *
+ *   generate  words in, a part out. The model is asked, a spec is filled and
+ *             validated, geometry is built, every check is run - minutes.
+ *   refine    a sentence against an existing part. The parser decides the
+ *             common case in a second; anything it cannot decide goes to the
+ *             model, so it is a generate again.
+ *   params    numbers set directly. No model, no parser - load the spec, apply
+ *             the values, rebuild. Seconds.
+ */
+export type JobKind = 'generate' | 'refine' | 'params';
 
 interface Props {
   api: Api;
   jobId: string;
   request: string;
+  kind: JobKind;
   onBuilt: (part: BuiltPart) => void;
   onGiveUp: () => void;
 }
 
-export function MakingScreen({ api, jobId, request, onBuilt, onGiveUp }: Props) {
+export function MakingScreen({ api, jobId, request, kind, onBuilt, onGiveUp }: Props) {
   const [events, setEvents] = useState<JobEvent[]>([]);
   const [failure, setFailure] = useState<string | null>(null);
   const [started] = useState(() => Date.now());
@@ -90,17 +123,26 @@ export function MakingScreen({ api, jobId, request, onBuilt, onGiveUp }: Props) 
 
   const lines = events.filter((event) => typeof event.text === 'string');
   const elapsed = Math.round((now - started) / 1000);
+  // A rebuild with no model in it. See JobKind.
+  const quick = kind === 'params';
 
   return (
     <View style={styles.screen}>
-      <View style={styles.head}>
+      <Header
+        back={onGiveUp}
+        backLabel={quick ? 'back' : 'leave it running'}
+        title={failure ? 'it did not build' : quick ? 'rebuilding it' : 'making it'}
+        subtitle={failure ? undefined : `${elapsed}s`}
+      />
+
+      <Panel>
         <Mono size="micro" color={core.dim}>
-          making
+          {quick ? 'what changed' : 'what you asked for'}
         </Mono>
         <Prose size="reading" color={core.screen}>
           {request}
         </Prose>
-      </View>
+      </Panel>
 
       {failure ? (
         <Problem text={failure} actionLabel="back" onAction={onGiveUp} />
@@ -142,13 +184,27 @@ export function MakingScreen({ api, jobId, request, onBuilt, onGiveUp }: Props) 
       </Panel>
 
       {!failure ? (
-        <>
+        quick ? (
+          // NO ADVICE ABOUT WALKING AWAY from something that finishes before
+          // you could. What is worth saying about a rebuild is the thing that
+          // makes it safe to keep doing: it writes a new part, so the one you
+          // changed is still there.
           <Verdict
             state="waiting"
-            text="this runs on the machine, not the phone - the screen can lock"
+            text="rebuilding from the spec - no model involved, so this is seconds. The part you changed is kept."
           />
-          <Button label="stop watching" onPress={onGiveUp} />
-        </>
+        ) : (
+          <>
+            {/* WHERE IT GOES IF YOU LEAVE, BY NAME. "the screen can lock" was
+                true and unhelpful: it said the build survives without saying
+                where to find it again, so leaving the screen was a gamble. */}
+            <Verdict
+              state="waiting"
+              text="this runs on the machine, not the phone - leave the screen, lock the phone, and it carries on under the library tab"
+            />
+            <Button label="leave it running" onPress={onGiveUp} />
+          </>
+        )
       ) : null}
     </View>
   );
@@ -183,10 +239,6 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: space.base,
     gap: space.base,
-  },
-  head: {
-    paddingTop: space.loose,
-    gap: space.tight,
   },
   working: {
     alignItems: 'center',

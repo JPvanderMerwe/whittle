@@ -1,0 +1,1727 @@
+{
+ "bracket": {
+  "anchors": [
+   "wall_face",
+   "shelf_face",
+   "corner"
+  ],
+  "makes": [
+   "bracket",
+   "shelf bracket",
+   "l bracket",
+   "angle bracket",
+   "corner brace",
+   "gusset",
+   "support",
+   "mount",
+   "wall mount",
+   "shelf support",
+   "monitor mount",
+   "hanger",
+   "cable tray bracket",
+   "batten"
+  ],
+  "name": "bracket",
+  "params": [
+   {
+    "bounds": {
+     "gt": 10.0,
+     "le": 400.0
+    },
+    "choices": [],
+    "default": 80.0,
+    "description": "Length of the plate that goes against the wall, up the wall.",
+    "name": "wall_length_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 10.0,
+     "le": 400.0
+    },
+    "choices": [],
+    "default": 80.0,
+    "description": "Length of the plate that sticks out, carrying the load.",
+    "name": "shelf_length_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 5.0,
+     "le": 300.0
+    },
+    "choices": [],
+    "default": 30.0,
+    "description": "How wide the bracket is.",
+    "name": "width_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 1.0,
+     "le": 40.0
+    },
+    "choices": [],
+    "default": 6.0,
+    "description": "Plate thickness. 6 mm in PETG carries a shelf; below 4 it flexes and the fixings pull through.",
+    "name": "thickness_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 100.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "Fillet on the inside corner. Leave unset for 1.5 x thickness, which is where the stress raiser stops mattering.",
+    "name": "corner_r_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {},
+    "choices": [],
+    "default": true,
+    "description": "A triangular web across the corner. It carries the bending moment into the wall plate instead of the corner, and it is why a printed bracket holds.",
+    "name": "gusset",
+    "optional": false,
+    "required": false,
+    "type": "bool",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "gt": 0.4,
+     "le": 40.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "Gusset thickness. Leave unset to match the plates.",
+    "name": "gusset_thickness_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.1,
+     "le": 1.0
+    },
+    "choices": [],
+    "default": 0.7,
+    "description": "How far along each plate the gusset reaches, as a fraction.",
+    "name": "gusset_fraction",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "fraction"
+   },
+   {
+    "bounds": {
+     "ge": 0,
+     "le": 8
+    },
+    "choices": [],
+    "default": 2,
+    "description": "Fixing holes in the wall plate.",
+    "name": "wall_holes",
+    "optional": false,
+    "required": false,
+    "type": "int",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "ge": 0,
+     "le": 8
+    },
+    "choices": [],
+    "default": 2,
+    "description": "Fixing holes in the shelf plate.",
+    "name": "shelf_holes",
+    "optional": false,
+    "required": false,
+    "type": "int",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "gt": 1.0,
+     "le": 30.0
+    },
+    "choices": [],
+    "default": 5.5,
+    "description": "Fixing hole diameter. 5.5 clears an M5; 4.5 an M4.",
+    "name": "hole_dia_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 30.0
+    },
+    "choices": [],
+    "default": 0.0,
+    "description": "Counterbore depth for a screw head to sit flush. 0 for none. The bore is on the OUTSIDE face, so it prints as a plain step.",
+    "name": "counterbore_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 1.0,
+     "le": 100.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "Distance from a hole centre to the plate edge. Leave unset for 1.4 x the hole diameter, below which the material tears out.",
+    "name": "edge_margin_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   }
+  ],
+  "print_notes": [
+   "Orientation: standing on the back edge of the wall plate. DO NOT ROTATE - printed flat this is about a third as strong.",
+   "No supports needed in that orientation.",
+   "PETG or ABS. PLA creeps under a sustained load and the shelf droops.",
+   "4 walls and 40% infill. On a bracket the walls carry the load, so wall count matters far more than infill density.",
+   "Layer 0.2 mm. Finer does not make it stronger."
+  ],
+  "summary": "An L of two plates with a gusset across the corner and fixing holes. Prints standing on its back edge so the layers run across the load."
+ },
+ "enclosure": {
+  "anchors": [
+   "front_face",
+   "back_face",
+   "left_face",
+   "right_face",
+   "top_face",
+   "floor"
+  ],
+  "makes": [
+   "container",
+   "box",
+   "storage box",
+   "bin",
+   "crate",
+   "tote",
+   "tray",
+   "caddy",
+   "organiser",
+   "drawer insert",
+   "case",
+   "enclosure",
+   "housing",
+   "shell",
+   "project box",
+   "junction box",
+   "electronics enclosure",
+   "birdhouse",
+   "bird box",
+   "nesting box",
+   "nest box",
+   "bat box",
+   "hive",
+   "feeder body",
+   "letterbox",
+   "post box",
+   "donation box"
+  ],
+  "name": "enclosure",
+  "params": [
+   {
+    "bounds": {
+     "gt": 20.0,
+     "le": 600.0
+    },
+    "choices": [],
+    "default": 120.0,
+    "description": "X, outside width.",
+    "name": "width_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 20.0,
+     "le": 600.0
+    },
+    "choices": [],
+    "default": 100.0,
+    "description": "Y, outside depth.",
+    "name": "depth_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 20.0,
+     "le": 600.0
+    },
+    "choices": [],
+    "default": 160.0,
+    "description": "Z, outside height of the box, not counting the roof.",
+    "name": "height_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.4,
+     "le": 30.0
+    },
+    "choices": [],
+    "default": 3.0,
+    "description": "Wall thickness. 3 mm is sound for a birdhouse in PETG.",
+    "name": "wall_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.4,
+     "le": 50.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "Floor thickness. Leave unset to match the wall.",
+    "name": "floor_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 80.0
+    },
+    "choices": [],
+    "default": 4.0,
+    "description": "Vertical corner radius on the outside.",
+    "name": "corner_r_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 300.0
+    },
+    "choices": [],
+    "default": 32.0,
+    "description": "Entrance hole diameter. 32 mm suits a starling, 28 a great tit, 25 a blue tit. Set 0 for no entrance - a plain box.",
+    "name": "entrance_dia_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.0,
+     "le": 600.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "Height of the entrance centre above the floor. Leave unset to put it in the upper third, which keeps chicks away from a reaching cat.",
+    "name": "entrance_height_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {},
+    "choices": [],
+    "default": "front",
+    "description": "Which wall the entrance goes in: front, back, left or right.",
+    "name": "entrance_face",
+    "optional": false,
+    "required": false,
+    "type": "str",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 60.0
+    },
+    "choices": [],
+    "default": 0.0,
+    "description": "A raised collar around the entrance, thickening the wall so a cat or a squirrel cannot reach through to the nest. 18 to 25 mm is usual. 0 for none.",
+    "name": "predator_guard_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 200.0
+    },
+    "choices": [],
+    "default": 0.0,
+    "description": "Extend the back wall this far above and below the box, giving a flat plate to screw to a tree or a post. 0 for none.",
+    "name": "back_plate_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {},
+    "choices": [],
+    "default": true,
+    "description": "Include a roof. Printed as a separate piece.",
+    "name": "roof",
+    "optional": false,
+    "required": false,
+    "type": "bool",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 200.0
+    },
+    "choices": [],
+    "default": 20.0,
+    "description": "How far the roof stands proud on every side, to shed rain clear of the entrance.",
+    "name": "roof_overhang_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.8,
+     "le": 60.0
+    },
+    "choices": [],
+    "default": 6.0,
+    "description": "Roof slab thickness.",
+    "name": "roof_thick_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 60.0
+    },
+    "choices": [],
+    "default": 18.0,
+    "description": "Roof slope. Printed FLAT and set on at an angle, so the slope costs no support. 0 gives a flat roof.",
+    "name": "roof_pitch_deg",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "deg"
+   },
+   {
+    "bounds": {},
+    "choices": [
+     "flat",
+     "mono",
+     "gable"
+    ],
+    "default": "mono",
+    "description": "Roof shape. 'gable' is the triangular two-sided roof people picture when they say birdhouse: two panels meeting at a ridge along the width. 'mono' is a single panel leaning one way. 'flat' is a lid. All three print flat and are set on afterwards, so none of them costs support.",
+    "name": "roof_style",
+    "optional": false,
+    "required": false,
+    "type": "choice",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 40.0
+    },
+    "choices": [],
+    "default": 0.0,
+    "description": "Depth of the lip under the roof that drops into the cavity and locates the lid. For FLAT lids. A lip cannot enter a rectangular hole while the lid is tilted, so a pitched roof wants 0 and glue.",
+    "name": "roof_lip_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 3.0
+    },
+    "choices": [],
+    "default": 0.4,
+    "description": "Gap between the lip and the box, so the roof lifts off.",
+    "name": "roof_clearance_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {},
+    "choices": [
+     "plain",
+     "board",
+     "slat"
+    ],
+    "default": "plain",
+    "description": "Exterior relief. plain is flat. board cuts horizontal shiplap grooves for a weatherboard look. slat cuts vertical reveals for a modern slatted panel look.",
+    "name": "finish",
+    "optional": false,
+    "required": false,
+    "type": "choice",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "gt": 2.0,
+     "le": 100.0
+    },
+    "choices": [],
+    "default": 11.0,
+    "description": "Spacing between grooves, centre to centre.",
+    "name": "finish_pitch_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.0,
+     "le": 20.0
+    },
+    "choices": [],
+    "default": 1.2,
+    "description": "Width of each groove. Must be at least two nozzle widths to resolve.",
+    "name": "finish_groove_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.0,
+     "le": 20.0
+    },
+    "choices": [],
+    "default": 0.8,
+    "description": "How deep the grooves cut into the wall.",
+    "name": "finish_depth_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0,
+     "le": 24
+    },
+    "choices": [],
+    "default": 4,
+    "description": "Drainage holes in the floor. A birdhouse without them rots.",
+    "name": "drain_holes",
+    "optional": false,
+    "required": false,
+    "type": "int",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "gt": 0.0,
+     "le": 40.0
+    },
+    "choices": [],
+    "default": 6.0,
+    "description": "Drainage hole diameter.",
+    "name": "drain_dia_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0,
+     "le": 12
+    },
+    "choices": [],
+    "default": 2,
+    "description": "Ventilation slots near the top of each side wall.",
+    "name": "vent_slots",
+    "optional": false,
+    "required": false,
+    "type": "int",
+    "units": ""
+   },
+   {
+    "bounds": {},
+    "choices": [],
+    "default": true,
+    "description": "Two screw holes through the back wall for mounting.",
+    "name": "mount_holes",
+    "optional": false,
+    "required": false,
+    "type": "bool",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "gt": 1.0,
+     "le": 20.0
+    },
+    "choices": [],
+    "default": 4.5,
+    "description": "Mounting hole diameter.",
+    "name": "mount_dia_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   }
+  ],
+  "print_notes": [
+   "Two pieces: the box upright, the roof flat beside it. Do not rotate.",
+   "No supports. The cavity opens upward and the entrance is a horizontal bore.",
+   "Layer height 0.2 to 0.28 mm. This is a big part and detail is not the point.",
+   "PETG or ASA outdoors. PLA goes brittle in UV within a season.",
+   "3 walls and 15% infill is plenty - the walls carry it, not the infill.",
+   "Glue the roof on at the stated pitch, or leave it loose to clean the box out.",
+   "No perch, deliberately: nest-box birds do not need one and it gives a predator somewhere to stand."
+  ],
+  "summary": "RECTANGULAR. For anything round use `vessel`. A hollow box: walls, a floor, an optional opening in one wall, an optional lift-off roof or lid, drainage, ventilation, a predator guard and a mounting plate. Everything optional is off by setting it to zero, so a plain open-topped box is this template with the extras turned off."
+ },
+ "keyring_device": {
+  "anchors": [
+   "front_face",
+   "back_face",
+   "module_pocket_floor",
+   "glass_floor",
+   "waist_side"
+  ],
+  "makes": [
+   "keyring",
+   "key fob",
+   "keychain",
+   "tag",
+   "luggage tag",
+   "charm",
+   "pendant",
+   "badge",
+   "engraved plaque"
+  ],
+  "name": "keyring_device",
+  "params": [
+   {
+    "bounds": {
+     "gt": 10.0,
+     "le": 200.0
+    },
+    "choices": [],
+    "default": 30.0,
+    "description": "Overall body width across the trim caps. At 30 mm the glass side bezel lands on exactly one extrusion width; below 26 mm drop the screen detail entirely.",
+    "name": "body_width_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 1.0,
+     "le": 40.0
+    },
+    "choices": [],
+    "default": 7.0,
+    "description": "Single constant thickness of the whole part.",
+    "name": "depth_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.0,
+     "le": 20.0
+    },
+    "choices": [],
+    "default": 2.4,
+    "description": "Thinnest handle section that survives a keychain. Below 2.4 it snaps.",
+    "name": "min_handle_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.0,
+     "le": 5.0
+    },
+    "choices": [],
+    "default": 0.45,
+    "description": "Thinnest engraved or embossed line worth cutting.",
+    "name": "min_stroke_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 10.0
+    },
+    "choices": [],
+    "default": 1.0,
+    "description": "How far the boss must reach past the handle on each side.",
+    "name": "boss_margin_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.0,
+     "le": 10.0
+    },
+    "choices": [],
+    "default": 0.55,
+    "description": "Module pocket depth, i.e. the bezel step. Deliberately deeper than true scale: a scale-correct 0.44 mm recess is geometrically right and visually dead, with too little depth to catch a shadow.",
+    "name": "recess_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.0,
+     "le": 10.0
+    },
+    "choices": [],
+    "default": 0.75,
+    "description": "Additional depth of the glass area inside the bezel.",
+    "name": "glass_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.0,
+     "le": 5.0
+    },
+    "choices": [],
+    "default": 0.45,
+    "description": "Camera dot depth.",
+    "name": "cam_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 5.0
+    },
+    "choices": [],
+    "default": 0.4,
+    "description": "Attempted and reverted if OCC produces an invalid solid, which it does on this silhouette. Set to 0 to stop trying. For elephant foot use your slicer's first-layer compensation instead - that is the correct fix and costs no geometry.",
+    "name": "front_chamfer_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 5.0
+    },
+    "choices": [],
+    "default": 0.0,
+    "description": "As above, back face.",
+    "name": "back_chamfer_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {},
+    "choices": [],
+    "default": false,
+    "description": "Engrave the traced wordmark. OFF by default because it requires logo_json, a file path that has to come from somewhere - a measured baseline showed this default costing an attempt on every keyring request that did not mention the logo. Set it true and point logo_json at the output of `whittle measure trace`.",
+    "name": "logo_on",
+    "optional": false,
+    "required": false,
+    "type": "bool",
+    "units": ""
+   },
+   {
+    "bounds": {},
+    "choices": [],
+    "default": null,
+    "description": "Path to traced logo outlines from `whittle measure trace`. Relative paths resolve against the spec file. Required when logo_on.",
+    "name": "logo_json",
+    "optional": true,
+    "required": false,
+    "type": "str",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "gt": 0.0,
+     "le": 1.0
+    },
+    "choices": [],
+    "default": 0.185,
+    "description": "Logo width as a fraction of the fabric waist width.",
+    "name": "logo_width_fraction",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "fraction"
+   },
+   {
+    "bounds": {
+     "gt": 0.0,
+     "le": 5.0
+    },
+    "choices": [],
+    "default": 0.4,
+    "description": "Engraving depth.",
+    "name": "logo_depth_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {},
+    "choices": [],
+    "default": true,
+    "description": "Grow the logo until its thinnest stroke is printable.",
+    "name": "logo_autoscale",
+    "optional": false,
+    "required": false,
+    "type": "bool",
+    "units": ""
+   },
+   {
+    "bounds": {},
+    "choices": [],
+    "default": true,
+    "description": "Engrave the screen UI as raised cards.",
+    "name": "ui_on",
+    "optional": false,
+    "required": false,
+    "type": "bool",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "gt": 0.0,
+     "le": 5.0
+    },
+    "choices": [],
+    "default": 0.45,
+    "description": "How far the cards stand above the glass floor.",
+    "name": "ui_raise_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 1.0
+    },
+    "choices": [],
+    "default": 0.03,
+    "description": "Shrink every element slightly to keep the gaps printable.",
+    "name": "ui_shrink_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   }
+  ],
+  "print_notes": [
+   "Orientation: flat, back face on the bed. DO NOT ROTATE.",
+   "Layer height 0.12 mm - the face detail is in Z, that is the whole point.",
+   "PETG. A PLA keyring at this section will snap at the handle.",
+   "4 walls, 100% infill. It is 6.5 cm3; solid costs nothing and a hollow keyring crushes.",
+   "No supports. Ironing on the top surface only, if your slicer has it.",
+   "Elephant foot: first-layer compensation 0.15 mm."
+  ],
+  "summary": "One-piece keyring: constant-depth extrusion, fused handle, engraved face detail."
+ },
+ "louvre_vent": {
+  "anchors": [
+   "flange_face",
+   "aperture",
+   "bottom_rail_top",
+   "top_rail_bottom"
+  ],
+  "makes": [
+   "vent",
+   "louvre vent",
+   "air vent",
+   "grille",
+   "register",
+   "airbrick",
+   "adjustable vent",
+   "shutter",
+   "damper",
+   "cupboard vent",
+   "wall vent"
+  ],
+  "name": "louvre_vent",
+  "params": [
+   {
+    "bounds": {
+     "gt": 10.0,
+     "le": 400.0
+    },
+    "choices": [],
+    "default": 76.0,
+    "description": "X, outside width of the body.",
+    "name": "frame_w_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 5.0,
+     "le": 200.0
+    },
+    "choices": [],
+    "default": 22.0,
+    "description": "Y, body depth, the insertion direction.",
+    "name": "frame_d_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 10.0,
+     "le": 400.0
+    },
+    "choices": [],
+    "default": 30.0,
+    "description": "Z, outside height and print height.",
+    "name": "frame_h_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.4,
+     "le": 20.0
+    },
+    "choices": [],
+    "default": 4.0,
+    "description": "Rail thickness top and bottom.",
+    "name": "wall_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 10.0
+    },
+    "choices": [],
+    "default": 1.5,
+    "description": "Vertical corner radius on the body.",
+    "name": "bezel_r_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.4,
+     "le": 20.0
+    },
+    "choices": [],
+    "default": 2.0,
+    "description": "Flange thickness in Y.",
+    "name": "flange_t_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.0,
+     "le": 50.0
+    },
+    "choices": [],
+    "default": 5.0,
+    "description": "How far the flange stands proud, all round.",
+    "name": "flange_over_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.5,
+     "le": 20.0
+    },
+    "choices": [],
+    "default": 3.4,
+    "description": "Screw clearance hole. 3.4 is M3 clearance.",
+    "name": "screw_dia_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 5.0
+    },
+    "choices": [],
+    "default": 0.3,
+    "description": "Advisory: cut your hole this much over body size.",
+    "name": "body_clear_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 2,
+     "le": 24
+    },
+    "choices": [],
+    "default": null,
+    "description": "Number of louvre blades. Leave unset to derive from the aperture width, keeping roughly the reference 17 mm pitch and never exceeding what the crank linkage can fit.",
+    "name": "n_blades",
+    "optional": true,
+    "required": false,
+    "type": "int",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "gt": 2.0,
+     "le": 100.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "Blade depth in Y when straight through. Leave unset to derive as 0.82 of the blade pitch, so the blades clear each other as they swing whatever the frame width.",
+    "name": "blade_chord_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.4,
+     "le": 20.0
+    },
+    "choices": [],
+    "default": 1.8,
+    "description": "Blade thickness in X.",
+    "name": "blade_thick_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": -89.0,
+     "le": 89.0
+    },
+    "choices": [],
+    "default": 0.0,
+    "description": "As printed. 0 = straight through.",
+    "name": "blade_angle_deg",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "deg"
+   },
+   {
+    "bounds": {
+     "gt": 0.0,
+     "le": 80.0
+    },
+    "choices": [],
+    "default": 38.0,
+    "description": "Mechanism travel limit. Past ~40 the bar fouls the pivot pins.",
+    "name": "max_angle_deg",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "deg"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 10.0
+    },
+    "choices": [],
+    "default": 0.7,
+    "description": "Rounding on the blade edges.",
+    "name": "blade_tip_r_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.8,
+     "le": 20.0
+    },
+    "choices": [],
+    "default": 2.6,
+    "description": "Pivot pin diameter. Below 2.4 it snaps.",
+    "name": "pin_dia_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.0,
+     "le": 2.0
+    },
+    "choices": [],
+    "default": 0.3,
+    "description": "Radial clearance, pin to socket.",
+    "name": "pin_clear_r_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.2,
+     "le": 20.0
+    },
+    "choices": [],
+    "default": 2.6,
+    "description": "How far a pin sits inside its socket.",
+    "name": "pin_engage_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.0,
+     "le": 2.0
+    },
+    "choices": [],
+    "default": 0.3,
+    "description": "Vertical air gap at every shoulder. Bridged by the layer above.",
+    "name": "pin_gap_z_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 5.0
+    },
+    "choices": [],
+    "default": 0.4,
+    "description": "Socket depth beyond the engagement.",
+    "name": "socket_extra_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.2,
+     "le": 10.0
+    },
+    "choices": [],
+    "default": 1.2,
+    "description": "Material around a pivot socket.",
+    "name": "hub_wall_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.5,
+     "le": 50.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "Crank arm length, pivot to crank pin. Leave unset to derive from the chord, which keeps the crank hub inside the blade.",
+    "name": "crank_r_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.5,
+     "le": 20.0
+    },
+    "choices": [],
+    "default": 1.8,
+    "description": "Crank pin diameter.",
+    "name": "crank_pin_dia_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.2,
+     "le": 20.0
+    },
+    "choices": [],
+    "default": 2.4,
+    "description": "Crank pin engagement depth.",
+    "name": "crank_engage_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.2,
+     "le": 10.0
+    },
+    "choices": [],
+    "default": 0.9,
+    "description": "Material around a crank socket.",
+    "name": "crank_hub_wall_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.4,
+     "le": 20.0
+    },
+    "choices": [],
+    "default": 2.4,
+    "description": "Tie bar thickness in Z.",
+    "name": "bar_thick_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.4,
+     "le": 20.0
+    },
+    "choices": [],
+    "default": 3.2,
+    "description": "Tie bar width in Y.",
+    "name": "bar_width_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 30.0
+    },
+    "choices": [],
+    "default": 3.0,
+    "description": "Material beyond the outermost crank pin.",
+    "name": "bar_tail_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0
+    },
+    "choices": [],
+    "default": null,
+    "description": "Which blade carries the thumb tab, as an index. Leave unset to use the most central blade, which gives the tab the most room to sweep before it reaches the edge of the aperture.",
+    "name": "grip_blade",
+    "optional": true,
+    "required": false,
+    "type": "int",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "gt": 1.0,
+     "le": 200.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "Pivot to tab tip. Leave unset to derive from the frame depth. It must stay proud of the flange at max_angle_deg, not merely at rest, so a deeper frame needs a longer tab.",
+    "name": "grip_len_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.4,
+     "le": 30.0
+    },
+    "choices": [],
+    "default": 3.6,
+    "description": "Tab thickness in X, a little fatter than the blade.",
+    "name": "grip_w_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 1.0,
+     "le": 60.0
+    },
+    "choices": [],
+    "default": 8.0,
+    "description": "Thumb paddle width in X.",
+    "name": "grip_pad_w_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.5,
+     "le": 30.0
+    },
+    "choices": [],
+    "default": 3.0,
+    "description": "Thumb paddle depth in Y.",
+    "name": "grip_pad_d_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   }
+  ],
+  "print_notes": [
+   "Orientation: as modelled, flange edge-on, frame flat on the bed.",
+   "Layer height 0.20 mm.",
+   "PETG or ABS. PLA creeps and the blades go slack.",
+   "No supports. Every print-in-place gap is bridged by the layer above it.",
+   "After printing, work the knob back and forth a few times to free the pins.",
+   "Cut your mounting hole body_clear_mm over the body size."
+  ],
+  "summary": "Print-in-place adjustable louvre vent with a parallel-crank linkage."
+ },
+ "vessel": {
+  "anchors": [
+   "rim",
+   "base",
+   "outside"
+  ],
+  "makes": [
+   "bowl",
+   "dish",
+   "round bowl",
+   "serving bowl",
+   "fruit bowl",
+   "cup",
+   "mug body",
+   "beaker",
+   "tumbler",
+   "pot",
+   "plant pot",
+   "planter",
+   "flower pot",
+   "vase",
+   "jar",
+   "canister",
+   "tub",
+   "basin",
+   "container",
+   "round container",
+   "pen pot",
+   "pencil pot",
+   "utensil pot",
+   "ramekin",
+   "trinket dish",
+   "catch-all",
+   "saucer",
+   "round plate",
+   "tray round",
+   "voronoi bowl",
+   "cell bowl",
+   "cellular bowl",
+   "lattice bowl",
+   "fruit basket",
+   "openwork bowl",
+   "mesh bowl",
+   "generative bowl"
+  ],
+  "name": "vessel",
+  "params": [
+   {
+    "bounds": {
+     "gt": 4.0,
+     "le": 600.0
+    },
+    "choices": [],
+    "default": 160.0,
+    "description": "Diameter at the widest point of the body.",
+    "name": "outer_dia_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 2.0,
+     "le": 600.0
+    },
+    "choices": [],
+    "default": 70.0,
+    "description": "Overall height including the foot.",
+    "name": "height_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.4,
+     "le": 40.0
+    },
+    "choices": [],
+    "default": 2.4,
+    "description": "Wall thickness.",
+    "name": "wall_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.4,
+     "le": 60.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "Thickness of the base. Defaults to a little over the wall.",
+    "name": "floor_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {},
+    "choices": [
+     "straight",
+     "flared",
+     "belly",
+     "cylinder",
+     "custom"
+    ],
+    "default": "flared",
+    "description": "straight is a plain cone. flared opens out towards the rim like a bowl. belly bulges in the middle and draws back in like a vase. cylinder is a straight-sided pot. custom takes the silhouette from profile_points, which is how a shape MEASURED off a mesh becomes an editable part.",
+    "name": "profile",
+    "optional": false,
+    "required": false,
+    "type": "choice",
+    "units": ""
+   },
+   {
+    "bounds": {},
+    "choices": [],
+    "default": null,
+    "description": "The silhouette as (radius_mm, height_mm) pairs from the base up. Only used when profile is custom. This is what a generated mesh turns into: measured off the surface, then editable like any other number.",
+    "name": "profile_points",
+    "optional": true,
+    "required": false,
+    "type": "list",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "gt": 2.0,
+     "le": 600.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "Diameter at the rim. Derived from the profile if left out.",
+    "name": "rim_dia_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 2.0,
+     "le": 600.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "Diameter where it meets the foot. Derived if left out.",
+    "name": "base_dia_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 100.0
+    },
+    "choices": [],
+    "default": 0.0,
+    "description": "Height of a narrower foot ring under the body. 0 for none.",
+    "name": "foot_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 2.0,
+     "le": 600.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "Foot diameter. Derived if left out.",
+    "name": "foot_dia_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 20.0
+    },
+    "choices": [],
+    "default": 1.2,
+    "description": "Rounding on the rim edge, so it is not a knife edge.",
+    "name": "rim_round_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0,
+     "le": 24
+    },
+    "choices": [],
+    "default": 0,
+    "description": "Holes through the base. A plant pot needs them, a bowl does not.",
+    "name": "drain_holes",
+    "optional": false,
+    "required": false,
+    "type": "int",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "gt": 0.5,
+     "le": 60.0
+    },
+    "choices": [],
+    "default": 6.0,
+    "description": "Diameter of each drainage hole.",
+    "name": "drain_dia_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {},
+    "choices": [
+     "solid",
+     "cells"
+    ],
+    "default": "solid",
+    "description": "solid is a plain wall. cells cuts a Voronoi web through it, leaving a strut between every pair of holes.",
+    "name": "pattern",
+    "optional": false,
+    "required": false,
+    "type": "choice",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "ge": 8,
+     "le": 600
+    },
+    "choices": [],
+    "default": 110,
+    "description": "How many cells around and up the wall. More means finer.",
+    "name": "cell_count",
+    "optional": false,
+    "required": false,
+    "type": "int",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "gt": 0.4,
+     "le": 30.0
+    },
+    "choices": [],
+    "default": 3.0,
+    "description": "Width of the web between two holes. This is the part that carries the load.",
+    "name": "strut_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0,
+     "le": 10000000
+    },
+    "choices": [],
+    "default": 7,
+    "description": "Which arrangement of cells. Change it for a different pattern of the same character. The same seed always gives the same bowl.",
+    "name": "cell_seed",
+    "optional": false,
+    "required": false,
+    "type": "int",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 200.0
+    },
+    "choices": [],
+    "default": 7.0,
+    "description": "Solid band left under the rim. The rim is what holds the whole thing round.",
+    "name": "rim_band_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 200.0
+    },
+    "choices": [],
+    "default": 6.0,
+    "description": "Solid band left above the floor, so the base is not perforated.",
+    "name": "base_band_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   }
+  ],
+  "print_notes": [
+   "Orientation: standing upright, exactly as modelled. The cavity opens upward, so there is nothing to support.",
+   "No supports. If the profile needed them the spec would have been refused - the wall lean is checked against 45 degrees.",
+   "Vase mode / spiralised outer contour suits this well if the wall is a single extrusion wide and there are no drainage holes.",
+   "PETG for anything that holds water. PLA is fine dry and will soften in a hot car or a dishwasher.",
+   "3 walls minimum. On a thin turned wall the walls ARE the part."
+  ],
+  "summary": "A ROUND vessel turned about its axis - bowl, dish, plant pot, cup or vase. Open at the top, with a real wall, a floor and an optional foot. Use this whenever the thing is round. The enclosure template is rectangular and will make a square box out of a bowl."
+ }
+}

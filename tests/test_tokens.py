@@ -249,14 +249,24 @@ def test_the_ambient_wash_exists_and_reaches_both_clients():
     handoff calls out by name, and it looks like the glass simply not working.
     """
     layers = tokens()["glass"]["ambient"]["layers"]
-    assert len(layers) == 2, "the design specifies two washes"
+    # AT LEAST TWO, NOT EXACTLY TWO.
+    #
+    # This asserted the COUNT, which is a snapshot of the design rather than
+    # a rule about it - and it failed the day a third wash was added, for a
+    # reason the design itself gives: light from one corner leaves the middle
+    # of a long scrolling page with nothing behind the glass to pick up.
+    #
+    # What matters is that the washes exist and reach both clients. How many
+    # there are is a design decision; that each stays inside the palette and
+    # under the stain limit is the rule, and the test below checks it.
+    assert len(layers) >= 2, "the design needs at least two washes"
 
     css = CSS.read_text()
     assert "--bp-ambient:" in css
-    assert css.count("radial-gradient") >= 2
+    assert css.count("radial-gradient") >= len(layers)
 
     dart = DART.read_text()
-    for index in range(2):
+    for index in range(len(layers)):
         for field in ("wash%d", "wash%dAlpha", "wash%dAt", "wash%dSize",
                       "wash%dStop"):
             assert (field % index) in dart, (
