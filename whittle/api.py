@@ -358,23 +358,44 @@ def build(
         else (Path(spec_path).parent if spec_path else Path("parts") / spec.name)
     )
 
-    try:
-        result, report, stl = compile_and_verify(
-            spec, cfg, resolved_base, part_dir / "out", allow_level_3=allow_level_3
-        )
-    except SpecRejected as exc:
-        raise ApiError(str(exc)) from exc
+    # ALL OF IT OR NONE OF IT - see _WholePartOrNothing. The export writes
+    # the mesh first and the rest of the bundle after it, so a render that
+    # throws or a full disk used to leave an STL with no spec beside it:
+    # a directory that looks like a part, cannot be rebuilt, and holds the
+    # name for the next attempt.
+    #
+    # `whittle build parts/vent/spec.yaml` rebuilding parts/vent IN PLACE is
+    # the ordinary case and still works: the old part is moved aside and only
+    # removed once the new one has landed, so even a failure at the last step
+    # leaves the part that was already there.
+    with _WholePartOrNothing(part_dir) as building:
+        try:
+            result, report, stl = compile_and_verify(
+                spec, cfg, resolved_base, building / "out",
+                allow_level_3=allow_level_3,
+            )
+        except SpecRejected as exc:
+            raise ApiError(str(exc)) from exc
 
-    files: dict[str, Path] = {"stl": stl}
-    if bundle:
-        from whittle.agent import bundle as bundle_mod
+        files: dict[str, Path] = {"stl": stl}
+        if bundle:
+            from whittle.agent import bundle as bundle_mod
 
-        files = bundle_mod.write_bundle(
-            spec=spec, result=result, report=report, stl=stl,
-            part_dir=part_dir, render=render,
-        )
-    elif render:
-        files.update(render_part(stl, part_dir / "out", print_axis=spec.print_axis))
+            files = bundle_mod.write_bundle(
+                spec=spec, result=result, report=report, stl=stl,
+                part_dir=building, render=render,
+            )
+        elif render:
+            files.update(render_part(stl, building / "out",
+                                     print_axis=spec.print_axis))
+
+        # NAMED WHERE IT WILL LIVE, not where it was assembled.
+        def _home(path):
+            return part_dir / Path(path).relative_to(building)
+
+        stl = _home(stl)
+        files = ({k: _home(v) for k, v in files.items()}
+                 if isinstance(files, dict) else [_home(f) for f in files])
 
     return PartResult(
         name=spec.name, spec=spec, build=result, report=report,
@@ -1019,6 +1040,83 @@ def generate(
                 measurement=measurement, facts=facts, max_seconds=max_seconds)
 
 
+class _WholePartOrNothing:
+    """
+    Assemble a part somewhere else, and move it into place only when it is
+    whole.
+
+    WHITTLE MUST NOT HALF-BUILD ANYTHING. Either a part is there and works,
+    or the run failed and said why - there is no third state worth having,
+    and the third state is the one that costs somebody an afternoon.
+
+    IT WAS REACHABLE. The mesh was copied to its final home and the bundle -
+    spec, report, regression, renders - was written afterwards. Anything
+    going wrong in between (a render that throws, a full disk, a laptop
+    lid) left a directory holding an STL and nothing else: no spec, so it
+    cannot be rebuilt; no report, so there is nothing to read; and it holds
+    the name, so the next attempt at the same words lands beside it as
+    `_2`. Proven, not feared - made `write_bundle` raise and there it was.
+
+    So the part is built into a sibling directory and renamed into place in
+    one step. A rename inside one filesystem is atomic: either the finished
+    part is there or nothing is, and a crash halfway leaves the scratch
+    directory, which is swept on the next run rather than mistaken for a
+    part.
+
+    AN EXPLICIT out_dir IS STILL HONOURED EXACTLY - `whittle build
+    parts/vent/spec.yaml --out parts/vent` rebuilding in place is the whole
+    point of a spec being the durable artifact. The scratch directory is a
+    sibling of wherever it was told to write.
+    """
+
+    #: What a half-finished part is called while it is being assembled.
+    #: Dotted so it sorts out of the way, and named so nothing mistakes it
+    #: for a part - library.read_entry needs a spec, a draft or an import
+    #: record, and a scratch directory is swept before it ever has one.
+    PREFIX = ".building-"
+
+    def __init__(self, target: Path) -> None:
+        self.target = Path(target)
+        self.scratch = self.target.parent / (
+            "%s%s" % (self.PREFIX, self.target.name))
+
+    def __enter__(self) -> Path:
+        self.target.parent.mkdir(parents=True, exist_ok=True)
+        # LEFTOVERS FROM A RUN THAT DIED. Swept here rather than by a
+        # background job: this is the one moment something is certainly
+        # about to write the same place.
+        shutil.rmtree(self.scratch, ignore_errors=True)
+        self.scratch.mkdir(parents=True)
+        return self.scratch
+
+    def __exit__(self, kind, value, trace) -> bool:
+        if kind is not None:
+            # THE FAILURE LEAVES NOTHING. The exception carries the reason
+            # and the caller turns it into a sentence; a directory of
+            # fragments would add nothing to that and would outlive it.
+            shutil.rmtree(self.scratch, ignore_errors=True)
+            return False
+
+        # INTO PLACE IN ONE STEP. If the target already exists - a rebuild
+        # in place, which is the ordinary case for `whittle build` - the old
+        # one is moved aside first and only removed once the new one has
+        # landed, so a failure here still leaves the part that was there.
+        keep = None
+        if self.target.exists():
+            keep = self.target.parent / ("%s%s.old" % (self.PREFIX, self.target.name))
+            shutil.rmtree(keep, ignore_errors=True)
+            self.target.rename(keep)
+        try:
+            self.scratch.rename(self.target)
+        except OSError:
+            if keep is not None:
+                keep.rename(self.target)
+            raise
+        if keep is not None:
+            shutil.rmtree(keep, ignore_errors=True)
+        return False
+
+
 def _free_part_dir(name: str) -> Path:
     """
     Where to write a part called `name` WITHOUT destroying one already there.
@@ -1275,23 +1373,36 @@ def _run(
 
     spec = result.spec
     target = Path(out_dir) if out_dir else _free_part_dir(spec.name)
-    (target / "out").mkdir(parents=True, exist_ok=True)
-    final_stl = target / "out" / ("%s.stl" % spec.name)
-    shutil.copy2(holder["stl"], final_stl)
 
-    from whittle.agent import bundle as bundle_mod
+    # ALL OF IT OR NONE OF IT. See _WholePartOrNothing: the mesh used to go
+    # to its final home and the rest of the bundle followed, so anything
+    # failing in between left an STL with no spec - a part that cannot be
+    # rebuilt, holding the name.
+    with _WholePartOrNothing(target) as building:
+        (building / "out").mkdir(parents=True, exist_ok=True)
+        final_stl = building / "out" / ("%s.stl" % spec.name)
+        shutil.copy2(holder["stl"], final_stl)
 
-    model_used = next((a.model for a in reversed(result.ladder.attempts) if a.ok), "")
-    # The exports are written here - stl, 3mf, step, the report and the
-    # renders - and on a big mesh it is seconds rather than instant, so it is
-    # a stage worth naming and the fifth one both clients already show.
-    emit("exporting", target)
-    files = bundle_mod.write_bundle(
-        spec=spec, result=holder["result"], report=holder["report"],
-        stl=final_stl, part_dir=target, model_used=model_used,
-        machine=profile.name, attempts=len(result.ladder.attempts),
-        elapsed_s=elapsed, render=render,
-    )
+        from whittle.agent import bundle as bundle_mod
+
+        model_used = next(
+            (a.model for a in reversed(result.ladder.attempts) if a.ok), "")
+        # The exports are written here - stl, 3mf, step, the report and the
+        # renders - and on a big mesh it is seconds rather than instant, so
+        # it is a stage worth naming and the fifth one both clients show.
+        emit("exporting", target)
+        files = bundle_mod.write_bundle(
+            spec=spec, result=holder["result"], report=holder["report"],
+            stl=final_stl, part_dir=building, model_used=model_used,
+            machine=profile.name, attempts=len(result.ladder.attempts),
+            elapsed_s=elapsed, render=render,
+        )
+        # PATHS AS THEY WILL BE, not as they are while building. Everything
+        # downstream - the run record, the client, the report - names the
+        # part's real home, and the scratch name exists for the length of
+        # this block only.
+        final_stl = target / "out" / ("%s.stl" % spec.name)
+        files = [target / Path(f).relative_to(building) for f in files]
 
     record.spec = spec.model_dump(exclude_none=True)
     record.report = holder["report"].to_dict()
@@ -1678,19 +1789,28 @@ def refine(
     if build_it:
         target = (Path(out_dir) if out_dir
                   else _free_part_dir(outcome.spec.name))
-        (target / "out").mkdir(parents=True, exist_ok=True)
-        final = target / "out" / ("%s.stl" % outcome.spec.name)
-        shutil.copy2(holder["stl"], final)
 
-        from whittle.agent import bundle as bundle_mod
+        # ALL OF IT OR NONE OF IT, the same as a first build. A refine that
+        # half-wrote would be worse: the part it was changing is still there,
+        # and a fragment beside it reads like the new version.
+        with _WholePartOrNothing(target) as building:
+            (building / "out").mkdir(parents=True, exist_ok=True)
+            final = building / "out" / ("%s.stl" % outcome.spec.name)
+            shutil.copy2(holder["stl"], final)
 
-        model_used = next((a.model for a in reversed(outcome.ladder.attempts) if a.ok), "")
-        files = bundle_mod.write_bundle(
-            spec=outcome.spec, result=holder["result"], report=holder["report"],
-            stl=final, part_dir=target, model_used=model_used,
-            machine=profile.name, attempts=len(outcome.ladder.attempts),
-            elapsed_s=elapsed, render=render,
-        )
+            from whittle.agent import bundle as bundle_mod
+
+            model_used = next(
+                (a.model for a in reversed(outcome.ladder.attempts) if a.ok), "")
+            files = bundle_mod.write_bundle(
+                spec=outcome.spec, result=holder["result"], report=holder["report"],
+                stl=final, part_dir=building, model_used=model_used,
+                machine=profile.name, attempts=len(outcome.ladder.attempts),
+                elapsed_s=elapsed, render=render,
+            )
+            final = target / "out" / ("%s.stl" % outcome.spec.name)
+            files = [target / Path(f).relative_to(building) for f in files]
+
         out.part = PartResult(
             name=outcome.spec.name, spec=outcome.spec, build=holder["result"],
             report=holder["report"], stl=final, part_dir=target, files=files,

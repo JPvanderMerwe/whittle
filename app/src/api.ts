@@ -222,7 +222,13 @@ export interface LibraryQuery {
   /** Free text, matched by the engine against everything that names a part. */
   q?: string;
   /** Which kinds to show. The words are the library's, not the schema's. */
-  show?: 'all' | 'made' | 'brought-in' | 'unfinished';
+  /**
+   * 'models' is everything that IS a model - made here or brought in. It is
+   * what a gallery called "your models" should lead with: a run that
+   * produced nothing is a thing that happened, not a thing you have.
+   * 'all' still means literally all, for a caller that wants it.
+   */
+  show?: 'all' | 'models' | 'made' | 'brought-in' | 'unfinished';
   sort?: 'newest' | 'oldest' | 'name' | 'biggest' | 'smallest';
   material?: string;
   tag?: string;
@@ -258,7 +264,13 @@ export interface LibraryAnswer {
   sort: string;
   show: string;
   facets: {
-    show: { made: number; 'brought-in': number; unfinished: number };
+    show: {
+      made: number;
+      'brought-in': number;
+      unfinished: number;
+      /** made + brought in. What the gallery counts as models. */
+      models: number;
+    };
     material: { name: string; count: number }[];
     tag: { name: string; count: number }[];
   };

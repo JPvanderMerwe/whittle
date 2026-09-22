@@ -1644,6 +1644,75 @@ def test_the_library_route_still_returns_everything_by_default(base_url):
     assert answer["next_cursor"] is None
 
 
+@pytest.fixture
+def a_draft():
+    """
+    A run that produced nothing, on disk, the way a real one looks.
+
+    Built by hand rather than by failing a generate: this needs the SHAPE of
+    a failed run - a handoff and a run record, no spec, no mesh - and
+    producing one for real costs three minutes of model time per test.
+    """
+    import shutil
+    from pathlib import Path as _Path
+
+    directory = _Path("parts") / "zz_test_draft"
+    shutil.rmtree(directory, ignore_errors=True)
+    directory.mkdir(parents=True)
+    (directory / "spec.draft.yaml").write_text(
+        "# whittle handoff - the model could not produce a valid spec.\n"
+        "name: zz_test_draft\nlevel: 2\n")
+    (directory / "run.json").write_text(
+        '{"request": "something impossible", "ok": false, "attempts": []}')
+
+    from whittle import library
+
+    library.forget()
+    try:
+        yield directory.name
+    finally:
+        shutil.rmtree(directory, ignore_errors=True)
+        library.forget()
+
+
+def test_a_run_that_produced_nothing_is_not_one_of_your_models(base_url, a_draft):
+    """
+    WHITTLE DOES NOT HALF-BUILD ANYTHING: either a part is there and works,
+    or the run failed and said why.
+
+    A failed run used to sit in the gallery among the parts, and a tile
+    looks like a part until you open it. `show=models` is what a gallery
+    called "your models" leads with - made here or brought in.
+    """
+    models = get_json(base_url + "/api/parts?show=models")
+    assert a_draft not in [p["dir"] for p in models["parts"]], (
+        "a run that produced nothing is listed among the models"
+    )
+    assert all(p["built"] for p in models["parts"])
+
+    # NOT HIDDEN. One tap away, with a count, because a failed run is worth
+    # getting back to - it is simply not a model.
+    unfinished = get_json(base_url + "/api/parts?show=unfinished")
+    assert a_draft in [p["dir"] for p in unfinished["parts"]]
+    assert unfinished["facets"]["show"]["unfinished"] >= 1
+
+    # AND THE COUNTS ADD UP. `models` is what the gallery counts; the three
+    # kinds together are the whole library.
+    counts = models["facets"]["show"]
+    assert counts["models"] == counts["made"] + counts["brought-in"]
+    assert counts["models"] + counts["unfinished"] == models["total"]
+
+
+def test_asking_for_everything_still_means_everything(base_url, a_draft):
+    """
+    `show=models` is the gallery's choice, not a new definition of the
+    library. A caller that wants the lot still gets the lot - the CLI and
+    the web client both do.
+    """
+    everything = get_json(base_url + "/api/parts")
+    assert a_draft in [p["dir"] for p in everything["parts"]]
+
+
 def test_the_library_can_be_asked_for_one_page_at_a_time(base_url):
     """
     A thousand downloaded models is the case this exists for: the point of
@@ -1714,14 +1783,20 @@ def test_the_gallery_is_told_how_many_sit_behind_each_filter(base_url):
     answer = get_json(base_url + "/api/parts")
     facets = answer["facets"]
     counts = facets["show"]
-    assert set(counts) == {"made", "brought-in", "unfinished"}
-    assert sum(counts.values()) == answer["total"], (
+    # THE THREE KINDS A PART CAN BE, plus `models` - which is a total over
+    # two of them rather than a fourth kind, and so is excluded from the
+    # sum below. The gallery leads with it: a run that produced nothing is
+    # not one of your models.
+    kinds = {"made", "brought-in", "unfinished"}
+    assert set(counts) == kinds | {"models"}
+    assert counts["models"] == counts["made"] + counts["brought-in"]
+    assert sum(counts[k] for k in kinds) == answer["total"], (
         "the filters do not add up to the library: %r of %d"
         % (counts, answer["total"])
     )
 
     for kind, key in (("made", "made"), ("brought-in", "brought-in"),
-                      ("unfinished", "unfinished")):
+                      ("unfinished", "unfinished"), ("models", "models")):
         page = get_json(base_url + "/api/parts?show=%s" % kind)
         assert page["matched"] == counts[key], (
             "%s says %d and returns %d" % (kind, counts[key], page["matched"])

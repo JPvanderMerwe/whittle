@@ -134,9 +134,20 @@ function Thumb({ uri, height }: { uri: string; height: number }) {
  * on purpose: "unfinished" is what the route calls a run that did not produce
  * a part, and "didn't finish" is what a person calls it.
  */
-type Show = 'all' | 'made' | 'brought-in' | 'unfinished';
+type Show = 'models' | 'made' | 'brought-in' | 'unfinished';
+
+/**
+ * A RUN THAT FAILED IS NOT A MODEL, and this gallery is called "your
+ * models".
+ *
+ * The default used to be literally everything, so a build that produced
+ * nothing sat among the parts as a tile - and a tile looks like a part
+ * until you open it. It is not hidden: "didn't finish" is one tap away and
+ * says how many there are, because a failed run is worth getting back to.
+ * It is simply not one of your models.
+ */
 const SHOWS: { key: Show; word: string }[] = [
-  { key: 'all', word: 'everything' },
+  { key: 'models', word: 'all models' },
   { key: 'made', word: 'made here' },
   { key: 'brought-in', word: 'brought in' },
   { key: 'unfinished', word: "didn't finish" },
@@ -187,7 +198,7 @@ export function LibraryScreen({
 }: Props) {
   const [typed, setTyped] = useState('');
   const [query, setQuery] = useState('');
-  const [show, setShow] = useState<Show>('all');
+  const [show, setShow] = useState<Show>('models');
   const [sort, setSort] = useState<Sort>('newest');
   /**
    * One tile per thing, or one per build.
@@ -339,13 +350,12 @@ export function LibraryScreen({
   }, [answer, tag]);
   const total = answer?.total ?? 0;
   const matched = answer?.matched ?? 0;
-  const searching = Boolean(query) || show !== 'all' || Boolean(tag);
+  const searching = Boolean(query) || show !== 'models' || Boolean(tag);
 
   /** The count for one chip, or undefined when the engine has not said yet. */
   const countFor = useCallback(
     (key: Show): number | undefined => {
       if (!counts) return undefined;
-      if (key === 'all') return total;
       return counts[key];
     },
     [counts, total],
@@ -369,9 +379,14 @@ export function LibraryScreen({
         {answer ? (
           <View style={styles.countRow}>
             <Mono size="micro" color={core.dim} style={styles.grow}>
+              {/* COUNTED OVER WHAT THIS GALLERY HOLDS, which is models -
+                  `total` is the whole library and includes the runs that
+                  produced nothing. Saying "25 models" over 24 models and a
+                  failed run is a small lie that makes every other number on
+                  the screen worth less. */}
               {searching
-                ? `${matched} of ${total}`
-                : `${total} ${total === 1 ? 'model' : 'models'}`}
+                ? `${matched} of ${counts?.models ?? total}`
+                : `${matched} ${matched === 1 ? 'model' : 'models'}`}
               {running.length ? `  ·  ${running.length} building` : ''}
             </Mono>
             {/* THE ORDER, NAMED, one tap from being changed. See sortOpen. */}
@@ -441,7 +456,10 @@ export function LibraryScreen({
           <View style={styles.chips}>
             {SHOWS.map(({ key, word }) => {
               const count = countFor(key);
-              if (key !== 'all' && !count) return null;
+              // A CHIP WITH NOTHING BEHIND IT IS A DEAD END - except the
+              // one that is currently chosen, which has to stay so there is
+              // a way back out of an empty result.
+              if (key !== 'models' && !count && key !== show) return null;
               return (
                 <Chip
                   key={key}

@@ -1445,7 +1445,17 @@ def _library_answer(query: dict) -> dict:
     counted = list(entries)
 
     show = one("show", "all").lower()
-    if show in ("made", "built"):
+    if show == "models":
+        # WHAT IS ACTUALLY A MODEL, which is what a gallery called "your
+        # models" should hold. A run that produced nothing is a thing that
+        # happened, not a thing you have - and shown as a tile among the
+        # parts it looks like one until you open it.
+        #
+        # NOT HIDDEN: `show=unfinished` is one tap away and says how many
+        # there are, because a failed run is worth getting back to. It is
+        # simply not a model.
+        entries = [e for e in entries if getattr(e, "built", True)]
+    elif show in ("made", "built"):
         entries = [e for e in entries
                    if getattr(e, "origin", "built") != "imported"
                    and getattr(e, "built", True)]
@@ -1622,7 +1632,11 @@ def _library_facets(entries: list) -> dict:
                 for k, v in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
 
     return {
-        "show": {"made": made, "brought-in": brought, "unfinished": unfinished},
+        "show": {"made": made, "brought-in": brought, "unfinished": unfinished,
+                 # EVERYTHING THAT IS A MODEL. The count the gallery leads
+                 # with, and it is made + brought in rather than the whole
+                 # library: a draft is not a model.
+                 "models": made + brought},
         "material": ranked(materials),
         # CAPPED, because tags come from files people bring in and a gallery
         # with four hundred filter chips is the problem this route is for.
