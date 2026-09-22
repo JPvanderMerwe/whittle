@@ -86,8 +86,9 @@ def build_user_prompt(
     nozzle_mm: float,
     layer_mm: float,
     measurements: dict[str, Any] | None = None,
+    similar: list[str] | None = None,
 ) -> str:
-    """The task, the catalogue, and any measurements taken from a reference image."""
+    """The task, the catalogue, measurements from a photo, and measured neighbours."""
     parts = [
         "Requested part:",
         "  %s" % request.strip(),
@@ -111,6 +112,8 @@ def build_user_prompt(
         parts.append("Take those from the request, or leave them to default.")
         parts.append("")
 
+    parts.extend(_similar_block(similar))
+
     parts.append("Templates available:")
     parts.append("")
     parts.append(template_catalogue())
@@ -121,6 +124,42 @@ def build_user_prompt(
         "built from primitive shapes instead." % NO_TEMPLATE
     )
     return "\n".join(parts)
+
+
+def _similar_block(similar: list[str] | None) -> list[str]:
+    """
+    Things of roughly this kind that have been MEASURED on this machine.
+
+    WHY A MODEL IS GIVEN THESE. Somebody types "a phone stand" and every
+    number in the answer is therefore chosen rather than given - rule 14's
+    ordinary case. Those numbers used to come out of a 7B model's head,
+    which has never held a phone. This machine, meanwhile, has measured
+    phone stands: everything brought in is measured at ingest and everything
+    built carries its regression.
+
+    EVIDENCE, NOT AN ANSWER, and the wording has to keep the difference.
+    These are OTHER objects. A model told "phone_stand 78 x 62 x 95 mm" with
+    no framing copies it, and the request was for a different phone stand -
+    so the framing travels with the numbers rather than beside them, the way
+    the pixel caveat does for a reference photo.
+
+    Empty when nothing measured resembles the request, which is a real
+    answer: the alternative is handing over the dimensions of an unrelated
+    object and calling it evidence.
+    """
+    if not similar:
+        return []
+    out = [
+        "MEASURED, ON THIS MACHINE, FROM THINGS OF ROUGHLY THIS KIND.",
+        "These are OTHER objects - not the part being asked for. Every one",
+        "was measured off a real mesh, either built here or brought in by",
+        "somebody who prints it. Use them for SCALE: a thing of this kind is",
+        "about this big. Do NOT copy their dimensions as if the request had",
+        "given them.",
+    ]
+    out.extend("  %s" % line for line in similar)
+    out.append("")
+    return out
 
 
 def critique_prompt(previous: str, problem: str, hint: str = "") -> str:
@@ -300,6 +339,56 @@ WORKED_EXAMPLE = """{
 }"""
 
 
+#: A turned body, built and measured before it was written down.
+#:
+#: THE STEER WAS NOT ENOUGH ON ITS OWN. Told "a can is a turned shape, reach
+#: for `revolve`", the model reached for revolve on its first attempt - which
+#: it had never done - and then wrote a profile of two points lying on the
+#: axis, which encloses no area, and then one where every point was at height
+#: zero. It had the right op and no idea what to put in it.
+#:
+#: That is the lesson this file already records for mechanisms: "the rules
+#: were prose and the model ignored them". A profile is a shape, and a shape
+#: is shown rather than described.
+#:
+#: MEASURED, NOT TYPED FROM MEMORY. These exact points build a 66 x 66 x 115
+#: mm can holding 30.0 cm3 of material, watertight, no warnings - run before
+#: it was pasted here. An example that does not compile is worse than none,
+#: because it is the one thing in the prompt the model trusts completely.
+TURNED_EXAMPLE = """{
+  "name": "drink_can",
+  "ops": [
+    {"op": "revolve", "points": [[0, 0], [31, 0], [33, 8], [33, 100],
+                                 [27, 112], [27, 115], [0, 115]]},
+    {"op": "revolve", "mode": "cut",
+     "points": [[0, 1.2], [31.8, 1.2], [31.8, 100], [25.8, 112],
+                [25.8, 115], [0, 115]]}
+  ],
+  "print_axis": "z"
+}"""
+
+
+def turned_example() -> str:
+    """
+    How to write a profile, for anything made on a lathe.
+
+    THE THREE THINGS THE MODEL GOT WRONG, answered by the shape rather than
+    by more prose: the points are (radius, height) and NOT (x, y) in space;
+    they walk up ONE side from the axis and back to it, enclosing an area;
+    and the inside of a vessel is a second revolve in cut mode, inset by the
+    wall thickness, not a `hollow`.
+    """
+    return (
+        "A TURNED BODY, AND THIS ONE BUILDS - 66 x 66 x 115 mm, 30 cm3,\n"
+        "watertight. Each point is (radius from the centre line, height up\n"
+        "from the bed). They walk up ONE side and come back to the axis, so\n"
+        "the outline encloses an area - two points on the axis enclose\n"
+        "nothing, and points all at one height are a flat line. The inside\n"
+        "is a SECOND revolve in cut mode, inset by the wall thickness:\n"
+        + TURNED_EXAMPLE
+    )
+
+
 def mechanism_example(clearance_mm: float) -> str:
     """
     A complete, working print-in-place mechanism, with the gap filled in.
@@ -443,6 +532,7 @@ def build_dsl_prompt(
     layer_mm: float,
     why_escalated: str = "",
     clearance_mm: float | None = None,
+    similar: list[str] | None = None,
 ) -> str:
     """
     The level-2 task: compose ops, because no template fitted.
@@ -455,6 +545,38 @@ def build_dsl_prompt(
     moving-parts section is left out entirely - no number, no advice.
     """
     parts = ["Requested part:", "  %s" % request.strip(), ""]
+
+    # WHICH OP THIS KIND OF THING IS MADE WITH.
+    #
+    # THE ONE THAT COST A PART: asked for a Redbull can, the model built a
+    # hollowed box with two plates floating below the bed, because nothing
+    # told it that a can is a TURNED shape. `revolve` exists and it never
+    # reached for it.
+    #
+    # A steer, not a decision - the full op reference is still below and the
+    # reasoning is in the line so the model can disagree with it. Nothing at
+    # all when the request matches nothing, which is the ordinary case for
+    # anything unusual and the right answer for it.
+    from whittle.spec import vocabulary
+
+    steers = vocabulary.strategies_for(request)
+    advice = vocabulary.advice_for(request)
+    if advice:
+        parts.append("WHAT KIND OF SHAPE THIS IS.")
+        parts.extend("  %s" % line for line in advice)
+        parts.append("")
+
+    # AND FOR A LATHE SHAPE, WHAT A PROFILE LOOKS LIKE.
+    #
+    # The steer alone got the model to `revolve` for the first time and then
+    # to a profile of two points on the axis, which encloses no area. It had
+    # the right op and no idea what to put in it - which is the lesson
+    # mechanism_example already records: a shape is shown, not described.
+    if any(s.op == "revolve" for s in steers[:2]):
+        parts.append(turned_example())
+        parts.append("")
+
+    parts.extend(_similar_block(similar))
     if why_escalated:
         parts += [
             "No template could be made to fit. The last attempt failed with:",

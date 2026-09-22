@@ -196,6 +196,63 @@ def validate_reply(data: dict, defaults: dict[str, Any]) -> PartSpec:
     return spec
 
 
+def _drop_unknown_fields(op: dict) -> list[str]:
+    """
+    Remove fields this op does not have, IF that makes it valid. Returns what
+    went, or an empty list if nothing was removed or it did not help.
+
+    MUTATES THE OP IN PLACE, because the caller goes on to store this exact
+    dict as the part's spec - a stored spec that does not rebuild the stored
+    mesh is the worst artifact this program can leave behind.
+
+    NARROW ON PURPOSE. Only a key the schema does not know, and only when the
+    op validates once it is gone. A missing REQUIRED field is still a
+    rejection: that is the model failing to say something, and guessing what
+    it meant is exactly what rule 9 forbids.
+    """
+    from whittle.spec.dsl import DslError, OP_NAMES, parse_op
+
+    name = op.get("op")
+    if name not in OP_NAMES:
+        return []
+
+    from whittle.spec.dsl import AnyOp
+    import typing
+
+    known: set[str] = set()
+    for member in typing.get_args(typing.get_args(AnyOp)[0]):
+        fields = member.model_fields
+        literal = typing.get_args(fields["op"].annotation)
+        if literal and literal[0] == name:
+            known = set(fields)
+            # ALIASES COUNT AS KNOWN. `cone` takes `bottom_d_mm` as well as
+            # `bottom_diameter_mm`; dropping the old spelling would break
+            # every spec on disk written with it.
+            for info in fields.values():
+                alias = getattr(info, "validation_alias", None)
+                for choice in getattr(alias, "choices", []) or []:
+                    if isinstance(choice, str):
+                        known.add(choice)
+            break
+    if not known:
+        return []
+
+    extra = [key for key in op if key not in known]
+    if not extra:
+        return []
+
+    held = {key: op.pop(key) for key in extra}
+    try:
+        parse_op(op)
+    except DslError:
+        # STILL INVALID, so the extra fields were not the problem and the
+        # model is told about it in full. Put them back: a half-stripped op
+        # in the rejection would describe something the model never wrote.
+        op.update(held)
+        return []
+    return sorted(extra)
+
+
 def validate_dsl_reply(data: dict, defaults: dict[str, Any]) -> PartSpec:
     """
     Turn a level-2 reply into a PartSpec, checking every op before returning.
@@ -212,6 +269,7 @@ def validate_dsl_reply(data: dict, defaults: dict[str, Any]) -> PartSpec:
     merged.pop("template", None)
     merged.pop("params", None)
 
+    repaired: list[str] = []
     ops = merged.get("ops") or []
     if not ops:
         raise SpecRejected(
@@ -229,6 +287,38 @@ def validate_dsl_reply(data: dict, defaults: dict[str, Any]) -> PartSpec:
         try:
             parse_op(op)
         except DslError as exc:
+            # A FIELD THE OP DOES NOT HAVE, DROPPED RATHER THAN ASKED ABOUT.
+            #
+            # Asked for a Redbull can the model wrote a correct `revolve` -
+            # the right operation, a profile with real points - and hung a
+            # `height_mm` on it, which revolve does not have because the
+            # height is in the profile. The whole spec was rejected over a
+            # field that says nothing the op was not already told, and the
+            # next attempt came back with a worse answer.
+            #
+            # This is the same call the cut repair makes: the correction is
+            # knowable here, so make it rather than spend three minutes of
+            # model time asking for it. It is deliberately NARROW - only a
+            # field the schema does not know, only when removing it makes
+            # the op valid, and never a value that was wrong. A field that
+            # carries intent the op could have used would be a silent loss,
+            # and an op that is still invalid without it is still rejected.
+            dropped = _drop_unknown_fields(op)
+            if dropped:
+                # RECORDED ON THE RUN, NOT ON THE SPEC.
+                #
+                # The first version put the note in a `repairs` key on the
+                # spec dict - which PartSpec forbids, because it forbids any
+                # field it does not know. The repair was refused by the
+                # mechanism it was written to work around, one level up.
+                #
+                # The spec is the durable artifact and it says what the part
+                # IS. What was ignored on the way there is a fact about the
+                # run, and the run record is where the cut repairs go too.
+                repaired.append(
+                    "ops[%d] (%s): ignored %s, which %s does not have"
+                    % (i, op.get("op"), ", ".join(dropped), op.get("op")))
+                continue
             raise SpecRejected(
                 "ops[%d] is invalid: %s" % (i, exc),
                 stage=STAGE_VALIDATE, data=merged,
@@ -236,7 +326,15 @@ def validate_dsl_reply(data: dict, defaults: dict[str, Any]) -> PartSpec:
             ) from exc
 
     try:
-        return PartSpec.model_validate(merged)
+        spec = PartSpec.model_validate(merged)
+        # CARRIED OUT ON THE SIDE. `object.__setattr__` because a Pydantic
+        # model refuses an attribute it has no field for - which is the same
+        # rule that refused the first attempt at this, and the right rule.
+        # Anything reading it uses getattr with a default, so a spec that
+        # came from anywhere else is unaffected.
+        if repaired:
+            object.__setattr__(spec, "_repairs", repaired)
+        return spec
     except ValidationError as exc:
         raise SpecRejected(
             format_validation_error(exc, "the level-2 spec was rejected:"),
@@ -370,7 +468,9 @@ def ask(
 
     defaults = {"material": material, "nozzle_mm": nozzle_mm, "layer_mm": layer_mm}
     system = prompts.SYSTEM
-    base_user = prompts.build_user_prompt(request, material, nozzle_mm, layer_mm, measurements)
+    base_user = prompts.build_user_prompt(
+        request, material, nozzle_mm, layer_mm, measurements,
+        similar=_measured_neighbours(request))
     schema = prompts.ask_schema()
 
     state: dict[str, Any] = {"user": base_user, "best": {}, "problems": []}
@@ -472,6 +572,7 @@ def ask_level_2(
     base_user = prompts.build_dsl_prompt(
         request, material, nozzle_mm, layer_mm, why_escalated,
         clearance_mm=clearance_mm,
+        similar=_measured_neighbours(request),
     )
     # JSON MODE, NOT A SCHEMA. See models.ollama.JSON_ONLY: a schema with a
     # discriminated union in it makes this model emit ops with no dimensions,
@@ -517,6 +618,29 @@ def ask_level_2(
         problems=state["problems"],
         level=2,
     )
+
+
+def _measured_neighbours(request: str) -> list[str]:
+    """
+    What this machine has measured that is like what was asked for.
+
+    READ AT PROMPT TIME, not held anywhere. The library is the source of
+    truth and it changes while the program runs - somebody imports forty
+    models and the next request should see them. The scan is cached on what
+    each directory holds (see library._stamp), so this costs a few
+    milliseconds rather than a re-read.
+
+    A FAILURE HERE IS NO PRIORS, NEVER A FAILED BUILD. This is context that
+    improves an answer; a library that cannot be read is a reason to build
+    without it, not a reason to refuse. Rule 11: the system stays usable
+    with nothing else working.
+    """
+    try:
+        from whittle import knowledge
+
+        return [item.line() for item in knowledge.closest(request)]
+    except Exception:
+        return []
 
 
 def _apply_cut_repairs(spec, result, base_dir, allow_level_3):
@@ -865,6 +989,19 @@ class RunRecord:
     attempts: list[dict] = field(default_factory=list)
     spec: dict | None = None
     report: dict | None = None
+    #: The numbers the build CHOSE rather than was given - rule 14's named
+    #: parameters marked ASSUMPTION, each with the reason it had to be chosen.
+    #:
+    #: Recorded because they were nowhere. They are produced by the template on
+    #: the BuildResult, they reach report.md, and they went no further: not
+    #: into run.json, and so not into anything that reads a part back off disk.
+    #: The library is the only way anybody sees a part again, so the list a
+    #: person tweaks from survived exactly as long as the screen that built it.
+    #:
+    #: This matters for the ordinary request rather than an unusual one.
+    #: Somebody types "a bracket" and gives no dimensions at all; every number
+    #: in the result is one of these.
+    assumptions: list = field(default_factory=list)
     budget: dict = field(default_factory=dict)
     handoff: str | None = None
 

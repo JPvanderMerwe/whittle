@@ -900,6 +900,184 @@ def test_a_cut_that_misses_the_part_entirely_is_still_refused(tmp_path):
                            strict_cuts=True)
     assert "removed nothing" in str(caught.value)
 
+
+def _plate_with_a_cut_below_it(tmp_path):
+    """
+    A 6 mm plate with a 5 mm bore sitting 20 mm underneath it.
+
+    THE SHAPE OF THE FAULT THAT KILLED "an iPhone holder". Four attempts, 785
+    seconds, and the same critique every time: "disc in cut mode removed
+    nothing - it does not touch the part. It sits at (0.0, 0.0, -20.0)... Set
+    z_mm to -2.00 and height_mm to 54.00." The numbers were right, printed in
+    full, and the model moved the cut further down instead.
+    """
+    import yaml
+
+    spec = {
+        "name": "cut_below_plate",
+        "level": 2,
+        "material": "petg",
+        "nozzle_mm": 0.4,
+        "layer_mm": 0.2,
+        "print_axis": "z",
+        "ops": [
+            {"op": "rounded_prism", "width_mm": 80, "depth_mm": 40,
+             "height_mm": 6, "corner_r_mm": 1},
+            {"op": "disc", "diameter_mm": 5, "height_mm": 5,
+             "x_mm": -30, "z_mm": -20, "mode": "cut"},
+        ],
+    }
+    path = tmp_path / "below.yaml"
+    path.write_text(yaml.safe_dump(spec))
+    return path
+
+
+def test_a_cut_that_misses_along_the_print_axis_is_corrected(tmp_path):
+    """
+    THE SAME REPAIR AS A BLIND POCKET, FOR THE SAME REASON.
+
+    A cut clear of the part along the print axis and a cut that stops inside
+    it are one fault seen at two distances, and the correction is identical:
+    span the part and clear both faces. It moves nothing sideways, so the hole
+    stays where the model put it in x and y - which is what makes this safe to
+    apply and centring (see the test below) not.
+
+    The check computed these two numbers already and wrote them into the
+    critique. It just had no way to hand them to the pipeline.
+    """
+    from whittle import api
+    from whittle.agent.loop import compile_and_verify
+
+    spec, base = api.load_spec(_plate_with_a_cut_below_it(tmp_path))
+    result, report, stl = compile_and_verify(
+        spec, api.config(), base, tmp_path / "out", strict_cuts=True)
+
+    assert report.ok, report.problems
+    assert not report.overhang.supports_needed, (
+        "the repaired cut leaves a roof, so it is a blind pocket now"
+    )
+
+    repaired = [n for n in result.log.notes if n.startswith("repaired op")]
+    assert len(repaired) == 1, result.log.notes
+    assert "z_mm -20 -> -2.0" in repaired[0], repaired[0]
+    assert "height_mm 5 -> 10.0" in repaired[0], repaired[0]
+    # The reason has to be true of THIS fault. The cut never entered the part,
+    # so "blind pocket" would be a sentence about a different part.
+    assert "sat clear of the part" in repaired[0], repaired[0]
+
+    # AND IT IS THE STORED SPEC THAT CHANGED, not just the note.
+    cut = [op for op in spec.ops if op.get("mode") == "cut"][0]
+    assert cut["z_mm"] == -2.0 and cut["height_mm"] == 10.0, cut
+
+
+def test_a_cut_beside_the_part_is_never_moved_onto_it(tmp_path):
+    """
+    THE LINE BETWEEN MEASURING AND INVENTING.
+
+    The same check can compute the x that would centre a cut on the part, and
+    it says so in the critique - but it must not apply it. A hole belongs
+    somewhere specific; the middle is merely somewhere it would hit. Applying
+    it would turn a refusal into a PASS with the feature in a place nobody
+    asked for, which is the one outcome worse than failing.
+    """
+    import yaml
+    from whittle.spec.dsl import run_ops
+
+    ops = yaml.safe_load(_plate_with_a_cut_below_it(tmp_path).read_text())["ops"]
+    ops[1] = dict(ops[1], x_mm=400, z_mm=-2, height_mm=20)
+
+    scene = run_ops(ops)
+    assert not scene.log.repairs, scene.log.repairs
+    advice = " ".join(scene.log.notes)
+    assert "to centre it on the part" in advice, advice
+
+
+def test_a_cut_that_stops_exactly_on_the_bottom_face_is_still_too_short(tmp_path):
+    """
+    A COPLANAR TOUCH IS NOT AN OVERLAP.
+
+    Asked for "a keyring tag 40 mm long and 3 mm thick with a 5 mm hole" the
+    model wrote a bore of height_mm 2 at z_mm -2 on a tag 1.5 mm thick. The
+    cut spans -2..0, the part 0..1.5, and the two boxes meet exactly on the
+    bottom face - so a strict `c1 < p0` called it an overlap, withheld the
+    correction as "a shape problem this cannot measure", and the run spent
+    the rest of its attempts on a cut that was simply too short.
+
+    The volume removed is zero either way, which is the fault being
+    explained.
+    """
+    from whittle.spec.dsl import run_ops
+
+    scene = run_ops([
+        {"op": "rounded_prism", "width_mm": 40, "depth_mm": 3,
+         "height_mm": 1.5, "corner_r_mm": 0},
+        {"op": "disc", "diameter_mm": 5, "height_mm": 2, "z_mm": -2,
+         "mode": "cut"},
+    ])
+    assert len(scene.log.repairs) == 1, scene.log.repairs
+    assert scene.log.repairs[0]["fields"] == {"z_mm": -2.0, "height_mm": 5.5}
+
+
+def test_a_cut_lost_in_a_hollow_is_not_told_it_is_too_short():
+    """
+    ADVICE ABOUT THE WRONG FAULT IS WORSE THAN NONE.
+
+    Asked for a Redbull can the model put a cut at z 100 in a can hollow from
+    0 to 120. Every axis of the cut is inside the part's bounding box and it
+    still removes nothing, because it is in the void. The critique answered
+    "set z_mm to -2.00 and height_mm to 124.00" - true of a cut that is too
+    SHORT, and the model duly lengthened a cut that was never the problem.
+
+    This is the same failure the `_missed_cut_advice` docstring records for
+    the hinge, and the rule is the same: name the fault in front of you or
+    say nothing.
+    """
+    from whittle.spec.dsl import run_ops
+
+    scene = run_ops([
+        {"op": "rounded_prism", "width_mm": 70, "depth_mm": 30,
+         "height_mm": 120, "corner_r_mm": 2},
+        {"op": "rounded_prism", "width_mm": 66, "depth_mm": 26,
+         "height_mm": 118, "corner_r_mm": 1, "z_mm": 2, "mode": "cut"},
+        {"op": "disc", "diameter_mm": 10, "height_mm": 5, "z_mm": 60,
+         "mode": "cut"},
+    ])
+    assert not scene.log.repairs, scene.log.repairs
+    fault = [n for n in scene.log.notes if "removed nothing" in n]
+    assert len(fault) == 1, scene.log.notes
+    assert "a hollow, or the gap between two bodies" in fault[0], fault[0]
+    assert "height_mm" not in fault[0], (
+        "a cut lost in a hollow was handed the numbers for a short cut"
+    )
+
+
+def test_a_cone_takes_the_same_word_for_a_diameter_as_every_other_op():
+    """
+    ONE NAMING CONVENTION, AND THE OLD SPELLING STILL LOADS.
+
+    `disc` and `sphere` say `diameter_mm`; `cone` alone said `bottom_d_mm`.
+    Asked for a Redbull can the model wrote `base_diameter_mm`, was refused,
+    wrote `bottom_diameter_mm`, was refused again, and half its attempts went
+    on guessing which abbreviation this one op wanted.
+
+    Every part on disk and eval/corpus.yaml are written with the old name, so
+    it has to keep working - rule 11 is that a stored spec always rebuilds.
+    """
+    from whittle.spec.dsl import run_ops
+
+    old = run_ops([{"op": "cone", "bottom_d_mm": 20, "top_d_mm": 5,
+                    "height_mm": 30}])
+    new = run_ops([{"op": "cone", "bottom_diameter_mm": 20,
+                    "top_diameter_mm": 5, "height_mm": 30}])
+    assert old.solid.val().Volume() == pytest.approx(new.solid.val().Volume())
+
+    # AND THE NEW NAME IS THE ONE THE MODEL IS SHOWN, because being shown the
+    # other one is how this went wrong.
+    from whittle.agent.prompts import dsl_catalogue
+    text = dsl_catalogue()
+    assert "bottom_diameter_mm" in text
+    assert "bottom_d_mm" not in text
+
 # ---------------------------------------------------------------------------
 # the two ops that make an organic, articulated part possible at all
 # ---------------------------------------------------------------------------

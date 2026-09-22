@@ -68,7 +68,7 @@ from dataclasses import dataclass, field
 from typing import Annotated, Any, Literal, Union
 
 import cadquery as cq
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 from whittle.build.helpers import (
     BuildLog,
@@ -286,14 +286,51 @@ class Creator(DslOp):
         for axis in axis_order:
             p0, p1 = _axis_extent(part, axis)
             c0, c1 = _axis_extent(body, axis)
-            if c1 < p0 or c0 > p1:
+            if _clear_of(c0, c1, p0, p1):
                 # No overlap at all on this axis: this is the one that is wrong.
                 middle = offsets[axis] - ((c0 + c1) / 2.0 - (p0 + p1) / 2.0)
+                # ADVICE ONLY, NEVER APPLIED - unlike the print-axis case
+                # below. Lengthening a cut until it clears both faces does not
+                # move the feature: it stays at the x and y the model chose.
+                # Centring is not like that. A hole belongs somewhere
+                # specific, the middle of the part is merely somewhere it
+                # would hit, and applying it would ship a PASS with the hole
+                # in a place nobody asked for. That is why the sentence ends
+                # "then adjust from there" - the adjustment is the model's.
                 return (" It misses along %s: the cut spans %.2f..%.2f and the "
                         "part spans %.2f..%.2f. Set %s to %.2f to centre it on "
                         "the part, then adjust from there."
                         % (axis, c0, c1, p0, p1, fields[axis], middle))
-        return self._through_cut_numbers(scene, part)
+        # NOTHING SIDEWAYS IS WRONG, so the miss is along the print axis - the
+        # cut is above or below the part rather than beside it, and the two
+        # numbers that put it through are the same two the blind-pocket check
+        # computes. Recorded only when the print axis really is where the miss
+        # is: a cut that overlaps the part's box on every axis and still
+        # removes nothing is a shape or rotation problem, and lengthening it
+        # along z would be a guess. Rule 9.
+        axis = scene.print_axis if scene.print_axis in "xyz" else "z"
+        p0, p1 = _axis_extent(part, axis)
+        c0, c1 = _axis_extent(body, axis)
+        if _clear_of(c0, c1, p0, p1):
+            self._record_through_cut_repair(
+                scene, part,
+                why="the cut sat clear of the part along %s and removed "
+                    "nothing" % axis)
+            return self._through_cut_numbers(scene, part)
+
+        # INSIDE THE PART'S BOX ON EVERY AXIS AND STILL REMOVED NOTHING, so it
+        # is in a hollow or between two bodies - and the through-cut numbers
+        # are the wrong answer to that. Asked for a Redbull can, the model put
+        # a cut at z 100 in a can hollow from 0 to 120, and this returned "set
+        # z_mm to -2.00 and height_mm to 124.00" - true of a cut that is too
+        # SHORT, useless here, and the same mistake the docstring above
+        # records for the hinge. Advice about the wrong fault reads as
+        # authoritative and the attempts go on it.
+        return (" Every axis of it is inside the part's bounding box, so it is "
+                "not simply misplaced: it is in space the part does not occupy "
+                "- a hollow, or the gap between two bodies. Cut the wall or the "
+                "body the feature belongs in, or make the cut large enough to "
+                "reach it.")
 
     def _through_cut_numbers(self, scene, part) -> str:
         """
@@ -329,7 +366,7 @@ class Creator(DslOp):
                 "moving z_mm down on its own only moves the same short cut "
                 "further away." % (p0 - 2.0, (p1 - p0) + 4.0, p0 - 2.0, p1 + 2.0))
 
-    def _record_through_cut_repair(self, scene, part) -> None:
+    def _record_through_cut_repair(self, scene, part, why: str = "") -> None:
         """
         The correction for a short cut, as data the pipeline can apply.
 
@@ -348,6 +385,12 @@ class Creator(DslOp):
         Only for a cut this can speak about honestly - unrotated, on a z print
         axis - which is the same condition _through_cut_numbers uses to decide
         whether to name the fields at all.
+
+        `why` is what goes in the report beside the changed numbers, because
+        the same two fields fix two different faults: a cut that stopped
+        inside the part, and one that sat clear of it altogether. Writing
+        "blind pocket" over a cut that never touched the part would put a
+        sentence in the report that is not true of the part it describes.
         """
         axis = scene.print_axis if scene.print_axis in "xyz" else "z"
         if self.rotate_deg or axis != "z":
@@ -367,8 +410,8 @@ class Creator(DslOp):
             "op": self._label(),
             "fields": {"z_mm": round(p0 - 2.0, 3),
                        "height_mm": round((p1 - p0) + 4.0, 3)},
-            "why": "the cut stopped inside the part, leaving a blind pocket "
-                   "opening downward where a hole was asked for",
+            "why": why or ("the cut stopped inside the part, leaving a blind "
+                           "pocket opening downward where a hole was asked for"),
         })
 
     def _note_if_it_leaves_a_ceiling(self, scene, part, body) -> None:
@@ -532,6 +575,25 @@ def _axis_extent(solid: cq.Workplane, axis: str) -> tuple[float, float]:
         return (0.0, 0.0)
 
 
+def _clear_of(c0: float, c1: float, p0: float, p1: float) -> bool:
+    """
+    Does a cut's span on one axis lie wholly outside the part's, with a
+    tolerance?
+
+    NOT `c1 < p0`. Asked for a keyring tag the model wrote a bore of
+    height_mm 2 at z_mm -2 on a tag 1.5 mm thick: the cut spans -2..0 and the
+    part 0..1.5, so the two boxes meet exactly on the bottom face. Strict
+    comparison calls that an overlap, the repair was withheld as "a shape
+    problem", and the run spent its remaining attempts on a cut that is
+    simply too short. A cut whose face is coplanar with the part's removes
+    zero volume, which is the thing being explained.
+
+    The tolerance is the same 0.001 mm the ceiling check uses.
+    """
+    eps = 0.001
+    return min(c1, p1) - max(c0, p0) <= eps
+
+
 def _extent(solid: cq.Workplane) -> str:
     """
     The part's bounding box, so a miss can be acted on.
@@ -599,22 +661,39 @@ class Cone(Creator):
     """
     A cone or a truncated cone, axis along Z. In `cut` mode, a countersink.
 
-    Stands ON its placement point. `top_d_mm` of 0 gives a point.
+    Stands ON its placement point. `top_diameter_mm` of 0 gives a point.
     """
 
     op: Literal["cone"]
-    bottom_d_mm: float = Field(..., ge=0, le=1000, description="Diameter at the base.")
-    top_d_mm: float = Field(0.0, ge=0, le=1000, description="Diameter at the top. 0 is a point.")
+    # NAMED LIKE EVERY OTHER DIAMETER IN THE DSL, with the old spelling still
+    # accepted. `disc` and `sphere` say `diameter_mm`; this op alone said
+    # `bottom_d_mm`, and an inconsistency inside one schema is not something a
+    # model can be told its way out of. Asked for a Redbull can it wrote
+    # `base_diameter_mm`, was refused, wrote `bottom_diameter_mm`, was refused
+    # again, and two of its four attempts went on guessing which abbreviation
+    # this one op wanted.
+    #
+    # `bottom_d_mm` stays valid: parts on disk and eval/corpus.yaml are written
+    # with it, and a stored spec that stops rebuilding is the one thing this
+    # program must never do (rule 11).
+    bottom_diameter_mm: float = Field(
+        ..., ge=0, le=1000, description="Diameter at the base.",
+        validation_alias=AliasChoices("bottom_diameter_mm", "bottom_d_mm"))
+    top_diameter_mm: float = Field(
+        0.0, ge=0, le=1000, description="Diameter at the top. 0 is a point.",
+        validation_alias=AliasChoices("top_diameter_mm", "top_d_mm"))
     height_mm: float = Field(..., gt=0, le=1000)
 
     def _emit(self) -> cq.Workplane:
-        if self.bottom_d_mm <= 0 and self.top_d_mm <= 0:
+        if self.bottom_diameter_mm <= 0 and self.top_diameter_mm <= 0:
             raise DslError(
                 "cone: both ends have zero diameter, which is a line and not a "
-                "solid. At least one of bottom_d_mm and top_d_mm must be above 0."
+                "solid. At least one of bottom_diameter_mm and top_diameter_mm "
+                "must be above 0."
             )
         solid = cq.Solid.makeCone(
-            self.bottom_d_mm / 2.0, self.top_d_mm / 2.0, self.height_mm
+            self.bottom_diameter_mm / 2.0, self.top_diameter_mm / 2.0,
+            self.height_mm
         )
         return cq.Workplane("XY").newObject([solid])
 
@@ -1740,3 +1819,146 @@ def run_ops(ops: list[dict[str, Any]], print_axis: str = "z") -> Scene:
     if scene.solid is None:
         raise DslError("the op list produced no geometry")
     return scene
+
+
+def op_dimensions(ops: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    The numbers of an ops spec, as things a person can drag.
+
+    WHY THIS EXISTS. A template part has sliders: the app reads the template's
+    parameter model, and every number with a name and a pair of bounds becomes
+    a control. A LEVEL-2 part had none - the app asked for a template schema,
+    there was no template, and it stopped there. Which means that for most of
+    what whittle generates, the only way to change anything was to type a
+    sentence, and rule 32 says English is the way IN, not the only way:
+    "sliders, parameter names and template fields are how it is implemented,
+    and they are the second thing a person reaches for, not the first." There
+    was no second thing.
+
+    ADDRESSED BY POSITION, because an ops spec has no parameter names. "2 ·
+    disc diameter" is `ops[2]["diameter_mm"]`, and the address that comes back
+    is "2.diameter_mm" - the index first so the order on screen matches the
+    order in the file. A patterned hole is one level down, "3.step.diameter_mm",
+    because a drilled plate keeps its bores in a `pattern_linear` and the hole
+    size is the first thing anybody wants to move.
+
+    WHAT IS LEFT OUT, AND WHY
+    -------------------------
+    * The PLACEMENT fields every op shares - x_mm, y_mm, z_mm, rotate_deg.
+      Not because they do not matter, but because their schema bounds are
+      +/-2000 mm and a slider from -2000 to 2000 is not a control, it is a
+      lottery. Bounding them honestly means bounding them against the part's
+      own size, which this function cannot see. That is the next piece, not a
+      thing to guess at here.
+    * Anything not a number: `mode`, `rotate_axis`, `op`. A slider cannot say
+      "cut".
+    * A field whose bounds are missing or inverted. There is nowhere to put it.
+
+    THE SLIDER ENDS ARE NOT THE SCHEMA'S. `width_mm` accepts anything up to
+    1000 mm, and a slider spanning that cannot pick 8.00 - one pixel is 2 mm.
+    So the ends are a quarter and four times the value it holds, clamped INTO
+    the schema's range, which keeps a 40 mm side draggable between 10 and 160
+    and still refuses 1200 at build time. `bound_low`/`bound_high` carry the
+    real limits so nothing has to infer them from the ends.
+    """
+    shared = set(Creator.model_fields)
+    out: list[dict[str, Any]] = []
+
+    for index, data in enumerate(ops):
+        if not isinstance(data, dict):
+            continue
+        try:
+            op = parse_op(data)
+        except DslError:
+            # A spec that does not parse has no sliders, and that is the
+            # build's problem to report rather than this function's. Skipping
+            # the op leaves the others draggable, which is better than one bad
+            # op costing the whole panel.
+            continue
+
+        label = getattr(op, "op", type(op).__name__)
+        is_creator = isinstance(op, Creator)
+        for field, info in type(op).model_fields.items():
+            if field == "op" or (is_creator and field in shared):
+                continue
+            out.extend(_dimension_of(op, field, info, "%d.%s" % (index, field),
+                                     "%d · %s %s" % (index, label, field)))
+
+        # ONE LEVEL OF NESTING, for the patterns. `pattern_linear` and its
+        # siblings hold the shape they repeat in `step`, so a drilled plate's
+        # hole diameter lives there and nowhere else.
+        step = data.get("step")
+        if isinstance(step, dict):
+            try:
+                inner = parse_op(step)
+            except DslError:
+                continue
+            inner_label = getattr(inner, "op", type(inner).__name__)
+            inner_shared = set(Creator.model_fields) if isinstance(inner, Creator) else set()
+            for field, info in type(inner).model_fields.items():
+                if field == "op" or field in inner_shared:
+                    continue
+                out.extend(_dimension_of(
+                    inner, field, info, "%d.step.%s" % (index, field),
+                    "%d · each %s %s" % (index, inner_label, field)))
+
+    return out
+
+
+def _dimension_of(op, field: str, info, address: str, label: str) -> list[dict[str, Any]]:
+    """
+    One field as a dimension, or nothing at all.
+
+    A LIST RATHER THAN AN OPTIONAL, so the caller reads as one `extend` per
+    field instead of a None check per field. There are four independent
+    reasons a field is not draggable and every one of them is "leave it out".
+    """
+    value = getattr(op, field, None)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return []
+    if not math.isfinite(float(value)):
+        return []
+
+    low = high = None
+    for meta in info.metadata:
+        for attr in ("ge", "gt"):
+            found = getattr(meta, attr, None)
+            if found is not None:
+                low = float(found)
+        for attr in ("le", "lt"):
+            found = getattr(meta, attr, None)
+            if found is not None:
+                high = float(found)
+    if low is None or high is None or high <= low:
+        return []
+
+    value = float(value)
+
+    # A FIELD AT ZERO IS NOT DRAGGABLE, and this is the whole reason the ends
+    # are scaled off the value. `pattern_linear` carries dy_mm and dz_mm at 0
+    # with a schema range of +/-1000: there is nothing to scale from, so the
+    # only range available is the schema's, and a slider from -1000 to 1000 is
+    # not a control. Same for a corner radius of 0 - you do not drag a round
+    # onto a square corner, you say "round the corners" and the parser sets
+    # it. So a number that is there gets a slider and a number that is not
+    # stays a sentence.
+    if value <= 0:
+        return []
+
+    span_low, span_high = max(low, value / 4.0), min(high, value * 4.0)
+    if span_high <= span_low:
+        span_low, span_high = low, high
+
+    return [{
+        "name": address,
+        "label": label.replace("_mm", "").replace("_deg", "").replace("_", " "),
+        "value": value,
+        "low": round(span_low, 3),
+        "high": round(span_high, 3),
+        "bound_low": low,
+        "bound_high": high,
+        "units": "mm" if field.endswith("_mm") else (
+            "deg" if field.endswith("_deg") else None),
+        "whole": isinstance(info.annotation, type) and info.annotation is int,
+        "description": info.description or None,
+    }]
