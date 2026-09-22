@@ -26,14 +26,30 @@ from typing import Any, Iterable
 
 import yaml
 
-# Where parts live by default. reference/ is included because those are real,
-# verified parts and there is no reason to hide them from a search.
-DEFAULT_ROOTS = ("parts",)
+# Where things live, and there are TWO PLACES.
+#
+# THIS WAS ONE, AND IT IS WHY AN IMPORTED STL DISAPPEARED. Everything the
+# engine builds lands in parts/; everything a person brings in lands in
+# library/ - whittle.imports.IMPORT_ROOT - with its measurements in
+# import.json. Only parts/ was ever scanned, so a mesh you imported was
+# editable for exactly as long as that session stayed open and then was gone
+# from every list in the product. You could not find it, search it, open it
+# again or see it had ever existed.
+#
+# They are one library with two origins. The distinction is real and worth
+# keeping - a part has a spec behind it and can be changed by describing the
+# change, an import is somebody else's triangles and can only be worked on as
+# a mesh - but that is a fact ABOUT an entry, not a reason to hide half of
+# them.
+DEFAULT_ROOTS = ("parts", "library")
 
 # Files that make a directory a part rather than a folder that happens to
 # contain YAML.
 SPEC_NAMES = ("spec.yaml", "spec.yml")
 DRAFT_NAMES = ("spec.draft.yaml", "spec.draft.yml")
+
+#: What an imported mesh leaves behind instead of a spec.
+IMPORT_NAME = "import.json"
 
 
 @dataclass
@@ -70,6 +86,31 @@ class LibraryEntry:
     versions: int = 0
     modified: float = 0.0
 
+    #: Where this came from: "built" here from a spec, or "imported" as a mesh.
+    #:
+    #: NOT COSMETIC. An imported mesh has no spec, so it cannot be changed by
+    #: describing the change - "make it taller" needs a parametric model to
+    #: change. It can be hollowed, cut and scaled as a mesh, which is a
+    #: different set of things. A screen that does not know which it is holding
+    #: will offer one of them the wrong tools.
+    origin: str = "built"
+
+    #: For an import: what the file was called when it arrived.
+    #:
+    #: Kept because it is how a person recognises it. "LCD-knob.stl" is what
+    #: they downloaded; `lcd-knob` is what this program called the directory.
+    source_name: str = ""
+
+    #: Free-text the importer recorded - which printer it came off, say.
+    note: str = ""
+
+    #: Words a person attached to it. Searchable like everything else.
+    tags: list[str] = field(default_factory=list)
+
+    @property
+    def is_import(self) -> bool:
+        return self.origin == "imported"
+
     @property
     def is_draft(self) -> bool:
         return self.spec_path is None and self.draft_path is not None
@@ -98,10 +139,16 @@ class LibraryEntry:
         The `makes` words are in here, so typing "container" finds a part built
         from the enclosure template even though the word appears nowhere in its
         own spec.
+
+        And for an import: the name the FILE had, plus whatever note and tags
+        came with it. Somebody looking for a knob they downloaded types
+        "LCD-knob", which is not what the directory ended up being called.
         """
         bits = [self.name, self.template or "", self.material, self.prompt]
         bits += self.makes
         bits += [str(k) for k in self.params]
+        bits += [self.source_name, self.note, self.origin]
+        bits += self.tags
         return " ".join(bits).lower()
 
     def summary(self) -> str:
@@ -114,6 +161,51 @@ class LibraryEntry:
                 *self.envelope_mm, self.volume_cm3
             )
         return "built"
+
+
+def _read_import(directory: Path, record: Path) -> LibraryEntry | None:
+    """
+    One imported mesh, as a library entry.
+
+    EVERYTHING HERE IS MEASURED AND ALREADY ON DISK. import.json is written at
+    ingest with the envelope, the volume, the triangle and body counts and
+    whether it came out watertight - the same figures a built part carries in
+    its regression, from the same measurement code. None of it is re-derived
+    and none of it is guessed: an import with no recorded envelope shows none,
+    exactly as a part built before regressions did.
+    """
+    try:
+        data = json.loads(record.read_text())
+    except (json.JSONDecodeError, OSError):
+        # A record that will not parse is not a reason to lose the mesh beside
+        # it. The directory still holds an STL somebody imported, so it is
+        # listed with the little that can be read off the filesystem.
+        data = {}
+
+    out = directory / "out"
+    stls = sorted(out.glob("*.stl")) if out.is_dir() else []
+
+    envelope = data.get("envelope_mm")
+    if isinstance(envelope, (list, tuple)) and len(envelope) == 3:
+        envelope = tuple(float(v) for v in envelope)
+    else:
+        envelope = None
+
+    entry = LibraryEntry(
+        name=str(data.get("name") or directory.name),
+        directory=directory,
+        stl=stls[0] if stls else None,
+        images=_images(out),
+        origin="imported",
+        source_name=str(data.get("source_name") or ""),
+        note=str(data.get("note") or ""),
+        tags=[str(t) for t in (data.get("tags") or [])],
+        envelope_mm=envelope,
+        volume_cm3=float(data.get("volume_cm3") or 0.0),
+        body_count=int(data["bodies"]) if data.get("bodies") is not None else None,
+    )
+    entry.modified = float(data.get("imported_at") or record.stat().st_mtime)
+    return entry
 
 
 def _read_spec(path: Path) -> dict[str, Any]:
@@ -146,10 +238,20 @@ def _images(out_dir: Path) -> dict[str, Path]:
 
 
 def read_entry(directory: Path) -> LibraryEntry | None:
-    """Read one part directory. Returns None if it is not a part."""
+    """
+    Read one directory. Returns None if it holds neither a part nor an import.
+
+    THREE THINGS MAKE A DIRECTORY SOMETHING: a spec, a draft spec, or an
+    import record. It used to be the first two, so every mesh a person brought
+    in was skipped here even when its root was scanned - the second half of the
+    reason imports vanished from the product.
+    """
     spec_path = next((directory / n for n in SPEC_NAMES if (directory / n).is_file()), None)
     draft_path = next((directory / n for n in DRAFT_NAMES if (directory / n).is_file()), None)
     if spec_path is None and draft_path is None:
+        imported = directory / IMPORT_NAME
+        if imported.is_file():
+            return _read_import(directory, imported)
         return None
 
     data = _read_spec(spec_path or draft_path)
@@ -208,12 +310,91 @@ def read_entry(directory: Path) -> LibraryEntry | None:
     return entry
 
 
-def scan(roots: Iterable[str | Path] | None = None) -> list[LibraryEntry]:
+#: Everything `read_entry` opens, which is what a cached entry can go stale on.
+#:
+#: Listed here rather than inferred, because the cache is only safe if this is
+#: exactly right: a file read there and missing here would be a change the
+#: library never notices. Adding a read to read_entry means adding it here.
+WATCHED_FILES = SPEC_NAMES + DRAFT_NAMES + (
+    IMPORT_NAME, "session.json", "run.json", "regression.json",
+)
+
+#: directory -> (stamp, entry). Process-local and never persisted.
+_CACHE: dict[Path, tuple[tuple, "LibraryEntry | None"]] = {}
+
+
+def _stamp(directory: Path) -> tuple:
+    """
+    A cheap fingerprint of everything a read of this directory depends on.
+
+    STATS RATHER THAN READS. Re-reading three JSON files and a YAML per
+    directory is what makes a scan cost a millisecond each, which is nothing
+    at forty parts and most of a second at a thousand - and a gallery that
+    searches as you type asks for a scan per keystroke.
+
+    THE DIRECTORY'S OWN MTIME IS NOT ENOUGH, and getting that wrong would be
+    worse than no cache at all. A directory's mtime moves when a file is
+    created or removed inside it and NOT when an existing file's contents
+    change, so a rebuild that rewrites spec.yaml in place would leave the
+    library showing the old numbers with no way to notice. Every watched file
+    is fingerprinted, plus the out/ listing, which is how a part gains its
+    STL.
+
+    ONE PASS, NOT EIGHT STATS. `scandir` yields the names with their metadata
+    already attached, so the whole fingerprint costs one directory read - and
+    at a thousand models eight separate stats was most of what the cache was
+    saving.
+    """
+    import os
+
+    watched = set(WATCHED_FILES)
+    marks: list = [directory.name]
+    try:
+        with os.scandir(directory) as it:
+            for item in it:
+                if item.name in watched and item.is_file():
+                    st = item.stat()
+                    marks.append((item.name, st.st_mtime_ns, st.st_size))
+    except OSError:
+        return (directory.name,)
+    marks.sort(key=lambda m: m if isinstance(m, tuple) else ("",))
+
+    # THE EXPORTS TOO, because a part gains its STL and its renders without
+    # anything it already holds changing.
+    try:
+        with os.scandir(directory / "out") as it:
+            marks.append(tuple(sorted(item.name for item in it)))
+    except OSError:
+        marks.append(())
+    return tuple(marks)
+
+
+def forget(directory: str | Path | None = None) -> None:
+    """
+    Drop what is remembered about a directory, or all of it.
+
+    For the callers that know they have changed something and would rather say
+    so than wait to be noticed - and for tests, which build a library, read
+    it, rewrite it and read it again inside one mtime tick.
+    """
+    if directory is None:
+        _CACHE.clear()
+        return
+    _CACHE.pop(Path(directory).resolve(), None)
+
+
+def scan(roots: Iterable[str | Path] | None = None,
+         use_cache: bool = True) -> list[LibraryEntry]:
     """
     Every part under the given directories, newest first.
 
     Looks one level down and also at the roots themselves, so both
     `parts/vent/spec.yaml` and a directory handed in directly are found.
+
+    CACHED ON WHAT EACH DIRECTORY CONTAINS - see _stamp. A directory whose
+    files have not moved is not read again, which is what lets a search run on
+    every keystroke against a library of a thousand models. `use_cache=False`
+    reads everything, for a caller that wants to be certain.
     """
     entries: list[LibraryEntry] = []
     seen: set[Path] = set()
@@ -227,7 +408,20 @@ def scan(roots: Iterable[str | Path] | None = None) -> list[LibraryEntry]:
             resolved = directory.resolve()
             if resolved in seen:
                 continue
-            entry = read_entry(directory)
+
+            entry: LibraryEntry | None
+            if use_cache:
+                stamp = _stamp(directory)
+                remembered = _CACHE.get(resolved)
+                if remembered is not None and remembered[0] == stamp:
+                    entry = remembered[1]
+                else:
+                    entry = read_entry(directory)
+                    _CACHE[resolved] = (stamp, entry)
+            else:
+                entry = read_entry(directory)
+                _CACHE.pop(resolved, None)
+
             if entry is not None:
                 seen.add(resolved)
                 entries.append(entry)

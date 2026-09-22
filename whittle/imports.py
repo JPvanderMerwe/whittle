@@ -219,7 +219,29 @@ def take_in(
         except ImportError_:
             raise
         except Exception as exc:
-            part.problems.append("could not read the mesh: %s" % str(exc)[:200])
+            # A FILE WHOSE MESH CANNOT BE READ IS NOT A PART, and keeping it
+            # was the wrong call the moment importing went from one file at a
+            # time to a folder at a time.
+            #
+            # It used to be recorded with the exception as its explanation, so
+            # the library gained an entry called `readme` with no size, no
+            # picture, nothing to open and "could not read the mesh:
+            # 'NoneType' object is not subscriptable" written under it. One of
+            # those is a curiosity; a folder of two hundred downloads produces
+            # a gallery of them, and they are indistinguishable at a glance
+            # from models that imported properly.
+            #
+            # THE DIRECTORY GOES TOO. Refusing while leaving the files behind
+            # would put the entry in the library anyway on the next scan,
+            # which is the same fault with an error message on top.
+            import shutil
+
+            shutil.rmtree(directory, ignore_errors=True)
+            raise ImportError_(
+                "%s is named like a mesh and is not one: nothing in it could "
+                "be read as geometry (%s). Nothing was kept."
+                % (source.name, str(exc)[:120])
+            ) from exc
     else:
         part.fit_note = "STEP is stored as-is; nothing here reads it back yet."
 

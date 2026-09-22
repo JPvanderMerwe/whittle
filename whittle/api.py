@@ -152,9 +152,28 @@ def template_info(name: str) -> dict[str, Any]:
             if non_none:
                 base = non_none[0]
 
+        # A LITERAL'S ARGUMENTS ARE VALUES, NOT TYPES, and taking `args[0]` as
+        # the base type quietly produced nonsense: `roof_style:
+        # Literal["flat", "mono", "gable"]` reported its type as "flat". So the
+        # one field a person is most likely to change - "make this roof a
+        # triangular roof" is the sentence rule 32 was written for - came back
+        # describing itself as one of its own options, with the other two
+        # nowhere in the payload.
+        #
+        # The choices are what a client needs: to offer the change, and to say
+        # what the alternatives are when somebody asks for one that does not
+        # exist. Rule 32's third requirement - what was not understood is said
+        # out loud, with the real options beside it - cannot be met by a client
+        # that was never told what the real options are.
+        choices = _choices_of(annotation)
+        kind = getattr(base, "__name__", str(base))
+        if choices:
+            kind = "choice"
+
         params.append({
             "name": fname,
-            "type": getattr(base, "__name__", str(base)),
+            "type": kind,
+            "choices": choices,
             "optional": optional,
             "required": fld.is_required(),
             "default": None if fld.is_required() else fld.default,
@@ -171,6 +190,28 @@ def template_info(name: str) -> dict[str, Any]:
         "print_notes": list(t.print_notes),
         "params": params,
     }
+
+
+def _choices_of(annotation) -> list[str]:
+    """
+    Every value a Literal field accepts, including through an Optional.
+
+    `Literal["flat", "mono", "gable"]` gives all three; `Literal[...] | None`
+    gives the same three rather than nothing, because an optional choice is
+    still a choice and the None is what `optional` already records.
+
+    Returns [] for anything that is not a Literal, so a caller can treat a
+    non-empty list as "this field is a choice" without a second test.
+    """
+    import typing
+
+    if typing.get_origin(annotation) is typing.Literal:
+        return [str(v) for v in typing.get_args(annotation)]
+
+    for arg in getattr(annotation, "__args__", ()) or ():
+        if typing.get_origin(arg) is typing.Literal:
+            return [str(v) for v in typing.get_args(arg)]
+    return []
 
 
 def _units_of(field_name: str) -> str:
@@ -1254,6 +1295,13 @@ def _run(
 
     record.spec = spec.model_dump(exclude_none=True)
     record.report = holder["report"].to_dict()
+    # WHAT WAS CHOSEN RATHER THAN GIVEN. On the BuildResult, not on the verify
+    # report - a verify report measures a mesh and has no idea which of its
+    # dimensions somebody actually asked for. See RunRecord.assumptions.
+    record.assumptions = [
+        a.model_dump() if hasattr(a, "model_dump") else dict(a)
+        for a in (getattr(holder["result"], "assumptions", None) or [])
+    ]
     record.write(target / "run.json")
     out.run_record = target / "run.json"
 
