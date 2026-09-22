@@ -292,6 +292,24 @@ def check_hole_counts(request: str, solid) -> str | None:
             found = len(_holes_of_diameter(solid, dia, HOLE_TOLERANCE_MM,
                                            min_arc_deg=BORE_ARC_DEG))
             if found < count:
+                # IS THE PART SIMPLY TOO SMALL TO HOLD IT? Asked for "a
+                # keyring tag 40 mm long and 3 mm thick with a 5 mm hole" the
+                # model built a tag 40 x 3 x 1.5 and put a 5 mm bore through
+                # it, eight attempts running, 1313 seconds. The bore is wider
+                # than the tag, so it cuts the tag in two and leaves no
+                # cylindrical face - which is true, and the critique answered
+                # "a hole is a disc in cut mode that starts outside one face
+                # and ends outside the other". The model had already done
+                # exactly that. Nothing it could do to the CUT would ever fix
+                # a part too narrow to have a hole in it.
+                #
+                # Only said when the bounding box PROVES it: the whole part is
+                # narrower than the hole. A part that is roomy overall and
+                # narrow where the hole goes is not something a box can show,
+                # and guessing about it would be rule 9.
+                narrow = _too_narrow_for(solid, dia)
+                if narrow:
+                    return narrow
                 return (
                     "the request asked for %d holes of %g mm and the part has "
                     "%s. A hole is a `disc` in cut mode that starts outside "
@@ -318,6 +336,73 @@ def check_hole_counts(request: str, solid) -> str | None:
                 % (count, count, best)
             )
     return None
+
+
+def _too_narrow_for(solid, diameter_mm: float) -> str | None:
+    """
+    The part cannot have a hole that big, and the numbers that say so.
+
+    A bore leaves a cylindrical face only if material remains all the way
+    round it. When the part's narrowest side is no wider than the hole, the
+    cut severs the part instead and there is nothing to find - so the fault
+    is the part's size, not the placement of the cut, and every critique
+    about the cut sends the next attempt the wrong way.
+
+    MEASURED, AND ONLY WHEN THE BOX SETTLES IT. The bounding box proves the
+    impossible case and nothing weaker: it cannot show a part that is roomy
+    overall and thin where the hole goes.
+    """
+    try:
+        bb = solid.val().BoundingBox()
+        measured = {"x": bb.xlen, "y": bb.ylen, "z": bb.zlen}
+    except Exception:
+        return None
+    order = sorted(measured, key=lambda a: measured[a])
+    sides = [measured[a] for a in order]
+    if sides[0] <= 0:
+        return None
+    # THE TWO NARROWEST, not just one. A hole runs along one axis and needs
+    # material around it on the other two, so a 40 x 3 x 1.5 tag is too narrow
+    # for a 5 mm bore whichever way the bore is turned.
+    if sides[1] > diameter_mm:
+        return None
+
+    # ONE AXIS, NAMED, WITH THE NUMBER IT HAS TO REACH.
+    #
+    # The first version said "make the part more than 5 mm across where the
+    # hole goes". True, a PRINCIPLE, and it got the same answer three
+    # attempts running: the model changed the one dimension that was already
+    # right, 40 to 45 to 50, and left the 3.00 and 1.50 alone. That is the
+    # mistake _through_cut_numbers is written about - a small model given a
+    # principle edits one number and hopes; given a field and a figure it
+    # sets them.
+    #
+    # AND ONLY ONE AXIS IS WRONG. A bore needs material around it on the two
+    # axes it does not RUN along, so it can run along the thinnest side - the
+    # 1.50 mm thickness of a tag is not a fault, it is what a tag is. The
+    # middle side is the one that has to grow, and saying "make both of them
+    # bigger" would turn a tag into a block and be wrong about the part.
+    #
+    # The figure is arithmetic off the hole rather than a guess: more than d
+    # of material across it, and the 1.6 leaves roughly a third of a diameter
+    # of wall on each side. Both numbers are offered, so a spec that wants a
+    # tighter wall can use the bound instead.
+    need = diameter_mm * 1.6
+    return (
+        "a %g mm hole cannot go in this part at all: it measures %s mm. A "
+        "hole needs more than its own diameter of material across it on the "
+        "two axes it does not run along, and only %s at %.2f mm is bigger "
+        "than %g mm here. THE CUT IS NOT WHAT IS WRONG - it is the part. "
+        "Make %s bigger than %g mm - about %.1f mm leaves a wall on each "
+        "side of the hole - and leave %s and %s as they are. The %.2f mm "
+        "side is the thickness the hole goes THROUGH and does not have to "
+        "change. Or ask for a hole smaller than %.2f mm."
+        % (diameter_mm,
+           " x ".join("%.2f" % measured[a] for a in "xyz"),
+           order[2], sides[2], diameter_mm,
+           order[1], diameter_mm, need, order[2], order[0], sides[0],
+           sides[1])
+    )
 
 
 def check_roundness(request: str, vertices) -> str | None:

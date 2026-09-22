@@ -911,6 +911,70 @@ def test_fewer_holes_than_asked_is_the_only_complaint():
     assert check_hole_counts("a plate with two 5 mm holes", solid) is None
 
 
+def test_a_part_too_narrow_for_the_hole_is_told_that_and_not_about_the_cut():
+    """
+    1313 SECONDS AND EIGHT ATTEMPTS ON THE WRONG SENTENCE.
+
+    Asked for "a keyring tag 40 mm long and 3 mm thick with a 5 mm hole" the
+    model built a tag 40 x 3 x 1.5 and put a 5 mm bore through it, over and
+    over. The bore is wider than the tag: it severs it and leaves no
+    cylindrical face, so the count is zero - and the critique answered "a
+    hole is a disc in cut mode that starts outside one face and ends outside
+    the other", which the model had already done. Nothing it could do to the
+    CUT would ever fix a part too narrow to have a hole in it.
+
+    Advice about the wrong fault is worse than none, for the same reason a
+    cut lost in a hollow must not be told it is too short.
+    """
+    from whittle.verify.intent import check_hole_counts
+
+    solid = _solid([
+        {"op": "rounded_prism", "width_mm": 40, "depth_mm": 3,
+         "height_mm": 1.5, "corner_r_mm": 0},
+        {"op": "disc", "diameter_mm": 5, "height_mm": 5.5, "z_mm": -2,
+         "mode": "cut"},
+    ])
+    problem = check_hole_counts(
+        "a keyring tag 40 mm long and 3 mm thick with a 5 mm hole", solid)
+    assert problem, "a tag too narrow for its hole passed"
+    assert "cannot go in this part at all" in problem, problem
+    assert "40.00 x 3.00 x 1.50" in problem, (
+        "the refusal has to carry the measured part: %s" % problem
+    )
+    assert "disc` in cut mode" not in problem, (
+        "it was still told to fix the cut: %s" % problem
+    )
+
+    # ONE AXIS, NAMED. Told only the principle - "make it wider where the hole
+    # goes" - the model changed the length that was already right, 40 to 45 to
+    # 50, three attempts running. It has to be told WHICH side and to what.
+    assert "Make y bigger than 5 mm" in problem, problem
+
+    # AND TOLD TO LEAVE THE OTHERS. A bore runs along the axis it does not
+    # need material across, so a tag 1.50 mm thick is not the fault - asking
+    # for that to grow too would turn a tag into a block.
+    assert "leave x and z as they are" in problem, problem
+
+
+def test_a_tag_with_room_for_its_hole_is_not_refused():
+    """
+    The other half of the rule above. The bounding box proves the impossible
+    case and nothing weaker - a part with room for the hole must pass, or the
+    check would reject correct work.
+    """
+    from whittle.verify.intent import check_hole_counts
+
+    solid = _solid([
+        {"op": "rounded_prism", "width_mm": 40, "depth_mm": 20,
+         "height_mm": 3, "corner_r_mm": 2},
+        {"op": "disc", "diameter_mm": 5, "height_mm": 7, "x_mm": -14,
+         "z_mm": -2, "mode": "cut"},
+    ])
+    assert check_hole_counts(
+        "a keyring tag 40 mm long and 3 mm thick with a 5 mm hole",
+        solid) is None
+
+
 def test_no_corpus_entry_is_told_it_has_too_few_holes():
     """The same oracle: a corpus spec is right, so a flag here is this check."""
     import yaml
