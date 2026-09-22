@@ -54,3 +54,13 @@ files/
 .idea/
 *.swp
 .DS_Store
+
+# The measured corpus. Derived from Thingi10K with tools/ingest_thingi10k.py,
+# which anybody can re-run - so it is a build artifact rather than source.
+#
+# AND IT IS OTHER PEOPLE'S WORK. Every row carries the author and licence of
+# the model it was measured from. Measurements are not the models and the
+# attribution is kept, but committing nine thousand rows describing somebody
+# else's uploads into this repo is a decision for whoever owns it, not a
+# default. Re-run the tool instead; it takes about a minute.
+/corpus/
