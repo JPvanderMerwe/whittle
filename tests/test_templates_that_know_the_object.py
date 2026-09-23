@@ -231,3 +231,132 @@ def test_the_words_people_use_reach_the_template(request_text, expected):
             if any(word in request_text.lower()
                    for word in registry.get(name).makes)]
     assert expected in hits, "%r reached %s" % (request_text, hits or "nothing")
+
+
+# ---------------------------------------------------------------------------
+# gridfinity: a specification, not an opinion
+# ---------------------------------------------------------------------------
+
+
+def test_the_grid_is_the_published_standard():
+    """
+    EVERYTHING ELSE IN THIS CATALOGUE ENCODES AN OPINION. This encodes a
+    SPECIFICATION, and a bin 0.5 mm out does not fit the baseplate somebody
+    has already printed.
+    """
+    from whittle.build.templates import gridfinity as G
+
+    assert G.PITCH_MM == 42.0
+    assert G.FOOTPRINT_MM == 41.5
+    assert G.HEIGHT_UNIT_MM == 7.0
+    assert G.FOOT_TOTAL_MM == 4.75
+    assert (G.FOOT_LOWER_CHAMFER_MM, G.FOOT_STRAIGHT_MM,
+            G.FOOT_UPPER_CHAMFER_MM) == (0.8, 1.8, 2.15)
+
+
+def test_a_bin_is_exactly_the_size_the_grid_says():
+    """
+    A 2x1 bin is 83.5 mm, not 84: the 0.5 mm clearance is counted once
+    across the whole bin, not once per cell. Getting that wrong gives a bin
+    that binds in a multi-cell pocket.
+    """
+    from whittle.build.templates.gridfinity import GridfinityParams
+    from whittle.build.templates.gridfinity import build as build_grid
+
+    result = build_grid(GridfinityParams(units_x=2, units_y=1, units_z=3), _Spec())
+    box = result.solid.val().BoundingBox()
+    assert round(box.xlen, 1) == 83.5
+    assert round(box.ylen, 1) == 41.5
+    assert round(box.zlen, 1) == 21.0
+
+
+def test_the_foot_profile_is_the_one_that_seats():
+    """
+    THE WHOLE STANDARD IS THIS SHAPE. Measured on the built solid rather
+    than trusted: sections across the foot at each step of the profile.
+    """
+    import cadquery as cq
+
+    from whittle.build.templates.gridfinity import FOOTPRINT_MM, _foot
+
+    foot = _foot(FOOTPRINT_MM, FOOTPRINT_MM)
+
+    def across(z: float) -> float:
+        slab = cq.Workplane("XY").box(200, 200, 0.02).translate((0, 0, z))
+        return foot.intersect(slab).val().BoundingBox().xlen
+
+    # Bottom face: 41.5 - 2 x (0.8 + 2.15) = 35.6. Measured 0.05 up the
+    # 45-degree chamfer, so 0.1 wider.
+    assert abs(across(0.05) - 35.7) < 0.2, across(0.05)
+    # The straight section, which is where it grips.
+    assert abs(across(0.8) - 37.2) < 0.2, across(0.8)
+    assert abs(across(2.6) - 37.2) < 0.2, across(2.6)
+    # And out to the full footprint at the top.
+    assert abs(across(4.70) - 41.4) < 0.2, across(4.70)
+
+
+def test_usable_depth_is_reported_because_it_is_not_the_height():
+    """
+    A 3U bin stands 21 mm and holds about 14 - the foot takes the first
+    unit. Anybody sizing a bin to what goes in it needs that said, and it is
+    the mistake everybody makes once.
+    """
+    from whittle.build.templates.gridfinity import GridfinityParams
+    from whittle.build.templates.gridfinity import build as build_grid
+
+    result = build_grid(GridfinityParams(units_z=3), _Spec())
+    assert result.derived["height_mm"] == 21.0
+    assert 12.0 < result.derived["usable_depth_mm"] < 16.0
+    assert any(a.name == "units_z" for a in result.assumptions)
+
+
+# ---------------------------------------------------------------------------
+# the same words, a different take
+# ---------------------------------------------------------------------------
+
+
+def test_asking_twice_gives_a_different_design():
+    """
+    THE COMPLAINT THIS ANSWERS. A template's defaults are fixed, so an
+    under-specified request has exactly one answer - correct for
+    reproducibility and useless as a design tool. Somebody asking again is
+    asking for something else.
+    """
+    from whittle.agent.variations import a_different_take
+
+    seen = [tuple(sorted(a_different_take("stand", {}, n).items()))
+            for n in range(5)]
+    assert len(set(seen)) == len(seen), "two asks gave the same design: %s" % seen
+    assert seen[0] == (), "the first ask should be the canonical design"
+
+
+def test_a_value_somebody_stated_is_never_moved():
+    """
+    `params` holds what the request pinned. A request that named the lean
+    gets that lean every time - varying it would be the machine overruling
+    the person, which is the opposite of the point.
+    """
+    from whittle.agent.variations import a_different_take
+
+    for n in range(6):
+        out = a_different_take("stand", {"lean_deg": 70.0}, n)
+        assert out["lean_deg"] == 70.0, out
+
+
+def test_a_template_with_nothing_to_vary_is_left_alone():
+    from whittle.agent.variations import a_different_take
+
+    assert a_different_take("no_such_template", {"a": 1}, 3) == {"a": 1}
+
+
+def test_gridfinity_never_varies_the_grid():
+    """
+    The pitch, the footprint and the foot profile ARE the standard. A
+    "variant" that moved any of them would not drop into anybody's
+    baseplate, which is the entire point of the thing.
+    """
+    from whittle.agent.variations import AXES
+
+    varied = {field for field, _values in AXES["gridfinity"]}
+    forbidden = {"units_x", "units_y", "pitch_mm", "footprint_mm"}
+    assert not (varied & forbidden), varied & forbidden

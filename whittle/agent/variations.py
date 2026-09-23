@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -99,6 +100,16 @@ AXES: dict[str, list[tuple[str, list[Any]]]] = {
     "clip": [
         ("mouth_fraction", [0.72, 0.55, 0.88]),
         ("length_mm", [14.0, 8.0, 25.0]),
+    ],
+    # GRIDFINITY VARIES IN WHAT IT HOLDS, NEVER IN THE GRID. The 42 mm
+    # pitch, the 41.5 footprint and the foot profile are the standard: a
+    # "variant" that moved any of them would not drop into anybody's
+    # baseplate, which is the entire point of the thing.
+    "gridfinity": [
+        ("divisions_x", [1, 2, 3]),
+        ("units_z", [3, 2, 6]),
+        ("magnets", [False, True]),
+        ("scoop", [True, False]),
     ],
 }
 
@@ -397,3 +408,92 @@ def _label(changed: dict) -> str:
         else:
             parts.append(str(value))
     return ", ".join(parts) or "as asked"
+
+
+# ---------------------------------------------------------------------------
+# The same words, a different take
+# ---------------------------------------------------------------------------
+
+
+def a_different_take(template: str, params: dict, made_before: int) -> dict:
+    """
+    The same prompt, a different design - deterministically, and only where
+    the request left the choice open.
+
+    THE COMPLAINT THIS ANSWERS. Ask for a phone stand twice and the same
+    phone stand arrives twice: the template's defaults are fixed, so an
+    under-specified request has exactly one answer. That is correct for
+    reproducibility and useless as a design tool - somebody asking again is
+    asking for something else.
+
+    WHAT IT IS ALLOWED TO CHANGE. Only the axes a template declares in AXES,
+    which are the parameters that change the CHARACTER of the thing rather
+    than its size - a stand at 45 degrees is a typing stand and at 78 is a
+    display stand. Never a value the person stated: `params` holds what the
+    request pinned, and anything in it is left exactly alone. A request that
+    named every axis gets the same part every time, which is right.
+
+    WHY A COUNT RATHER THAN A RANDOM SEED. `made_before` is how many parts of
+    this name are already in the library, so the first ask gives the
+    canonical design, the second gives the next one along, and the fifth
+    gives the fifth. That is reproducible - the same library and the same
+    words give the same part - and it walks the design space instead of
+    rolling dice and repeating itself. Rule 11 is untouched either way: the
+    SPEC is still the durable artifact and still rebuilds the same mesh.
+
+    Returns the parameters to build with, and an empty change when there is
+    nothing this template varies.
+    """
+    axes = AXES.get(template) or []
+    if not axes or made_before <= 0:
+        return dict(params)
+
+    out = dict(params)
+    # WALK THE AXES IN ORDER, one step per previous build. The first axis
+    # exhausts its values before the second is touched, so consecutive asks
+    # differ in one visible way rather than in everything at once - which is
+    # how a person can tell what changed.
+    step = made_before
+    for field, values in axes:
+        options = [v for v in values]
+        if len(options) < 2:
+            continue
+        if field in params:
+            # STATED BY THE PERSON, SO NOT OURS TO MOVE.
+            continue
+        index = step % len(options)
+        step //= len(options)
+        if index:
+            out[field] = options[index]
+        if step == 0:
+            break
+    return out
+
+
+def how_many_already(name: str, roots=("parts",)) -> int:
+    """
+    How many parts of this name the library already holds.
+
+    THE COUNT IS THE SEED - see a_different_take. Read off the library
+    rather than kept in a counter, because a counter in a file is state that
+    goes stale the moment somebody deletes a part, and the library IS the
+    record of what has been asked for.
+    """
+    from pathlib import Path
+
+    wanted = str(name or "").strip().lower()
+    if not wanted:
+        return 0
+
+    seen = 0
+    for root in roots:
+        base = Path(root)
+        if not base.is_dir():
+            continue
+        for directory in base.iterdir():
+            if not directory.is_dir():
+                continue
+            stem = re.sub(r"_\d+$", "", directory.name).lower()
+            if stem == wanted:
+                seen += 1
+    return seen

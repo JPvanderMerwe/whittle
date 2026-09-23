@@ -1265,6 +1265,51 @@ def _run(
         verify_fn=verify_candidate if build_it else None,
     )
 
+    # THE SAME WORDS, A DIFFERENT TAKE.
+    #
+    # Ask for a phone stand twice and the same phone stand arrives twice: a
+    # template's defaults are fixed, so an under-specified request has
+    # exactly one answer. Correct for reproducibility and useless as a
+    # design tool - somebody asking again is asking for something else.
+    #
+    # Only the axes the template declares as changing its CHARACTER are
+    # moved, never a value the model set from something the person actually
+    # said, and the step comes from how many parts of this name the library
+    # already holds: the first ask gives the canonical design, the second
+    # the next along. Reproducible - same library, same words, same part -
+    # and it walks the space instead of rolling dice.
+    #
+    # Rule 11 is untouched: the SPEC is still the durable artifact and still
+    # rebuilds the same mesh.
+    if result.ok and result.spec is not None and result.spec.template:
+        from whittle.agent.variations import a_different_take, how_many_already
+
+        already = how_many_already(result.spec.name)
+        if already > 0:
+            fresh = a_different_take(
+                result.spec.template, dict(result.spec.params or {}), already)
+            moved = {k: v for k, v in fresh.items()
+                     if (result.spec.params or {}).get(k) != v}
+            if moved:
+                from whittle.agent.refine import apply_changes
+
+                try:
+                    other = apply_changes(result.spec, moved)
+                    verify_candidate(other)
+                    result.spec = other
+                    # SAID OUT LOUD ON THE RESULT, which is what both
+                    # clients show. whittle does not change a design
+                    # without saying it did.
+                    out.note = (
+                        "you have asked for this before, so this one is "
+                        "different: %s"
+                        % ", ".join("%s %s" % (k, v) for k, v in moved.items()))
+                    emit("another_take", moved)
+                except Exception:
+                    # A DIFFERENT TAKE THAT WILL NOT BUILD IS NOT AN ANSWER.
+                    # The canonical one already verified; keep it.
+                    pass
+
     # APPLY what was measured, rather than only describing it. Where a
     # measurement is the same quantity in the same units as a parameter -
     # an entrance diameter off a photograph IS entrance_dia_mm - the measured
