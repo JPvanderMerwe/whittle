@@ -70,6 +70,27 @@ AXES: dict[str, list[tuple[str, list[Any]]]] = {
     "keyring_device": [
         ("corner_r_mm", [2.0, 6.0]),
     ],
+    # THE AXES THAT CHANGE THE OBJECT, NOT ITS SIZE.
+    #
+    # A stand 4 mm taller is the same stand; a stand at 45 degrees is a
+    # typing stand and at 80 is a display stand, and they are different
+    # things to want. Same for a cable box with no vents - that is a
+    # different decision, not a different number.
+    "stand": [
+        ("lean_deg", [65.0, 45.0, 78.0]),
+        ("cable_slot", [True, False]),
+        ("back_height_mm", [70.0, 110.0]),
+    ],
+    "cable_box": [
+        ("vents", [True, False]),
+        ("feet_mm", [6.0, 0.0, 14.0]),
+        ("corner_r_mm", [4.8, 14.0]),
+    ],
+    "hook": [
+        ("tip_rise_mm", [None, 0.0, 30.0]),
+        ("screw_count", [2, 1, 3]),
+        ("reach_mm", [45.0, 25.0, 80.0]),
+    ],
 }
 
 # How different two variants have to be to both be worth showing. A fraction of

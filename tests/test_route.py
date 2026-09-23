@@ -34,12 +34,11 @@ PRIMITIVE_ROAD = [
     "a flat plate 80 by 40 by 6 mm with two 5 mm holes 60 mm apart",
     "a mounting plate 100 by 60 by 8 mm with four 4 mm holes 80 mm apart along the length",
     "a clamp to hold an 8 mm rod to a wall",
-    "a wall hook 80 mm tall screwed through two 5 mm holes",
-    # NOT "a phone stand" ANY MORE, and the change is the point rather than
-    # a nuisance. This list is things NO template claims, and it used the
-    # phone stand as an example - which was true, and was exactly why asking
-    # for one produced a solid block with a slit in it. A `stand` template
-    # claims it now, so it belongs on the other list.
+    # NOT "a wall hook" OR "a phone stand" ANY MORE, and that is the point
+    # rather than a nuisance. This list is things NO template claims, and it
+    # used both as examples - which was true, and was exactly why asking for
+    # a phone stand produced a solid block with a slit in it. Templates
+    # claim them now, so they moved to the other list.
     "a funnel with a 20 mm neck",
     "a spacer ring 10 mm bore, 3 mm thick",
     "a knob for a 6 mm shaft",
@@ -63,6 +62,8 @@ def test_the_objects_a_template_was_written_for_reach_it():
         ("a tablet stand", "stand"),
         ("a cable management box", "cable_box"),
         ("a box for my extension lead", "cable_box"),
+        ("a wall hook 80 mm tall screwed through two 5 mm holes", "hook"),
+        ("a coat hook", "hook"),
     ):
         road = route(request)
         assert road.template_road, "%r fell through to primitives" % request

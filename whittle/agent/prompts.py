@@ -114,6 +114,40 @@ def build_user_prompt(
 
     parts.extend(_similar_block(similar))
 
+    # WHAT THE PERSON'S OWN WORDS ALREADY MATCHED.
+    #
+    # The router works this out before any model is called - it is whole-word
+    # matching against each template's own `makes` list, longest phrase first
+    # - and then the catalogue was handed over and the MODEL chose. A small
+    # model choosing between seven templates picks badly: "a cable management
+    # box" was built by the birdhouse template, which has an entrance hole, a
+    # predator guard and a pitched roof.
+    #
+    # So the match is stated. Not as an instruction - the model can still
+    # choose otherwise and sometimes should, because "a box for my bird
+    # feeder" matches `cable_box` on "box" and is an enclosure. But the
+    # longest phrase somebody actually typed is the strongest evidence in the
+    # prompt about what they meant, and it was being thrown away.
+    from whittle.agent.route import route as _route
+
+    road = _route(request)
+    if road.matched:
+        best_phrase, best_template = road.matched[0]
+        parts.append("WHAT YOU WERE ASKED FOR, MATCHED AGAINST THE CATALOGUE.")
+        parts.append(
+            "  The words %r name something the %r template makes."
+            % (best_phrase, best_template))
+        others = [t for _p, t in road.matched[1:] if t != best_template]
+        if others:
+            parts.append(
+                "  (%s also claims a word in the request, less specifically.)"
+                % ", ".join(sorted(set(others))))
+        parts.append(
+            "  Use %r unless it plainly cannot make the thing described - a "
+            "phrase somebody typed is better evidence than a word that "
+            "happens to appear." % best_template)
+        parts.append("")
+
     parts.append("Templates available:")
     parts.append("")
     parts.append(template_catalogue())
