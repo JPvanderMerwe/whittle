@@ -35,7 +35,11 @@ PRIMITIVE_ROAD = [
     "a mounting plate 100 by 60 by 8 mm with four 4 mm holes 80 mm apart along the length",
     "a clamp to hold an 8 mm rod to a wall",
     "a wall hook 80 mm tall screwed through two 5 mm holes",
-    "a phone stand at 60 degrees",
+    # NOT "a phone stand" ANY MORE, and the change is the point rather than
+    # a nuisance. This list is things NO template claims, and it used the
+    # phone stand as an example - which was true, and was exactly why asking
+    # for one produced a solid block with a slit in it. A `stand` template
+    # claims it now, so it belongs on the other list.
     "a funnel with a 20 mm neck",
     "a spacer ring 10 mm bore, 3 mm thick",
     "a knob for a 6 mm shaft",
@@ -45,6 +49,26 @@ PRIMITIVE_ROAD = [
 def test_requests_a_template_makes_take_the_template_road():
     for request in TEMPLATE_ROAD:
         assert route(request).template_road, request
+
+
+def test_the_objects_a_template_was_written_for_reach_it():
+    """
+    A TEMPLATE NOTHING ROUTES TO IS A TEMPLATE NOBODY GETS, and the two
+    written after "create a phone stand thats unique" produced a 220 cm3
+    block are the reason this test exists.
+    """
+    for request, expect in (
+        ("a phone stand at 60 degrees", "stand"),
+        ("create a phone stand thats unique", "stand"),
+        ("a tablet stand", "stand"),
+        ("a cable management box", "cable_box"),
+        ("a box for my extension lead", "cable_box"),
+    ):
+        road = route(request)
+        assert road.template_road, "%r fell through to primitives" % request
+        assert any(name == expect for _word, name in road.matched), (
+            "%r matched %s, not %s" % (request, road.matched, expect)
+        )
 
 
 def test_requests_no_template_makes_go_to_primitives():
