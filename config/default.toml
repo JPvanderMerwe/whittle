@@ -255,6 +255,28 @@ backend = "null"
 device = "auto"
 marching_resolution = 256
 
+
+# ---------------------------------------------------------------------------
+# A SENTENCE TO A MESH, for the things no template was written for
+# ---------------------------------------------------------------------------
+# Every good part whittle makes comes from a template that knows what the
+# object IS. That is the product, and it is only as broad as the templates
+# somebody has written: ask for a gargoyle and the request falls through to
+# composing primitives and comes back as a block.
+#
+# A text-to-3D model closes that gap the way meshy.ai does - a mesh for any
+# prompt - and what comes out is approximate, dimensionless and frequently
+# not watertight. whittle then runs its OWN fitters over it, the same ones
+# every imported STL goes through, so a generated shape that turns out to be
+# turned or extruded becomes an editable spec.
+#
+# "null" REFUSES AND SAYS WHY, which is the point: silently composing a block
+# instead is how somebody ends up with a block and no idea why. Turning it on
+# needs an open model, its weights and a GPU - see whittle/imagine.
+[imagine]
+backend = "null"
+device = "auto"
+
 # FILAMENT DENSITY, AND WHY IT IS HERE AT ALL.
 #
 # A slicer only reports a WEIGHT if its filament profile carries a density.

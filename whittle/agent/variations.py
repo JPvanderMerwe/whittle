@@ -91,6 +91,15 @@ AXES: dict[str, list[tuple[str, list[Any]]]] = {
         ("screw_count", [2, 1, 3]),
         ("reach_mm", [45.0, 25.0, 80.0]),
     ],
+    "tray": [
+        ("columns", [3, 1, 5]),
+        ("rows", [1, 2]),
+        ("finger_scoop", [True, False]),
+    ],
+    "clip": [
+        ("mouth_fraction", [0.72, 0.55, 0.88]),
+        ("length_mm", [14.0, 8.0, 25.0]),
+    ],
 }
 
 # How different two variants have to be to both be worth showing. A fraction of
