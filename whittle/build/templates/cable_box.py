@@ -43,12 +43,13 @@ from pathlib import Path
 import cadquery as cq
 from pydantic import Field, model_validator
 
+from whittle.build import surface
 from whittle.build.helpers import BuildLog, safe_fillet_radius, try_edge_op
 from whittle.spec.registry import Template, register
 from whittle.spec.schema import TemplateParams
 
 
-class CableBoxParams(TemplateParams):
+class CableBoxParams(surface.Finished, TemplateParams):
     """Every dimension carries its unit in the name."""
 
     width_mm: float = Field(
@@ -132,6 +133,16 @@ class CableBoxParams(TemplateParams):
     )
 
     @model_validator(mode="after")
+    def _finish_fits(self) -> "CableBoxParams":
+        body_h = self.height_mm - max(self.wall_mm * 2 + 2.0,
+                                      round(self.height_mm * LID_FRACTION, 1))
+        bad = surface.check(self.finish_spec(self.wall_mm), self.wall_mm,
+                            _shell(self, body_h))
+        if bad:
+            raise ValueError(bad)
+        return self
+
+    @model_validator(mode="after")
     def _buildable(self) -> "CableBoxParams":
         if self.cable_slot_w_mm >= self.depth_mm - self.wall_mm * 2:
             raise ValueError(
@@ -145,6 +156,25 @@ class CableBoxParams(TemplateParams):
                 "%.1f mm tall." % (self.cable_slot_h_mm, self.height_mm)
             )
         return self
+
+
+def _shell(p: "CableBoxParams", body_h: float) -> surface.Shell:
+    """
+    The band of outside wall a finish may touch: the BOX, not the lid.
+
+    It stops clear of the floor and of the joint with the lid. A groove that
+    runs into the lip the lid sits on is a groove in the seal, and this box
+    is the one thing in the catalogue with a cable coming out of it - the
+    joint is what keeps the dust out of a power strip.
+    """
+    z0 = p.wall_mm + 1.5
+    z1 = max(z0 + 1.0, body_h - 2.0)
+    r = p.corner_r_mm if p.corner_r_mm is not None else 2.0 * p.wall_mm
+    return surface.Shell(
+        kind="square", z0=z0, z1=z1,
+        bottom=(p.width_mm, p.depth_mm), top=(p.width_mm, p.depth_mm),
+        corner_r_mm=r,
+    )
 
 
 @dataclass
@@ -197,11 +227,46 @@ def _vent_slots(p: CableBoxParams, length: float, height: float,
     out = []
     for i in range(count):
         at = -usable / 2.0 + pitch * (i + 0.5)
-        slot = cq.Workplane("XY").box(
-            p.vent_slot_mm, 100.0, height, centered=(True, True, False))
+        slot = _peaked(p.vent_slot_mm, 100.0, height)
         out.append(slot.translate((at, 0, 0)) if axis == "x"
                    else slot.rotate((0, 0, 0), (0, 0, 1), 90).translate((0, at, 0)))
     return out
+
+
+def _peaked(width: float, through: float, height: float) -> cq.Workplane:
+    """
+    A slot through a wall whose TOP IS A PEAK, not a flat roof.
+
+    Every slot cut through a vertical wall has a ceiling at the top of it, and
+    that ceiling is unsupported plastic: the box prints open side up, so there
+    is nothing under the roof of a vent to build on. Twenty-eight vents came
+    to 17 mm2 and the cable slots to 216 mm2, and whittle's own verifier
+    refuses any unsupported area at all - which is why this box would not
+    build.
+
+    The fix is the one every printable vent uses: the last part of the slot
+    tapers to a point. Each half of the peak is RAMP_RISE times as tall as it
+    is wide, which is 30 degrees off vertical and needs nothing beneath it.
+    The opening loses a triangle off its top corner and keeps its width, so
+    what passes through it is unchanged.
+    """
+    peak = width / 2.0 * RAMP_RISE
+    body = cq.Workplane("XY").box(width, through, max(0.01, height - peak),
+                                  centered=(True, True, False))
+    top = (
+        cq.Workplane("XZ")
+        .polyline([(-width / 2.0, height - peak), (width / 2.0, height - peak),
+                   (0.0, height)])
+        .close()
+        .extrude(through, both=True)
+    )
+    return body.union(top)
+
+
+#: How far a slot's peak rises for its half-width. 1.0 is 45 degrees, which
+#: the overhang check counts as a failure; 1.7 is 30 degrees off vertical.
+#: Taken from the surface module - one number, one place.
+RAMP_RISE = surface.RAMP_RISE
 
 
 def build_core(p: CableBoxParams, d: _Derived, log: BuildLog) -> cq.Workplane:
@@ -224,9 +289,8 @@ def build_core(p: CableBoxParams, d: _Derived, log: BuildLog) -> cq.Workplane:
     # A SLOT AT EACH END, AT FLOOR LEVEL, for a plug to pass through.
     for side in (-1, 1):
         slot = (
-            cq.Workplane("XY")
-            .box(p.wall_mm * 4, p.cable_slot_w_mm, p.cable_slot_h_mm,
-                 centered=(True, True, False))
+            _peaked(p.cable_slot_w_mm, p.wall_mm * 4, p.cable_slot_h_mm)
+            .rotate((0, 0, 0), (0, 0, 1), 90)
             .translate((side * p.width_mm / 2.0, 0, p.wall_mm))
         )
         box = box.cut(slot)
@@ -253,6 +317,14 @@ def build_core(p: CableBoxParams, d: _Derived, log: BuildLog) -> cq.Workplane:
                                 -p.feet_mm))
                 )
                 box = box.union(foot)
+
+    # THE FINISH GOES ON THE BOX ONLY, and before the lid is put on it: a
+    # pattern cut across the joint would be cut into two parts that have to
+    # come apart, so the two halves of every groove would have to line up
+    # after printing to look like one groove. They would not.
+    if p.finish != "plain":
+        box = surface.apply(box, _shell(p, d.body_h),
+                            p.finish_spec(p.wall_mm), p.wall_mm, log)
 
     lid = build_lid(p, d, log).translate((0, 0, d.body_h))
     solid = box.union(lid)
@@ -393,9 +465,14 @@ def build(params: CableBoxParams, spec, base_dir: Path | None = None):
         # NUMBERS ONLY. `features` is measured against the built mesh, so a
         # string here reaches the checker as something to compare and stops
         # the build with "could not convert string to float".
+        # A CLEARANCE IS NOT A FEATURE. Everything in `features` is measured
+        # against the nozzle, and a clearance is the opposite of a printed
+        # detail: it is air, deliberately narrower than one extrusion so two
+        # parts do not weld together. Listed here it failed this box for
+        # having a 0.2 mm detail, which was the gap doing its job. It is
+        # reported under `derived`, where it is read and not measured.
         features={
             "wall": params.wall_mm,
-            "lid clearance": d.clearance,
             "cable slot width": params.cable_slot_w_mm,
             "cable slot height": params.cable_slot_h_mm,
         },

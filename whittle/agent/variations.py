@@ -49,16 +49,20 @@ from typing import Any
 # by 1.7% of volume and not at all in bounding box, and look nothing like each
 # other. Measuring volume to decide whether a surface finish is interesting is
 # measuring the wrong thing.
-STYLE_AXES = {"profile", "pattern", "finish", "gusset"}
+STYLE_AXES = {"profile", "pattern", "finish", "gusset", "closure", "shape"}
 
 AXES: dict[str, list[tuple[str, list[Any]]]] = {
     "vessel": [
         ("profile", ["flared", "straight", "belly", "cylinder"]),
         ("pattern", ["solid", "cells"]),
+        # Only the families that follow a curve. A vessel's default profile
+        # is flared, and ribs, flutes and facets are refused on a wall that
+        # bends - an option that fails on the default is not an option.
+        ("finish", ["plain", "hex", "waves", "knurl"]),
         ("cell_seed", [7, 23, 61, 104]),
     ],
     "enclosure": [
-        ("finish", ["plain", "board", "slat"]),
+        ("finish", ["plain", "board", "slat", "hex", "waves"]),
         ("roof_pitch_deg", [18.0, 0.0, 32.0]),
         ("corner_r_mm", [3.0, 10.0]),
     ],
@@ -83,6 +87,7 @@ AXES: dict[str, list[tuple[str, list[Any]]]] = {
         ("back_height_mm", [70.0, 110.0]),
     ],
     "cable_box": [
+        ("finish", ["plain", "ribs", "hex", "waves"]),
         ("vents", [True, False]),
         ("feet_mm", [6.0, 0.0, 14.0]),
         ("corner_r_mm", [4.8, 14.0]),
@@ -93,6 +98,7 @@ AXES: dict[str, list[tuple[str, list[Any]]]] = {
         ("reach_mm", [45.0, 25.0, 80.0]),
     ],
     "tray": [
+        ("finish", ["plain", "ribs", "hex", "waves"]),
         ("columns", [3, 1, 5]),
         ("rows", [1, 2]),
         ("finger_scoop", [True, False]),
@@ -105,7 +111,25 @@ AXES: dict[str, list[tuple[str, list[Any]]]] = {
     # pitch, the 41.5 footprint and the foot profile are the standard: a
     # "variant" that moved any of them would not drop into anybody's
     # baseplate, which is the entire point of the thing.
+    # A CONTAINER VARIES IN HOW IT SHUTS AND WHAT ITS OUTSIDE LOOKS LIKE.
+    # Those are the two decisions somebody actually has an opinion about, and
+    # they are the two that make the same prompt come back as a different
+    # object rather than the same object 4 mm taller.
+    #
+    # `shape` is deliberately NOT an axis. Flipping a square box to round
+    # would abandon the width and depth the person asked for and use the
+    # diameter default instead, so the "variant" is a box of a size nobody
+    # mentioned. `facets` is out for the same reason - it is refused on a
+    # square body, and an option that fails half the time is not an option.
+    "container": [
+        ("closure", ["lid", "clip", "magnet", "hinge", "open"]),
+        ("finish", ["plain", "ribs", "flutes", "hex", "waves", "knurl"]),
+        ("taper_deg", [0.0, 8.0]),
+        ("columns", [1, 2, 3]),
+        ("stackable", [False, True]),
+    ],
     "gridfinity": [
+        ("finish", ["plain", "ribs", "hex"]),
         ("divisions_x", [1, 2, 3]),
         ("units_z", [3, 2, 6]),
         ("magnets", [False, True]),

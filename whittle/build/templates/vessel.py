@@ -41,6 +41,7 @@ from typing import Literal
 import cadquery as cq
 from pydantic import Field, model_validator
 
+from whittle.build import surface
 from whittle.build.helpers import BuildLog, MIN_FILLET_MM, safe_fillet_radius, try_edge_op
 from whittle.spec.registry import Template, register
 from whittle.spec.schema import TemplateParams
@@ -55,7 +56,7 @@ STATIONS = 24
 MAX_LEAN_DEG = 45.0
 
 
-class VesselParams(TemplateParams):
+class VesselParams(surface.Finished, TemplateParams):
     """A round vessel, revolved about Z, open at the top."""
 
     outer_dia_mm: float = Field(
@@ -197,6 +198,14 @@ class VesselParams(TemplateParams):
         if self.foot_dia_mm is not None:
             return self.foot_dia_mm
         return max(self.base() * 0.86, 6.0)
+
+    @model_validator(mode="after")
+    def _finish_fits(self) -> "VesselParams":
+        bad = surface.check(self.finish_spec(self.wall_mm), self.wall_mm,
+                            _shell(self, _outer_profile(self)))
+        if bad:
+            raise ValueError(bad)
+        return self
 
     @model_validator(mode="after")
     def _check(self):
@@ -576,11 +585,44 @@ def _build_body(p: VesselParams, log: BuildLog) -> cq.Workplane:
     if p.pattern == "cells":
         body = _cut_cells(p, outer_stations, body, log)
 
+    # THE FINISH LAST, BUT BEFORE THE RIM ROUNDING. Rule 18: cosmetic edge
+    # work is applied after every pocket is cut, so that a fillet which fails
+    # cannot take the detail with it. The finish is a pocket, not edge work.
+    if p.finish != "plain":
+        body = surface.apply(body, _shell(p, outer_stations),
+                             p.finish_spec(p.wall_mm), p.wall_mm, log)
+
     if p.rim_round_mm > MIN_FILLET_MM:
         r = safe_fillet_radius(p.rim_round_mm, p.wall_mm)
         body = try_edge_op(body, ">Z", "fillet", r, "rim", log)
 
     return body
+
+
+def _shell(p: VesselParams, stations) -> surface.Shell:
+    """
+    The band of outside wall a finish may touch, WITH THE REAL SILHOUETTE.
+
+    A vessel is the reason surface.Shell can carry a profile at all. Its wall
+    is a curve - a flared bowl and a bellied vase are the two most decorated
+    shapes there are - and a straight line between the foot and the rim is
+    several millimetres away from where that wall actually is. The stations
+    the body was lofted through ARE the wall, so they are what gets handed
+    over: no resampling, no smoothing, the same points.
+
+    The band stops clear of the rim rounding and clear of the foot. A groove
+    that runs into the rim fillet is a groove in the one edge somebody puts
+    their lip on.
+    """
+    z0 = p.foot_mm + p.floor_thickness_mm + 2.0
+    z1 = max(z0 + 1.0, p.height_mm - max(3.0, p.rim_round_mm * 2))
+    profile = tuple((float(z), float(r) * 2.0) for r, z in stations)
+    return surface.Shell(
+        kind="round", z0=z0, z1=z1,
+        bottom=(surface._sample(profile, z0),) * 2,
+        top=(surface._sample(profile, z1),) * 2,
+        profile=profile,
+    )
 
 
 def _cut_cells(p: VesselParams, stations, body: cq.Workplane,

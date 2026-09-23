@@ -39,9 +39,29 @@ from typing import Literal
 import cadquery as cq
 from pydantic import Field, model_validator
 
+from whittle.build import surface
 from whittle.build.helpers import BuildLog, MIN_FILLET_MM, disc, rrect, safe_fillet_radius, try_edge_op
 from whittle.spec.registry import Template, register
 from whittle.spec.schema import TemplateParams
+
+
+def _shell(p: "EnclosureParams") -> surface.Shell:
+    """
+    The band of outside wall a shared finish may touch.
+
+    Clear of the floor and clear of the top, for the reason `_finish_cutters`
+    gives about board and slat: a groove that runs off the end of the box
+    breaks the edge into a comb, and one that opens into the cavity is a hole
+    in the wall.
+    """
+    floor = p.floor_thickness_mm
+    z0 = floor + 2.0
+    z1 = max(z0 + 1.0, p.height_mm - 3.0)
+    return surface.Shell(
+        kind="square", z0=z0, z1=z1,
+        bottom=(p.width_mm, p.depth_mm), top=(p.width_mm, p.depth_mm),
+        corner_r_mm=p.corner_r_mm,
+    )
 
 
 class EnclosureParams(TemplateParams):
@@ -167,12 +187,31 @@ class EnclosureParams(TemplateParams):
     # to cut the relief into it and let the light do the rest. That means every
     # groove is a real feature with a real width, it gets checked against the
     # nozzle like any other, and it is a number you can change afterwards.
-    finish: Literal["plain", "board", "slat"] = Field(
+    #
+    # THIS TEMPLATE KEEPS ITS OWN FIELDS RATHER THAN INHERITING
+    # surface.Finished, and that is deliberate: `board` and `slat` are this
+    # box's own, they mean weatherboard and slatted panel on a birdhouse and
+    # nothing on a tray, and their pitch and groove defaults are tuned for a
+    # 3 mm wall rather than the catalogue's 2.4. What IS shared is the list of
+    # words - FINISH_SAYS - so "honeycomb" means the same thing here as
+    # everywhere else.
+    finish: Literal["plain", "board", "slat", "ribs", "flutes", "facets",
+                    "hex", "knurl", "waves"] = Field(
         "plain",
+        json_schema_extra={"says": dict(
+            surface.FINISH_SAYS,
+            board=["board", "boards", "weatherboard", "shiplap", "clapboard",
+                   "planked", "siding", "lapped"],
+            slat=["slat", "slats", "slatted", "reveals", "panelled",
+                  "paneled", "louvred slats"],
+        )},
         description=(
             "Exterior relief. plain is flat. board cuts horizontal shiplap "
-            "grooves for a weatherboard look. slat cuts vertical reveals for a "
-            "modern slatted panel look."
+            "grooves for a weatherboard look and slat cuts vertical reveals "
+            "for a modern slatted panel look - both of those belong to this "
+            "box. ribs, flutes, facets, hex, knurl and waves are the "
+            "catalogue's shared patterns and mean the same here as on "
+            "anything else."
         ),
     )
     finish_pitch_mm: float = Field(
@@ -292,7 +331,17 @@ class EnclosureParams(TemplateParams):
                     % (self.floor_thickness_mm + self.entrance_dia_mm / 2 + 2)
                 )
 
-        if self.finish != "plain":
+        if self.finish in surface.FINISHES and self.finish != "plain":
+            # A shared pattern: checked by the shared module, so the refusal
+            # reads the same here as it does on a container.
+            bad = surface.check(
+                surface.Finish(self.finish, self.finish_pitch_mm,
+                               self.finish_groove_mm, self.finish_depth_mm),
+                self.wall_mm, _shell(self))
+            if bad:
+                raise ValueError(bad)
+
+        elif self.finish != "plain":
             # A groove deeper than a third of the wall is not a finish, it is
             # a weakness - and on a birdhouse the wall is the only thing
             # between the weather and the nest.
@@ -437,6 +486,12 @@ def build_box(p: EnclosureParams, d: _Derived, log: BuildLog) -> cq.Workplane:
     # fillet. Before the entrance, and the entrance would re-bore through
     # grooves that are already there for no reason; after the fillet, and each
     # groove would carve a notch out of the rounded corner.
+    if p.finish in surface.FINISHES and p.finish != "plain":
+        box = surface.apply(
+            box, _shell(p),
+            surface.Finish(p.finish, p.finish_pitch_mm, p.finish_groove_mm,
+                           p.finish_depth_mm),
+            p.wall_mm, log)
     for cutter in _finish_cutters(p, d):
         box = box.cut(cutter)
 

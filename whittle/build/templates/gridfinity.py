@@ -53,6 +53,7 @@ from pathlib import Path
 import cadquery as cq
 from pydantic import Field, model_validator
 
+from whittle.build import surface
 from whittle.build.helpers import BuildLog
 from whittle.spec.registry import Template, register
 from whittle.spec.schema import TemplateParams
@@ -74,7 +75,7 @@ MAGNET_DIA_MM = 6.0
 MAGNET_DEPTH_MM = 2.0
 
 
-class GridfinityParams(TemplateParams):
+class GridfinityParams(surface.Finished, TemplateParams):
     """Grid units, not millimetres - that is the point of the standard."""
 
     units_x: int = Field(
@@ -136,6 +137,14 @@ class GridfinityParams(TemplateParams):
     )
 
     @model_validator(mode="after")
+    def _finish_fits(self) -> "GridfinityParams":
+        bad = surface.check(self.finish_spec(self.wall_mm), self.wall_mm,
+                            _shell(self))
+        if bad:
+            raise ValueError(bad)
+        return self
+
+    @model_validator(mode="after")
     def _buildable(self) -> "GridfinityParams":
         inner = FOOTPRINT_MM * min(self.units_x, self.units_y) - 2 * self.wall_mm
         cells = max(self.divisions_x, self.divisions_y)
@@ -154,6 +163,30 @@ class _Derived:
     outer_y: float
     height: float
     usable_mm: float
+
+
+def _shell(p: "GridfinityParams") -> surface.Shell:
+    """
+    The band of outside wall a finish may touch: ABOVE THE FOOT, BELOW THE RIM.
+
+    The foot is the standard and is not decoration - it is the thing that
+    drops into somebody else's baseplate, and a groove across it is a bin that
+    does not seat. The rim is left alone for the same reason a bin stacks on
+    another bin.
+
+    Everything here is CUT, never added, so a decorated bin is exactly as wide
+    as a plain one and still fits the 42 mm cell.
+    """
+    outer_x = FOOTPRINT_MM + (p.units_x - 1) * PITCH_MM
+    outer_y = FOOTPRINT_MM + (p.units_y - 1) * PITCH_MM
+    height = p.units_z * HEIGHT_UNIT_MM
+    z0 = FOOT_TOTAL_MM + 2.0
+    z1 = max(z0 + 1.0, height - 2.0)
+    return surface.Shell(
+        kind="square", z0=z0, z1=z1,
+        bottom=(outer_x, outer_y), top=(outer_x, outer_y),
+        corner_r_mm=CORNER_R_MM,
+    )
 
 
 def derive(p: GridfinityParams) -> _Derived:
@@ -268,6 +301,10 @@ def build_bin(p: GridfinityParams, d: _Derived, log: BuildLog) -> cq.Workplane:
                         .translate((cx, cy - cell_y / 2.0 + radius, floor_z + radius))
                     )
                     solid = solid.cut(scoop)
+
+    if p.finish != "plain":
+        solid = surface.apply(solid, _shell(p), p.finish_spec(p.wall_mm),
+                              p.wall_mm, log)
 
     if p.magnets:
         for ix in range(p.units_x):

@@ -206,6 +206,29 @@ def _named_by(info: Any) -> list[str]:
     return [w.lower() for w in said] if isinstance(said, list) else []
 
 
+def _sets(info: Any) -> dict[str, float]:
+    """
+    The words that name a VALUE of a numeric field, rather than the field.
+
+        taper_deg: float = Field(
+            0.0, json_schema_extra={"sets": {"tapered": 8.0, "nesting": 8.0}})
+
+    `says` answers "which field does 'taper' mean" and needs a number beside
+    it. This answers "what does 'tapered' mean on its own", which is how
+    people actually describe a shape: nobody says "taper it by eight degrees",
+    they say "make it tapered so they nest". Without this the parameter exists
+    and no sentence reaches it, which rule 32 says is the same as it not
+    existing.
+    """
+    extra = getattr(info, "json_schema_extra", None) or {}
+    if callable(extra):
+        return {}
+    said = extra.get("sets")
+    if not isinstance(said, dict):
+        return {}
+    return {str(k).lower(): float(v) for k, v in said.items()}
+
+
 def choices_of(info: Any) -> tuple[str, ...]:
     """The legal values of a Literal field, or ()."""
     annotation = getattr(info, "annotation", None)
@@ -290,20 +313,28 @@ def read(sentence: str, model: type, current: dict[str, Any]) -> Reading:
         if not options:
             continue
         said = _says(info)
+
+        # THE LONGEST PHRASE WINS, and it has to. "a round tub with a clip on
+        # lid" contains both "tub", which means an open one, and "clip on",
+        # which means a clip. Taking the first match in the field's own
+        # declaration order made that box open - the exact failure the router
+        # already solves the same way. The longer phrase is the more specific
+        # one, and the more specific one is what the person meant.
+        found: list[tuple[int, str, str, Any]] = []
         for value in options:
             if str(current.get(name)) == value:
                 continue  # already that; saying so is not a change
             for word in [value.lower()] + said.get(value, []):
-                pattern = re.compile(r"\b%s\b" % re.escape(word))
-                hit = pattern.search(text)
+                hit = re.compile(r"\b%s\b" % re.escape(word)).search(text)
                 if hit:
-                    reading.changes.append(Change(
-                        field=name, before=current.get(name), after=value,
-                        because=word))
-                    claim(hit)
-                    break
-            if already(name):
-                break
+                    found.append((len(word), word, value, hit))
+
+        if found:
+            _, word, value, hit = max(found, key=lambda f: (f[0], f[1]))
+            reading.changes.append(Change(
+                field=name, before=current.get(name), after=value,
+                because=word))
+            claim(hit)
 
     # -- 2. explicit dimensions: "200mm tall", "the entrance 28mm" ---------
     #
@@ -446,17 +477,56 @@ def read(sentence: str, model: type, current: dict[str, Any]) -> Reading:
     for name, info in fields.items():
         if already(name) or not _is_bool(info):
             continue
-        for word in words_for(name):
+        # The field's own declared words as well as the ones in its name.
+        # `stackable` is reachable by "stackable" from the name alone, but
+        # nobody says "add stackable" - they say "make it stackable", or
+        # "stacking", or "so they stack".
+        declared = _named_by(info)
+        for word in words_for(name) + declared:
             off = re.search(r"\b(?:no|without|remove|delete|drop)\s+(?:the\s+|a\s+)?%s\b"
                             % re.escape(word), text)
             on = re.search(r"\b(?:add|with|include|give it)\s+(?:the\s+|a\s+)?%s\b"
                            % re.escape(word), text)
+            if on is None:
+                # "make it stackable", "they should be stacking", "I want it
+                # stackable". Only for words the field DECLARED: those were
+                # chosen to be unambiguous, where a word pulled out of the
+                # field's name was not.
+                # A DECLARED WORD ON ITS OWN IS ENOUGH. "a tapered stackable
+                # tub" has no verb to hang an "add" on, and that is how people
+                # write. Only for declared words - those were chosen to be
+                # unambiguous, where a word pulled out of the field's name was
+                # not - and the negations above are tried first, so "no
+                # stacking" still turns it off.
+                on = (re.search(r"\b%s\b" % re.escape(word), text)
+                      if word in declared else None)
             hit = off or on
             if not hit:
                 continue
             after = bool(off is None)
             if current.get(name) == after:
                 continue
+            reading.changes.append(Change(
+                field=name, before=current.get(name), after=after,
+                because=hit.group(0).strip()))
+            claim(hit)
+            break
+
+    # -- 5b. a word that IS a number: "tapered", "nesting" -----------------
+    #
+    # Separate from 5 because these fields are numeric, and separate from 2
+    # because there is no figure in the sentence to attach. The field declares
+    # what the word means, so nothing here is inferred - see _sets.
+    for name, info in fields.items():
+        if already(name) or not _is_number(info):
+            continue
+        for word, value in _sets(info).items():
+            hit = re.search(r"\b%s\b" % re.escape(word), text)
+            if not hit:
+                continue
+            after = _clamp(info, value)
+            if current.get(name) == after:
+                break
             reading.changes.append(Change(
                 field=name, before=current.get(name), after=after,
                 because=hit.group(0).strip()))

@@ -40,12 +40,13 @@ from pathlib import Path
 import cadquery as cq
 from pydantic import Field, model_validator
 
+from whittle.build import surface
 from whittle.build.helpers import BuildLog, safe_fillet_radius, try_edge_op
 from whittle.spec.registry import Template, register
 from whittle.spec.schema import TemplateParams
 
 
-class TrayParams(TemplateParams):
+class TrayParams(surface.Finished, TemplateParams):
     """Every dimension carries its unit in the name."""
 
     width_mm: float = Field(
@@ -108,6 +109,11 @@ class TrayParams(TemplateParams):
 
     @model_validator(mode="after")
     def _buildable(self) -> "TrayParams":
+        bad = surface.check(self.finish_spec(self.wall_mm), self.wall_mm,
+                            _shell(self))
+        if bad:
+            raise ValueError(bad)
+
         inner_w = self.width_mm - 2 * self.wall_mm
         cell_w = (inner_w - (self.columns - 1) * (self.divider_mm or self.wall_mm)) \
             / self.columns
@@ -126,6 +132,27 @@ class TrayParams(TemplateParams):
                 % (self.rows, self.depth_mm, cell_d)
             )
         return self
+
+
+def _shell(p: "TrayParams") -> surface.Shell:
+    """
+    The band of outside wall a finish is allowed to touch.
+
+    IT STOPS SHORT OF THE RIM AND THE FLOOR. A groove that runs off the top
+    edge breaks it into a comb, and one that runs into the floor is a groove
+    in the part that sits on the drawer. The bands are small on a tray
+    because a tray is shallow - which is also why the rim band is only two
+    millimetres rather than the three a taller box can spare.
+    """
+    floor = p.floor_mm if p.floor_mm is not None else 0.8 * p.wall_mm
+    z0 = floor + 1.5
+    z1 = max(z0 + 1.0, p.height_mm - 2.0)
+    r = p.corner_r_mm if p.corner_r_mm is not None else 2.0 * p.wall_mm
+    return surface.Shell(
+        kind="square", z0=z0, z1=z1,
+        bottom=(p.width_mm, p.depth_mm), top=(p.width_mm, p.depth_mm),
+        corner_r_mm=r,
+    )
 
 
 @dataclass
@@ -203,6 +230,14 @@ def build_core(p: TrayParams, d: _Derived, log: BuildLog) -> cq.Workplane:
             "the tray"
         )
 
+    # THE FINISH GOES ON BEFORE THE CORNER ROUNDING, because rule 18 says
+    # edge work is applied last and reverted if it fails. Filleting first and
+    # then cutting forty grooves into the filleted solid is how a fillet that
+    # worked becomes a solid that does not.
+    if p.finish != "plain":
+        solid = surface.apply(solid, _shell(p), p.finish_spec(p.wall_mm),
+                              p.wall_mm, log)
+
     solid = try_edge_op(
         solid, "|Z", "fillet",
         safe_fillet_radius(d.corner_r, p.width_mm, p.depth_mm),
@@ -276,7 +311,8 @@ register(Template(
     summary=(
         "A shallow open tray divided into a grid of compartments, with a "
         "finger scoop in the front of each, thin dividers and a thin floor. "
-        "Prints open side up with no support."
+        "The outside can carry ribs, a honeycomb, a knurl or horizontal "
+        "waves. Prints open side up with no support."
     ),
     makes=(
         "tray", "drawer organiser", "drawer organizer", "drawer insert",

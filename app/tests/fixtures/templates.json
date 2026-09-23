@@ -244,6 +244,67 @@
   "name": "cable_box",
   "params": [
    {
+    "bounds": {},
+    "choices": [
+     "plain",
+     "ribs",
+     "flutes",
+     "facets",
+     "hex",
+     "knurl",
+     "waves"
+    ],
+    "default": "plain",
+    "description": "The pattern on the outside. plain is flat faces, which is most of why a downloaded model looks better than a generated one. ribs and flutes are vertical grooves; facets cut flats round a cylinder; hex and knurl are shallow pockets; waves are horizontal rings.",
+    "name": "finish",
+    "optional": false,
+    "required": false,
+    "type": "choice",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "gt": 1.0,
+     "le": 60.0
+    },
+    "choices": [],
+    "default": 9.0,
+    "description": "Centre to centre of the pattern.",
+    "name": "finish_pitch_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.4,
+     "le": 40.0
+    },
+    "choices": [],
+    "default": 3.0,
+    "description": "How wide each cut, or each cell, is.",
+    "name": "finish_groove_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.1,
+     "le": 4.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "How far into the wall. Left out, whichever is smaller of 0.7 mm and a third of the wall - a decoration that takes more than a third of the wall is a weakness, and one that reaches the cavity is a hole. Given explicitly it is checked, not clamped.",
+    "name": "finish_depth_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
     "bounds": {
      "gt": 40.0,
      "le": 500.0
@@ -811,6 +872,711 @@
   ],
   "summary": "A C that springs over something round and holds it: the mouth is narrower than the bore, flared so it guides in, and the arm thickness is worked out from the bore because the arms are the spring. Prints lying down so the layers run around the C."
  },
+ "container": {
+  "anchors": [
+   "floor",
+   "rim",
+   "lid",
+   "skirt"
+  ],
+  "makes": [
+   "container",
+   "box",
+   "box with a lid",
+   "box with lid",
+   "lidded box",
+   "storage box",
+   "storage container",
+   "tub",
+   "bin",
+   "small box",
+   "lunch box",
+   "lunchbox",
+   "bento box",
+   "snack box",
+   "food container",
+   "clip close box",
+   "clip-close box",
+   "snap box",
+   "snap fit box",
+   "magnetic box",
+   "magnetic lid box",
+   "hinged box",
+   "hinged lid box",
+   "jewellery box",
+   "jewelry box",
+   "trinket box",
+   "keepsake box",
+   "pill box",
+   "stash box",
+   "screw container",
+   "parts container",
+   "parts bin",
+   "storage bin",
+   "stacking box",
+   "stacking bin",
+   "nesting box",
+   "desk pot",
+   "pen pot",
+   "pencil pot",
+   "canister",
+   "jar",
+   "pot",
+   "tub with lid",
+   "sugar jar",
+   "coffee canister",
+   "battery box",
+   "sd card box",
+   "seed box",
+   "tea caddy"
+  ],
+  "name": "container",
+  "params": [
+   {
+    "bounds": {},
+    "choices": [
+     "plain",
+     "ribs",
+     "flutes",
+     "facets",
+     "hex",
+     "knurl",
+     "waves"
+    ],
+    "default": "plain",
+    "description": "The pattern on the outside. plain is flat faces, which is most of why a downloaded model looks better than a generated one. ribs and flutes are vertical grooves; facets cut flats round a cylinder; hex and knurl are shallow pockets; waves are horizontal rings.",
+    "name": "finish",
+    "optional": false,
+    "required": false,
+    "type": "choice",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "gt": 1.0,
+     "le": 60.0
+    },
+    "choices": [],
+    "default": 9.0,
+    "description": "Centre to centre of the pattern.",
+    "name": "finish_pitch_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.4,
+     "le": 40.0
+    },
+    "choices": [],
+    "default": 3.0,
+    "description": "How wide each cut, or each cell, is.",
+    "name": "finish_groove_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.1,
+     "le": 4.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "How far into the wall. Left out, whichever is smaller of 0.7 mm and a third of the wall - a decoration that takes more than a third of the wall is a weakness, and one that reaches the cavity is a hole. Given explicitly it is checked, not clamped.",
+    "name": "finish_depth_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {},
+    "choices": [
+     "square",
+     "round"
+    ],
+    "default": "square",
+    "description": "Square holds more in a drawer and stacks; round is stronger for the same wall and has no corners to clean out.",
+    "name": "shape",
+    "optional": false,
+    "required": false,
+    "type": "choice",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "gt": 20.0,
+     "le": 400.0
+    },
+    "choices": [],
+    "default": 120.0,
+    "description": "Outside, left to right, AT THE RIM - the widest point. Square bodies only. The rim is the number that decides whether it goes in the drawer.",
+    "name": "width_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 20.0,
+     "le": 400.0
+    },
+    "choices": [],
+    "default": 90.0,
+    "description": "Outside, front to back, at the rim. Square bodies only.",
+    "name": "depth_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 20.0,
+     "le": 400.0
+    },
+    "choices": [],
+    "default": 100.0,
+    "description": "Outside across the rim. Round bodies only.",
+    "name": "diameter_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 10.0,
+     "le": 400.0
+    },
+    "choices": [],
+    "default": 70.0,
+    "description": "Outside, floor to rim.",
+    "name": "height_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 14.0
+    },
+    "choices": [],
+    "default": 0.0,
+    "description": "How far the walls lean in going down. 0 is a straight tub. 6-10 degrees makes them nest inside one another when empty, which is what a stack of takeaway tubs is doing.",
+    "name": "taper_deg",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "deg"
+   },
+   {
+    "bounds": {
+     "ge": 1.2,
+     "le": 10.0
+    },
+    "choices": [],
+    "default": 2.4,
+    "description": "The side wall. 2.4 is two perimeters of a 0.6 nozzle.",
+    "name": "wall_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.8,
+     "le": 15.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "The floor. Left out, 1.4 x the wall - the floor is what gets set down on a table and what the contents press on.",
+    "name": "floor_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.0,
+     "le": 60.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "Corner rounding on a square body. Left out, 3 x the wall.",
+    "name": "corner_r_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 1,
+     "le": 6
+    },
+    "choices": [],
+    "default": 1,
+    "description": "Compartments left to right. More than one makes it a lunch box rather than a tub. Square bodies only.",
+    "name": "columns",
+    "optional": false,
+    "required": false,
+    "type": "int",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "ge": 1,
+     "le": 6
+    },
+    "choices": [],
+    "default": 1,
+    "description": "Compartments front to back.",
+    "name": "rows",
+    "optional": false,
+    "required": false,
+    "type": "int",
+    "units": ""
+   },
+   {
+    "bounds": {},
+    "choices": [
+     "open",
+     "lid",
+     "clip",
+     "magnet",
+     "hinge"
+    ],
+    "default": "lid",
+    "description": "open: a tub, no lid. lid: a lid that drops into the mouth on a skirt. clip: the same lid with snap tabs that click over a groove - it stays shut upside down. magnet: held by magnets in the rim, which opens with one finger. hinge: knuckles at the back and a printed pin, so the lid cannot be put down and lost.",
+    "name": "closure",
+    "optional": false,
+    "required": false,
+    "type": "choice",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "ge": 2.0,
+     "le": 60.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "How far the lid's skirt reaches down inside. Left out, 18% of the height and never under 4 mm - a short skirt lets the lid rock and lift off.",
+    "name": "lid_skirt_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 0.05,
+     "le": 1.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "The air between lid and body. Left out, the MATERIAL'S OWN measured clearance from config - a figure harvested from test prints, not chosen here.",
+    "name": "lid_clearance_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 2.0,
+     "le": 25.0
+    },
+    "choices": [],
+    "default": 6.0,
+    "description": "Magnet diameter. 6 x 3 discs are the common size.",
+    "name": "magnet_dia_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.8,
+     "le": 15.0
+    },
+    "choices": [],
+    "default": 3.0,
+    "description": "Magnet thickness.",
+    "name": "magnet_thick_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "ge": 2,
+     "le": 12
+    },
+    "choices": [],
+    "default": 4,
+    "description": "How many pairs. Four is a lid that will not twist off.",
+    "name": "magnet_count",
+    "optional": false,
+    "required": false,
+    "type": "int",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "ge": 1,
+     "le": 8
+    },
+    "choices": [],
+    "default": 2,
+    "description": "Snap tabs around the skirt. Two opposite each other is a lid you can pop with a thumb; four needs two hands.",
+    "name": "snap_tab_count",
+    "optional": false,
+    "required": false,
+    "type": "int",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "ge": 0.15,
+     "le": 2.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "How far the snap bead stands proud. Left out, 35% of the skirt thickness - see SNAP_BEAD_FRACTION, which shows the deflection that figure came from. This is an ASSUMPTION and is reported.",
+    "name": "snap_bead_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 1.5,
+     "le": 10.0
+    },
+    "choices": [],
+    "default": 3.0,
+    "description": "Hinge pin. Printed as a third body, or use a 3 mm rod.",
+    "name": "pin_dia_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {},
+    "choices": [],
+    "default": false,
+    "description": "A groove in the underside that sits over the rim - or over the lid's raised ring - of the one below, so a stack does not slide.",
+    "name": "stackable",
+    "optional": false,
+    "required": false,
+    "type": "bool",
+    "units": ""
+   }
+  ],
+  "print_notes": [
+   "B",
+   "o",
+   "d",
+   "y",
+   " ",
+   "o",
+   "p",
+   "e",
+   "n",
+   " ",
+   "s",
+   "i",
+   "d",
+   "e",
+   " ",
+   "u",
+   "p",
+   ",",
+   " ",
+   "f",
+   "l",
+   "a",
+   "t",
+   " ",
+   "o",
+   "n",
+   " ",
+   "t",
+   "h",
+   "e",
+   " ",
+   "b",
+   "e",
+   "d",
+   " ",
+   "-",
+   " ",
+   "n",
+   "o",
+   " ",
+   "s",
+   "u",
+   "p",
+   "p",
+   "o",
+   "r",
+   "t",
+   " ",
+   "a",
+   "n",
+   "y",
+   "w",
+   "h",
+   "e",
+   "r",
+   "e",
+   ".",
+   " ",
+   "T",
+   "h",
+   "e",
+   " ",
+   "l",
+   "i",
+   "d",
+   " ",
+   "g",
+   "o",
+   "e",
+   "s",
+   " ",
+   "T",
+   "O",
+   "P",
+   " ",
+   "F",
+   "A",
+   "C",
+   "E",
+   " ",
+   "D",
+   "O",
+   "W",
+   "N",
+   ",",
+   " ",
+   "n",
+   "o",
+   "t",
+   " ",
+   "t",
+   "h",
+   "e",
+   " ",
+   "w",
+   "a",
+   "y",
+   " ",
+   "i",
+   "t",
+   " ",
+   "s",
+   "i",
+   "t",
+   "s",
+   " ",
+   "o",
+   "n",
+   " ",
+   "t",
+   "h",
+   "e",
+   " ",
+   "b",
+   "o",
+   "x",
+   ":",
+   " ",
+   "t",
+   "h",
+   "a",
+   "t",
+   " ",
+   "p",
+   "u",
+   "t",
+   "s",
+   " ",
+   "t",
+   "h",
+   "e",
+   " ",
+   "s",
+   "k",
+   "i",
+   "r",
+   "t",
+   " ",
+   "u",
+   "p",
+   "w",
+   "a",
+   "r",
+   "d",
+   " ",
+   "s",
+   "o",
+   " ",
+   "i",
+   "t",
+   " ",
+   "p",
+   "r",
+   "i",
+   "n",
+   "t",
+   "s",
+   " ",
+   "o",
+   "n",
+   "t",
+   "o",
+   " ",
+   "a",
+   " ",
+   "f",
+   "a",
+   "c",
+   "e",
+   ",",
+   " ",
+   "a",
+   "n",
+   "d",
+   " ",
+   "p",
+   "u",
+   "t",
+   "s",
+   " ",
+   "e",
+   "v",
+   "e",
+   "r",
+   "y",
+   " ",
+   "m",
+   "a",
+   "g",
+   "n",
+   "e",
+   "t",
+   " ",
+   "p",
+   "o",
+   "c",
+   "k",
+   "e",
+   "t",
+   " ",
+   "o",
+   "p",
+   "e",
+   "n",
+   "i",
+   "n",
+   "g",
+   " ",
+   "u",
+   "p",
+   "w",
+   "a",
+   "r",
+   "d",
+   ".",
+   " ",
+   "A",
+   " ",
+   "h",
+   "i",
+   "n",
+   "g",
+   "e",
+   "d",
+   " ",
+   "o",
+   "n",
+   "e",
+   " ",
+   "a",
+   "l",
+   "s",
+   "o",
+   " ",
+   "n",
+   "e",
+   "e",
+   "d",
+   "s",
+   " ",
+   "t",
+   "h",
+   "e",
+   " ",
+   "p",
+   "i",
+   "n",
+   ",",
+   " ",
+   "w",
+   "h",
+   "i",
+   "c",
+   "h",
+   " ",
+   "p",
+   "r",
+   "i",
+   "n",
+   "t",
+   "s",
+   " ",
+   "l",
+   "y",
+   "i",
+   "n",
+   "g",
+   " ",
+   "d",
+   "o",
+   "w",
+   "n",
+   " ",
+   "b",
+   "e",
+   "s",
+   "i",
+   "d",
+   "e",
+   " ",
+   "t",
+   "h",
+   "e",
+   "m",
+   "."
+  ],
+  "summary": "A box or tub - square or round, straight or tapered, in one piece or divided into compartments - with a lid that drops on, clips shut on snap tabs, holds with magnets or swings on a pinned hinge. The outside can carry ribs, flutes, facets, a honeycomb, a knurl or horizontal waves rather than being four flat faces."
+ },
  "enclosure": {
   "anchors": [
    "front_face",
@@ -1103,10 +1869,16 @@
     "choices": [
      "plain",
      "board",
-     "slat"
+     "slat",
+     "ribs",
+     "flutes",
+     "facets",
+     "hex",
+     "knurl",
+     "waves"
     ],
     "default": "plain",
-    "description": "Exterior relief. plain is flat. board cuts horizontal shiplap grooves for a weatherboard look. slat cuts vertical reveals for a modern slatted panel look.",
+    "description": "Exterior relief. plain is flat. board cuts horizontal shiplap grooves for a weatherboard look and slat cuts vertical reveals for a modern slatted panel look - both of those belong to this box. ribs, flutes, facets, hex, knurl and waves are the catalogue's shared patterns and mean the same here as on anything else.",
     "name": "finish",
     "optional": false,
     "required": false,
@@ -1259,6 +2031,67 @@
   ],
   "name": "gridfinity",
   "params": [
+   {
+    "bounds": {},
+    "choices": [
+     "plain",
+     "ribs",
+     "flutes",
+     "facets",
+     "hex",
+     "knurl",
+     "waves"
+    ],
+    "default": "plain",
+    "description": "The pattern on the outside. plain is flat faces, which is most of why a downloaded model looks better than a generated one. ribs and flutes are vertical grooves; facets cut flats round a cylinder; hex and knurl are shallow pockets; waves are horizontal rings.",
+    "name": "finish",
+    "optional": false,
+    "required": false,
+    "type": "choice",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "gt": 1.0,
+     "le": 60.0
+    },
+    "choices": [],
+    "default": 9.0,
+    "description": "Centre to centre of the pattern.",
+    "name": "finish_pitch_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.4,
+     "le": 40.0
+    },
+    "choices": [],
+    "default": 3.0,
+    "description": "How wide each cut, or each cell, is.",
+    "name": "finish_groove_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.1,
+     "le": 4.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "How far into the wall. Left out, whichever is smaller of 0.7 mm and a third of the wall - a decoration that takes more than a third of the wall is a weakness, and one that reaches the cavity is a hole. Given explicitly it is checked, not clamped.",
+    "name": "finish_depth_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
    {
     "bounds": {
      "ge": 1,
@@ -3075,6 +3908,67 @@
   "name": "tray",
   "params": [
    {
+    "bounds": {},
+    "choices": [
+     "plain",
+     "ribs",
+     "flutes",
+     "facets",
+     "hex",
+     "knurl",
+     "waves"
+    ],
+    "default": "plain",
+    "description": "The pattern on the outside. plain is flat faces, which is most of why a downloaded model looks better than a generated one. ribs and flutes are vertical grooves; facets cut flats round a cylinder; hex and knurl are shallow pockets; waves are horizontal rings.",
+    "name": "finish",
+    "optional": false,
+    "required": false,
+    "type": "choice",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "gt": 1.0,
+     "le": 60.0
+    },
+    "choices": [],
+    "default": 9.0,
+    "description": "Centre to centre of the pattern.",
+    "name": "finish_pitch_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.4,
+     "le": 40.0
+    },
+    "choices": [],
+    "default": 3.0,
+    "description": "How wide each cut, or each cell, is.",
+    "name": "finish_groove_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.1,
+     "le": 4.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "How far into the wall. Left out, whichever is smaller of 0.7 mm and a third of the wall - a decoration that takes more than a third of the wall is a weakness, and one that reaches the cavity is a hole. Given explicitly it is checked, not clamped.",
+    "name": "finish_depth_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
     "bounds": {
      "gt": 20.0,
      "le": 500.0
@@ -3348,7 +4242,7 @@
    "t",
    "."
   ],
-  "summary": "A shallow open tray divided into a grid of compartments, with a finger scoop in the front of each, thin dividers and a thin floor. Prints open side up with no support."
+  "summary": "A shallow open tray divided into a grid of compartments, with a finger scoop in the front of each, thin dividers and a thin floor. The outside can carry ribs, a honeycomb, a knurl or horizontal waves. Prints open side up with no support."
  },
  "vessel": {
   "anchors": [
@@ -3397,6 +4291,67 @@
   ],
   "name": "vessel",
   "params": [
+   {
+    "bounds": {},
+    "choices": [
+     "plain",
+     "ribs",
+     "flutes",
+     "facets",
+     "hex",
+     "knurl",
+     "waves"
+    ],
+    "default": "plain",
+    "description": "The pattern on the outside. plain is flat faces, which is most of why a downloaded model looks better than a generated one. ribs and flutes are vertical grooves; facets cut flats round a cylinder; hex and knurl are shallow pockets; waves are horizontal rings.",
+    "name": "finish",
+    "optional": false,
+    "required": false,
+    "type": "choice",
+    "units": ""
+   },
+   {
+    "bounds": {
+     "gt": 1.0,
+     "le": 60.0
+    },
+    "choices": [],
+    "default": 9.0,
+    "description": "Centre to centre of the pattern.",
+    "name": "finish_pitch_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.4,
+     "le": 40.0
+    },
+    "choices": [],
+    "default": 3.0,
+    "description": "How wide each cut, or each cell, is.",
+    "name": "finish_groove_mm",
+    "optional": false,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
+   {
+    "bounds": {
+     "gt": 0.1,
+     "le": 4.0
+    },
+    "choices": [],
+    "default": null,
+    "description": "How far into the wall. Left out, whichever is smaller of 0.7 mm and a third of the wall - a decoration that takes more than a third of the wall is a weakness, and one that reaches the cavity is a hole. Given explicitly it is checked, not clamped.",
+    "name": "finish_depth_mm",
+    "optional": true,
+    "required": false,
+    "type": "float",
+    "units": "mm"
+   },
    {
     "bounds": {
      "gt": 4.0,

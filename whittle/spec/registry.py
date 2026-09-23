@@ -57,7 +57,7 @@ def register(template: Template) -> Template:
 def _load_builtins() -> None:
     """Import the built-in templates so they self-register. Idempotent."""
     from whittle.build.templates import (  # noqa: F401
-        bracket, cable_box, clip, enclosure, gridfinity, hook,
+        bracket, cable_box, clip, container, enclosure, gridfinity, hook,
         keyring_device, louvre_vent, stand, tray, vessel,
     )
 
