@@ -1,13 +1,30 @@
 /**
- * A built part: what it is, whether it prints, and how to get it out.
+ * A built part, on the workbench.
  *
  * Reached two ways - straight off a build, or out of the library - so it takes
  * a name and fetches the rest. The geometry goes through the SAME viewport the
  * imports use: one renderer, one GLB reader, one set of eyes on whether it
  * draws.
  *
- * WHAT WAS WRONG WITH THIS SCREEN, AND IT WAS NOT THE LAYOUT
- * ----------------------------------------------------------
+ * IT FILLS Workbench.tsx, which is the same frame a model somebody brought in
+ * fills. Before that there were two screens with four tabs each and one name
+ * shared between them:
+ *
+ *   this screen     change it | checks | measured | report
+ *   an imported one change it | model  | checks   | save
+ *
+ * Same four things, named differently three times out of four, so a person who
+ * imported a model after building one had to learn the app twice.
+ *
+ * ONE BOX, AND IT IS THERE ON AN IMPORT TOO. This screen used to draw its
+ * sentence box inside `{!imported ? ... : null}` - bring a model in and there
+ * was nowhere to say anything to it at all, only a button leading to a second
+ * screen with a second box. See `change` below: the sentence now goes to
+ * whichever half of the engine owns the object, and the person never has to
+ * know there were two.
+ *
+ * WHAT WAS WRONG WITH THIS SCREEN BEFORE THAT, AND IT WAS NOT THE LAYOUT
+ * ----------------------------------------------------------------------
  * It showed a name, a size, a piece count and one verdict word. Everything
  * else it drew came from `built` - the payload of a build that had JUST
  * happened - so a part opened from the library, which is the only way anybody
@@ -30,20 +47,17 @@
  * AND YOU CAN NOW TAKE THE PART WITH YOU. There was no download anywhere in
  * the app. See src/save.ts.
  *
- * THE VERDICT IS THE HEADLINE, and the problems are quoted in the engine's own
- * words. A part that failed verification still gets shown - it exists, it is on
- * disk, and hiding it would leave somebody with a build that "did nothing".
- * What it does not get is a green tick.
+ * THE VERDICT IS ONE LINE AND IT IS ALWAYS ON SCREEN. A part that failed
+ * verification still gets shown - it exists, it is on disk, and hiding it
+ * would leave somebody with a build that "did nothing". What it does not get
+ * is a green tick.
  */
 
 import Slider from '@react-native-community/slider';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   TextInput,
   View,
@@ -78,7 +92,6 @@ import {
   Button,
   Chip,
   Empty,
-  Header,
   Mono,
   Panel,
   Problem,
@@ -90,21 +103,34 @@ import {
   Verdict,
 } from '../ui';
 import { Viewport } from '../Viewport';
-
-const TABS = ['change it', 'checks', 'measured', 'report'] as const;
+import { NothingHere, Workbench } from '../Workbench';
+import {
+  openAt,
+  sayHint,
+  sayTo,
+  standingOfPart,
+  type PanelName,
+} from '../workbench';
 
 /**
- * What an IMPORTED mesh gets instead.
+ * The two orientations, in the words a person uses for them.
  *
- * No "change it": there is no spec, so the sentence has nothing to act on and
- * the sliders have no schema. What it does have is a mesh, which means every
- * check runs and every measurement is real - so those lead.
+ * THE TAB LISTS THAT USED TO BE HERE ARE GONE. This screen had
+ * `change it | checks | measured | report`, and a second shorter list for an
+ * imported mesh, and the mesh screen had a third - four panels named three
+ * different ways depending on what you happened to be looking at. There is one
+ * list now and it is in workbench.ts, because a person should not have to
+ * learn this app twice.
  */
-const IMPORT_TABS = ['measured', 'checks', 'report'] as const;
-
-/** The two orientations, in the words a person uses for them. */
 const LAYOUTS = ['assembled', 'on the bed'] as const;
-type Tab = (typeof TABS)[number];
+
+/**
+ * How long after the thumb stops before the shape is redrawn.
+ *
+ * A quarter of a second: soon enough to read as live, slow enough that a drag
+ * across the whole slider costs one rebuild rather than forty.
+ */
+const PREVIEW_SETTLE_MS = 250;
 
 interface Props {
   api: Api;
@@ -157,11 +183,16 @@ export function PartScreen({
   const [detail, setDetail] = useState<PartDetail | null>(null);
   const [glb, setGlb] = useState<ArrayBuffer | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  // THE CHANGE TAB OPENS FIRST, and that is the whole shape of this screen.
-  // Somebody typed two words, the engine chose every number, and what they are
-  // here to do is move those numbers - not read a verdict. The verdict is one
-  // line at the top either way.
-  const [tab, setTab] = useState<Tab>('change it');
+  /**
+   * Which drawer panel is open, if any.
+   *
+   * THE NUMBERS OPEN FIRST, and that is the whole shape of this screen:
+   * somebody typed two words, the engine chose every number, and what they are
+   * here to do is move those numbers. The exception is a part that will not
+   * print - openAt sends that one to the reason instead, because otherwise the
+   * first move is to go and look for it.
+   */
+  const [panel, setPanel] = useState<PanelName | null>('shape');
   /**
    * Which of the part's two orientations the viewport shows.
    *
@@ -181,6 +212,17 @@ export function PartScreen({
    * thrown away. They collect here and go in one request.
    */
   const [pending, setPending] = useState<Record<string, number>>({});
+  /**
+   * The geometry as the sliders currently have it, before anything is built.
+   *
+   * SEPARATE FROM `glb`, which is the part as it is ON DISK. Overwriting that
+   * would mean a preview survived leaving the panel and looked like the built
+   * part - so dropping the pending changes has to put the real one back, and
+   * it can only do that if it still has it.
+   */
+  const [preview, setPreview] = useState<ArrayBuffer | null>(null);
+  /** True while the drawn shape is behind where the sliders have been put. */
+  const [catchingUp, setCatchingUp] = useState(false);
 
   /**
    * Managing the part itself: renaming it, or removing it.
@@ -292,17 +334,6 @@ export function PartScreen({
   const mine = (parts ?? []).find((p) => p.dir === showing);
   const chain = mine ? chainOf(parts ?? [], mine) : [];
 
-  /**
-   * The tab actually being shown.
-   *
-   * `tab` is what was last chosen and it survives moving between parts, so it
-   * can be "change it" when the part in hand is an import that has no such
-   * tab. Resolving it once here keeps every branch below reading as one
-   * comparison instead of each re-deriving the fallback - the first attempt at
-   * this put the correction inline and produced a condition nobody could read.
-   */
-  const at: Tab = imported && tab === 'change it' ? 'measured' : tab;
-
   const tweaks = tweaksFor(schema, params);
 
   // SLIDERS FOR A PART WITH NO TEMPLATE TOO.
@@ -341,6 +372,20 @@ export function PartScreen({
    * RULE 32, ON THE SCREEN. This is the way in for a change, not a menu of
    * parameters - "make this roof a triangular roof" is what a person types,
    * and the engine decides it against this part's own schema.
+   *
+   * AND IT WORKS ON SOMETHING SOMEBODY BROUGHT IN, which it did not before.
+   * The box used to be drawn inside `{!imported ? ... : null}`, so an imported
+   * model had NOWHERE TO SAY ANYTHING AT ALL - the only way to touch it was a
+   * button labelled "open the mesh" leading to a second screen with a second
+   * box on it. The reason given was true as far as it went: /api/refine wants
+   * a spec.yaml and a mesh has none, so a box wired to refine would fail on
+   * every sentence.
+   *
+   * The answer is not to remove the box, it is to send the sentence to the
+   * right place. A mesh is opened as a project - the same call the button
+   * made - and the sentence goes to /api/project/<id>/say, which is what that
+   * second screen was doing all along. One box; whittle works out whether what
+   * was said is a change to a design or an operation on a mesh.
    */
   const change = useCallback(async () => {
     const text = instruction.trim();
@@ -348,15 +393,26 @@ export function PartScreen({
     setBusy(true);
     setProblem(null);
     try {
-      const { job } = await api.refine(showing, text);
+      if (imported) {
+        // OPENED, THEN TOLD. Two calls rather than one because a part and a
+        // project are different things on the server and this is the seam
+        // between them - but it is one action here, and it lands on the mesh
+        // workbench with the change already made rather than on an empty one.
+        const project = await api.projectFromPart(showing);
+        const said = await sayTo(api, { kind: 'project', id: project.id }, text);
+        setInstruction('');
+        if (said.at === 'project') onEdit(said.said.project);
+        return;
+      }
+      const started = await sayTo(api, { kind: 'part', name: showing }, text);
       setInstruction('');
-      onChanging(job, text, 'refine');
+      if (started.at === 'part') onChanging(started.jobId, text, 'refine');
     } catch (error: any) {
       setProblem(error instanceof ApiError ? error.message : String(error?.message ?? error));
     } finally {
       setBusy(false);
     }
-  }, [api, instruction, onChanging, showing]);
+  }, [api, imported, instruction, onChanging, onEdit, showing]);
 
   const edit = useCallback(async () => {
     setBusy(true);
@@ -379,6 +435,67 @@ export function PartScreen({
    * overwriting run.json would destroy the record of what the part was given
    * when it was made.
    */
+  /**
+   * Draw the shape the sliders are currently asking for.
+   *
+   * ONE AT A TIME, AND ALWAYS THE LAST ONE - the same rule the mesh editor
+   * works to. A drag fires faster than the round trip completes; letting them
+   * queue would draw the part at every position it passed through, seconds
+   * after the finger stopped. A request in flight sets a flag and the newest
+   * values are fetched once it lands.
+   *
+   * DEBOUNCED, because this is CAD and not a mesh operation. The server does
+   * the geometry in 57-90 ms, but it is a real rebuild rather than a transform
+   * of an existing mesh, so firing one per frame would queue work that is
+   * thrown away. A quarter of a second after the thumb stops is soon enough to
+   * read as live and slow enough not to waste the machine.
+   */
+  const previewInFlight = useRef(false);
+  const previewAgain = useRef<Record<string, number> | null>(null);
+
+  const drawPending = useCallback(
+    async (values: Record<string, number>) => {
+      if (previewInFlight.current) {
+        previewAgain.current = values;
+        return;
+      }
+      previewInFlight.current = true;
+      setCatchingUp(true);
+      try {
+        setPreview(await api.previewPart(showing, values));
+        setProblem(null);
+      } catch (error: any) {
+        // A REFUSAL IS AN ANSWER AND IT IS THE USEFUL ONE. The schema's own
+        // words say where the end of the slider really is - "width_mm: Input
+        // should be less than or equal to 1000" - which is what somebody
+        // dragging it was about to find out the slow way.
+        setProblem(
+          error instanceof ApiError ? error.message : String(error?.message ?? error),
+        );
+      } finally {
+        previewInFlight.current = false;
+        const queued = previewAgain.current;
+        previewAgain.current = null;
+        if (queued) {
+          drawPending(queued);
+        } else {
+          setCatchingUp(false);
+        }
+      }
+    },
+    [api, showing],
+  );
+
+  useEffect(() => {
+    if (!Object.keys(pending).length) {
+      setPreview(null);
+      setCatchingUp(false);
+      return undefined;
+    }
+    const timer = setTimeout(() => drawPending(pending), PREVIEW_SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, [drawPending, pending]);
+
   /**
    * Build it again with the numbers as they have been dragged to.
    *
@@ -455,7 +572,8 @@ export function PartScreen({
     try {
       const { checks: now } = await api.verify(showing);
       setRechecked(now);
-      setTab('checks');
+      // Straight to what it says, because that is what was asked for.
+      setPanel('prints');
     } catch (error: any) {
       setProblem(error instanceof ApiError ? error.message : String(error?.message ?? error));
     } finally {
@@ -483,18 +601,168 @@ export function PartScreen({
     [api, shownName, showing],
   );
 
-  return (
-    <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Header
-        back={onClose}
-        backLabel="back"
-        title={shownName}
-        subtitle={subtitle(showing, shownName, fresh)}
-        right={busy ? <Rig size={40} /> : undefined}
-      />
+  const standing = draft
+    ? { tone: 'fail' as const, headline: 'this one never built', detail: draft.request, stale: false }
+    : standingOfPart({ size_mm: size ?? undefined, volume_cm3: volume ?? undefined,
+                       bodies: bodies ?? undefined, checks: checks ?? undefined }, fresh);
 
+  const moved = Object.keys(pending);
+
+  // A VERDICT ABOUT A SHAPE NOBODY IS LOOKING AT IS WORSE THAN NONE. The
+  // preview skips the printability gate on purpose - it is the expensive half
+  // - so while the sliders are ahead of the last build, the stored verdict
+  // describes the part on disk and not the one on screen. Saying so is the
+  // honest line; showing the old tick is the one that misleads.
+  const standingNow = moved.length
+    ? {
+        tone: 'warn' as const,
+        headline: catchingUp ? 'drawing the change…' : 'not checked at these numbers yet',
+        detail: 'build it to find out whether it still prints',
+        stale: true,
+      }
+    : standing;
+
+  return (
+    <Workbench
+      title={shownName}
+      subtitle={subtitle(showing, shownName, fresh)}
+      onClose={onClose}
+      headerRight={busy ? <Rig size={40} /> : undefined}
+      standing={standingNow}
+      chain={
+        chain.length > 1
+          ? {
+              label: `${chain.length} builds of this  ·  showing ${showing}`,
+              onPress: () => setPanel('about'),
+            }
+          : null
+      }
+      panel={panel}
+      onPanel={setPanel}
+      panels={{
+        shape: draft ? (
+          <DraftPanel draft={draft} />
+        ) : imported ? (
+          // A MESH HAS NO DIMENSIONS TO TYPE AT, and saying so is better than
+          // an empty panel. What it does have is every operation that works on
+          // any model, and the box below reaches all of them.
+          <Imported detail={detail!} onEdit={edit} busy={busy} />
+        ) : (
+          <ChangeTab
+            assumptions={assumptions}
+            tweaks={tweaks}
+            dimensions={dimensions}
+            pending={pending}
+            onDrag={(name, value) => setPending((current) => ({ ...current, [name]: value }))}
+            onRebuild={rebuild}
+            hasSchema={Boolean(schema)}
+            onSay={setInstruction}
+            onSliders={edit}
+            busy={busy}
+          />
+        ),
+        prints: draft ? undefined : (
+          <ChecksTab
+            checks={checks}
+            problems={problems}
+            warnings={warnings}
+            onRecheck={recheck}
+            busy={busy}
+            api={api}
+            showing={showing}
+            hasMesh={detail?.has_stl ?? Boolean(glb)}
+          />
+        ),
+        about: draft ? undefined : (
+          <>
+            {chain.length > 1 ? (
+              <Chain chain={chain} showing={showing} onShow={onShowPart} />
+            ) : null}
+            <MeasuredTab
+              size={size}
+              volume={volume}
+              bodies={bodies}
+              material={material}
+              template={template}
+              watertight={watertight}
+              level={fresh?.level ?? detail?.level ?? null}
+              options={options}
+              showing={showing}
+              onShow={setShowing}
+            />
+            {reportMd ? <ReportTab markdown={reportMd} /> : null}
+            <ManagePanel
+              showing={showing}
+              managing={managing}
+              onManaging={(open) => {
+                setManaging(open);
+                setConfirmDelete(false);
+              }}
+              newName={newName}
+              onNewName={setNewName}
+              onRename={renameIt}
+              confirmDelete={confirmDelete}
+              onConfirmDelete={setConfirmDelete}
+              onRemove={removeIt}
+              busy={busy}
+            />
+          </>
+        ),
+        save: files.length ? (
+          <SavePanel files={files} onSave={save} busy={busy} />
+        ) : (
+          <NothingHere
+            what="nothing on disk to take away"
+            hint="a part that never built has no files. Change it and build it again."
+          />
+        ),
+      }}
+      say={{
+        value: instruction,
+        onChange: setInstruction,
+        onSend: change,
+        // THE PLACEHOLDER IS ABOUT THIS PART, not about a birdhouse. It read
+        // "make this roof a triangular roof" on every part in the library - on
+        // a keyring tag, which has no roof, that is an example of something the
+        // engine will refuse, offered as the example of what to type.
+        hint: sayHint(
+          imported ? { kind: 'project', id: showing } : { kind: 'part', name: showing },
+          tweaks[0]?.say,
+        ),
+        busy,
+        action: 'change it',
+      }}
+      above={
+        <>
+          {problem ? <Problem text={problem} /> : null}
+          {saved ? (
+            <Surface step="well" style={styles.saved}>
+              <Verdict state="pass" text={saved} />
+            </Surface>
+          ) : null}
+          {/* WHAT HAS MOVED AND NOT BEEN BUILT. A person who drags three
+              sliders and shuts the drawer has no other way to find the button,
+              and an unbuilt change that is out of sight is a change they will
+              believe happened. */}
+          {moved.length ? (
+            <Surface step="pill" style={styles.pendingBar}>
+              <View style={styles.grow}>
+                <Mono size="label" weight="medium" color={core.phosphor}>
+                  {moved.length} change{moved.length === 1 ? '' : 's'} not built yet
+                </Mono>
+                <Mono size="micro" color={core.dim} numberOfLines={1}>
+                  {moved
+                    .map((key) => `${key.replace(/_mm$|_deg$/, '')} ${pending[key]}`)
+                    .join('  ·  ')}
+                </Mono>
+              </View>
+              <Quiet label="undo" onPress={() => setPending({})} />
+              <Button label="build it" primary onPress={rebuild} disabled={busy} />
+            </Surface>
+          ) : null}
+        </>
+      }
+    >
       {/* A DRAFT HAS NOTHING TO DRAW. Showing an empty canvas over "fetching
           the geometry…" for ever is what this screen used to do to a part that
           never built, and it reads as a broken viewer rather than as a build
@@ -502,7 +770,14 @@ export function PartScreen({
       {draft ? null : (
         <View style={styles.viewport}>
           {layout === 'assembled' ? (
-            <Viewport glb={glb} placeholder="fetching the geometry…" />
+            // THE PENDING SHAPE WINS WHILE THERE IS ONE. The point of a slider
+            // is to see what it does; a viewport showing the part as it is on
+            // disk while the numbers say something else is showing the one
+            // thing nobody is asking about.
+            <Viewport
+              glb={preview ?? glb}
+              placeholder={preview ? 'drawing the change…' : 'fetching the geometry…'}
+            />
           ) : (
             // THE PRINT LAYOUT IS A RENDER, NOT THE GLB. The GLB route serves
             // the assembled mesh and only that; the print layout is the STL on
@@ -517,292 +792,153 @@ export function PartScreen({
               />
             </View>
           )}
+
+          {/* WHICH WAY UP, OVER THE OBJECT rather than under it. A birdhouse
+              is a box with its roof panels lying flat beside it, because that
+              is how it prints without support - and the app only ever showed
+              the assembled form, so somebody could look at a finished-looking
+              birdhouse with no idea it comes off the bed in three pieces.
+              It sits on the viewport because it changes what is being looked
+              at, and a control for that belongs on the thing it changes. */}
+          {detail?.has_stl === true ? (
+            <View style={styles.layoutOver}>
+              <Segmented
+                options={LAYOUTS}
+                value={layout === 'assembled' ? 'assembled' : 'on the bed'}
+                onChange={(next) => setLayout(next === 'assembled' ? 'assembled' : 'print')}
+              />
+            </View>
+          ) : null}
         </View>
       )}
+    </Workbench>
+  );
+}
 
-      {/* WHICH WAY UP, and it is not a display preference. A birdhouse is a
-          box with its roof panels lying flat beside it, because that is how it
-          prints without support - and the app only ever showed the assembled
-          form, so somebody could look at a finished-looking birdhouse and have
-          no idea it comes off the bed in three pieces. */}
-      {/* ONLY WHEN WE KNOW THERE IS AN STL. `has_stl !== false` was true
-          while the payload was still in flight, so the toggle appeared, was
-          tapped, and drew a 404 as an empty box. The print layout IS the STL
-          on disk - no STL, no print layout to show. */}
-      {!draft && detail?.has_stl === true ? (
-        <View style={styles.layoutRow}>
-          <Segmented
-            options={LAYOUTS}
-            value={layout === 'assembled' ? 'assembled' : 'on the bed'}
-            onChange={(next) => setLayout(next === 'assembled' ? 'assembled' : 'print')}
-            style={styles.grow}
-          />
-          {bodies !== null && bodies > 1 ? (
-            <Mono size="micro" color={core.dim}>
-              {bodies} pieces
-            </Mono>
-          ) : null}
-        </View>
-      ) : null}
-
-      <Surface step="pill" style={styles.verdictBar}>
-        <Verdict
-          state={draft ? 'fail' : !known ? 'waiting' : passed ? 'pass' : 'fail'}
-          text={
-            draft
-              ? 'this one never built'
-              : known
-                ? verdict
-                : 'no verdict recorded for this part - check it now'
-          }
-        />
-        {/* WHEN IT WAS CHECKED, AND WHETHER THE GROUND HAS MOVED. A verdict
-            measured against a 0.4 mm nozzle says nothing certain about a
-            machine now running 0.6, and the server works that out rather than
-            leaving it to be noticed. */}
-        {checks?.drift?.length ? (
-          <View style={styles.drift}>
-            {checks.drift.map((line, index) => (
-              <Verdict key={index} state="warn" text={line} />
-            ))}
+/**
+ * Renaming the part, or removing it.
+ *
+ * SHUT BY DEFAULT AND LAST IN THE PANEL. These are not things somebody came
+ * here to do, and one of them cannot be undone - so they are behind a
+ * deliberate tap rather than beside the controls that change geometry.
+ */
+function ManagePanel({
+  showing,
+  managing,
+  onManaging,
+  newName,
+  onNewName,
+  onRename,
+  confirmDelete,
+  onConfirmDelete,
+  onRemove,
+  busy,
+}: {
+  showing: string;
+  managing: boolean;
+  onManaging: (open: boolean) => void;
+  newName: string;
+  onNewName: (value: string) => void;
+  onRename: () => void;
+  confirmDelete: boolean;
+  onConfirmDelete: (value: boolean) => void;
+  onRemove: () => void;
+  busy: boolean;
+}) {
+  return (
+    <Panel title="this part">
+      <Quiet
+        label={managing ? '– done' : 'rename or remove'}
+        onPress={() => onManaging(!managing)}
+      />
+      {managing ? (
+        <>
+          <Mono size="micro" color={core.dim}>
+            its folder is {showing}
+          </Mono>
+          <View style={styles.renameRow}>
+            <Surface step="well" style={styles.renameWell}>
+              <TextInput
+                value={newName}
+                onChangeText={onNewName}
+                placeholder="a name you will recognise"
+                placeholderTextColor={core.dim}
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={styles.input}
+              />
+            </Surface>
+            <Button label="rename" onPress={onRename} disabled={busy || !newName.trim()} />
           </View>
-        ) : null}
-      </Surface>
+          <Prose size="body" color={core.dim}>
+            This renames the folder, which is what the app navigates by. What the part calls
+            itself inside its own spec is left alone.
+          </Prose>
 
-      {!draft ? (
-        <Segmented options={imported ? IMPORT_TABS : TABS} value={at} onChange={setTab} />
-      ) : null}
-
-      <ScrollView
-        style={styles.sheet}
-        contentContainerStyle={styles.sheetBody}
-        keyboardShouldPersistTaps="handled">
-        {problem ? <Problem text={problem} /> : null}
-        {saved ? (
-          <Surface step="well" style={styles.saved}>
-            <Verdict state="pass" text={saved} />
-          </Surface>
-        ) : null}
-
-        {draft ? <DraftPanel draft={draft} /> : null}
-
-        {chain.length > 1 ? (
-          <Chain chain={chain} showing={showing} onShow={onShowPart} />
-        ) : null}
-
-        {imported ? <Imported detail={detail!} onEdit={edit} busy={busy} /> : null}
-
-        {!draft && !imported && at === 'change it' ? (
-          <ChangeTab
-            assumptions={assumptions}
-            tweaks={tweaks}
-            dimensions={dimensions}
-            pending={pending}
-            onDrag={(name, value) => setPending((p) => ({ ...p, [name]: value }))}
-            onRebuild={rebuild}
-            hasSchema={Boolean(schema)}
-            onSay={setInstruction}
-            onSliders={edit}
-            busy={busy}
-          />
-        ) : null}
-
-        {!draft && at === 'checks' ? (
-          <ChecksTab
-            checks={checks}
-            problems={problems}
-            warnings={warnings}
-            onRecheck={recheck}
-            busy={busy}
-            api={api}
-            showing={showing}
-            hasMesh={detail?.has_stl ?? Boolean(glb)}
-          />
-        ) : null}
-
-        {!draft && at === 'measured' ? (
-          <MeasuredTab
-            size={size}
-            volume={volume}
-            bodies={bodies}
-            material={material}
-            template={template}
-            watertight={watertight}
-            level={fresh?.level ?? detail?.level ?? null}
-            options={options}
-            showing={showing}
-            onShow={setShowing}
-          />
-        ) : null}
-
-        {!draft && at === 'report' ? (
-          <ReportTab markdown={reportMd} />
-        ) : null}
-
-        {/* MANAGING THE PART ITSELF, last and shut. Renaming is how
-            "birdhouse_6" becomes something a person chose; removing is how a
-            library of timed-out drafts stops burying the good ones. */}
-        <Panel title="this part">
-          <Quiet
-            label={managing ? '– done' : 'rename or remove'}
-            onPress={() => {
-              setManaging((m) => !m);
-              setConfirmDelete(false);
-            }}
-          />
-          {managing ? (
+          {/* TWO PRESSES, AND THE SECOND ONE SAYS WHAT IT DOES. A single
+              "delete" next to a "rename" is a mistap away from losing work
+              that took twenty minutes to build. */}
+          {confirmDelete ? (
             <>
-              <Mono size="micro" color={core.dim}>
-                its folder is {showing}
-              </Mono>
-              <View style={styles.renameRow}>
-                <Surface step="well" style={styles.renameWell}>
-                  <TextInput
-                    value={newName}
-                    onChangeText={setNewName}
-                    placeholder="a name you will recognise"
-                    placeholderTextColor={core.dim}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    style={styles.input}
-                  />
-                </Surface>
-                <Button
-                  label="rename"
-                  onPress={renameIt}
-                  disabled={busy || !newName.trim()}
-                />
+              <Verdict
+                state="fail"
+                text={`remove ${showing} and everything in it? This cannot be undone.`}
+              />
+              <View style={styles.actions}>
+                <Button label="yes, remove it" primary onPress={onRemove} disabled={busy} />
+                <Quiet label="keep it" onPress={() => onConfirmDelete(false)} />
               </View>
-              <Prose size="body" color={core.dim}>
-                This renames the folder, which is what the app navigates by. What the part calls
-                itself inside its own spec is left alone.
-              </Prose>
-
-              {/* TWO PRESSES, AND THE SECOND ONE SAYS WHAT IT DOES. A single
-                  "delete" next to a "rename" is a mistap away from losing work
-                  that took twenty minutes to build. */}
-              {confirmDelete ? (
-                <>
-                  <Verdict
-                    state="fail"
-                    text={`remove ${showing} and everything in it? This cannot be undone.`}
-                  />
-                  <View style={styles.actions}>
-                    <Button label="yes, remove it" primary onPress={removeIt} disabled={busy} />
-                    <Quiet label="keep it" onPress={() => setConfirmDelete(false)} />
-                  </View>
-                </>
-              ) : (
-                <Quiet
-                  label="remove this part"
-                  color={pen.fail}
-                  onPress={() => setConfirmDelete(true)}
-                />
-              )}
             </>
-          ) : null}
-        </Panel>
+          ) : (
+            <Quiet
+              label="remove this part"
+              color={pen.fail}
+              onPress={() => onConfirmDelete(true)}
+            />
+          )}
+        </>
+      ) : null}
+    </Panel>
+  );
+}
 
-        {/* TAKE IT AWAY. Only the formats that are actually on disk: the
-            server's file route is an allow-list and offering a format it does
-            not have is offering a download that fails. */}
-        {files.length ? (
-          <Panel title="save it">
-            <Prose size="body" color={core.dim}>
-              Pick a folder on the phone and the file is written there, where a slicer can open
-              it.
-            </Prose>
-            {files.map((ext) => (
-              <View key={ext} style={styles.saveRow}>
-                <View style={styles.grow}>
-                  <Mono size="label" weight="medium">
-                    {ext.toUpperCase()}
-                  </Mono>
-                  {FORMAT_NOTE[ext] ? (
-                    <Mono size="micro" color={core.dim}>
-                      {FORMAT_NOTE[ext]}
-                    </Mono>
-                  ) : null}
-                </View>
-                <Button
-                  label="save"
-                  primary={ext === 'stl'}
-                  onPress={() => save(ext)}
-                  disabled={busy}
-                />
-              </View>
-            ))}
-          </Panel>
-        ) : null}
-      </ScrollView>
-
-      {/* WHAT HAS MOVED AND NOT BEEN BUILT, above the box rather than inside
-          the scrolling sheet - a person who drags three sliders and scrolls
-          away has no other way to find the button, and an unbuilt change that
-          is out of sight is a change they will believe happened. */}
-      {Object.keys(pending).length ? (
-        <Surface step="pill" style={styles.pendingBar}>
+/**
+ * Take it away.
+ *
+ * Only the formats that are actually on disk: the server's file route is an
+ * allow-list, and offering a format it does not have is offering a download
+ * that fails.
+ */
+function SavePanel({
+  files,
+  onSave,
+  busy,
+}: {
+  files: string[];
+  onSave: (ext: string) => void;
+  busy: boolean;
+}) {
+  return (
+    <Panel title="save it">
+      <Prose size="body" color={core.dim}>
+        Pick a folder on the phone and the file is written there, where a slicer can open it.
+      </Prose>
+      {files.map((ext) => (
+        <View key={ext} style={styles.saveRow}>
           <View style={styles.grow}>
-            <Mono size="label" weight="medium" color={core.phosphor}>
-              {Object.keys(pending).length} change
-              {Object.keys(pending).length === 1 ? '' : 's'} not built yet
+            <Mono size="label" weight="medium">
+              {ext.toUpperCase()}
             </Mono>
-            <Mono size="micro" color={core.dim} numberOfLines={1}>
-              {Object.entries(pending)
-                .map(([name, value]) => `${name.replace(/_mm$|_deg$/, '')} ${value}`)
-                .join('  ·  ')}
-            </Mono>
+            {FORMAT_NOTE[ext] ? (
+              <Mono size="micro" color={core.dim}>
+                {FORMAT_NOTE[ext]}
+              </Mono>
+            ) : null}
           </View>
-          <Quiet label="undo" onPress={() => setPending({})} />
-          <Button label="build it" primary onPress={rebuild} disabled={busy} />
-        </Surface>
-      ) : null}
-
-      {/* SAY WHAT TO CHANGE. Not a parameter list - the sentence goes to the
-          engine, which reads it against this part's own template. A draft can
-          be changed too: the request is on disk and refining it is the way
-          out of a failed build.
-
-          NOT FOR AN IMPORT. There is no spec to read the sentence against, so
-          /api/refine answers "no part called x, or it has no spec.yaml to
-          change" - a box that always fails, on the most prominent line of the
-          screen. Its mesh editor is one tap away instead. */}
-      {!imported ? (
-      <Surface step="pill" style={styles.command}>
-        <TextInput
-          value={instruction}
-          onChangeText={setInstruction}
-          onSubmitEditing={change}
-          returnKeyType="send"
-          placeholder={
-            // THE PLACEHOLDER IS ABOUT THIS PART, not about a birdhouse. It
-            // read "make this roof a triangular roof" on every part in the
-            // library - on a keyring tag, which has no roof, that is an
-            // example of something the engine will refuse, offered as the
-            // example of what to type. The first suggestion this part's own
-            // schema produced is the honest one; a part with no schema gets a
-            // shape-free prompt rather than a borrowed one.
-            tweaks[0]?.say ?? 'say what to change'
-          }
-          placeholderTextColor={core.dim}
-          style={styles.input}
-        />
-        <Button label="change it" primary onPress={change} disabled={!instruction.trim() || busy} />
-      </Surface>
-      ) : null}
-
-      {!draft ? (
-        <View style={styles.footer}>
-          {/* AN IMPORT ALREADY HAS THIS AS ITS PRIMARY ACTION, up in the panel
-              that explains what it is - a second copy down here would be two
-              buttons doing the same thing on one screen. */}
-          {!imported ? (
-            <Button label="sliders" onPress={edit} disabled={busy} style={styles.footerButton} />
-          ) : null}
-          <Button label="check again" onPress={recheck} disabled={busy} style={styles.footerButton} />
+          <Button label="save" primary={ext === 'stl'} onPress={() => onSave(ext)} disabled={busy} />
         </View>
-      ) : null}
-    </KeyboardAvoidingView>
+      ))}
+    </Panel>
   );
 }
 
@@ -1305,6 +1441,20 @@ function ChecksTab({
 
   return (
     <>
+      {/* WHETHER THE GROUND HAS MOVED UNDER THIS VERDICT. A verdict measured
+          against a 0.4 mm nozzle says nothing certain about a machine now
+          running 0.6, and the server works that out rather than leaving it to
+          be noticed. The standing line carries the first of these; the rest
+          have to live somewhere, and this is the panel about the verdict. */}
+      {checks.drift.length ? (
+        <Panel title="this verdict was taken before">
+          {checks.drift.map((line, index) => (
+            <Verdict key={index} state="warn" text={line} />
+          ))}
+          <Button label="check it again now" primary onPress={onRecheck} disabled={busy} />
+        </Panel>
+      ) : null}
+
       {problems.length ? (
         <Panel title="what stops it printing">
           {problems.map((text, index) => (
@@ -1328,6 +1478,12 @@ function ChecksTab({
         {[...failed, ...warned, ...rest].map((line, index) => (
           <CheckRow key={`${line.name}-${index}`} line={line} />
         ))}
+        {/* CHECKING AGAIN IS CHEAP, WHICH IS WHY IT IS A BUTTON. Measured at
+            0.3s on a part whose build took 151s - the expensive thing in a
+            build is the model call, not the checking. It writes nothing on the
+            server: a re-check is a reading, and overwriting run.json would
+            destroy the record of what the part was given when it was made. */}
+        <Button label="check it again" onPress={onRecheck} disabled={busy} />
       </Panel>
 
       {hasMesh ? <Renders api={api} showing={showing} /> : null}
@@ -1632,11 +1788,6 @@ function DraftPanel({ draft }: { draft: NonNullable<PartDetail['draft']> }) {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    padding: space.base,
-    gap: space.snug,
-  },
   viewport: {
     flex: 1,
     minHeight: 220,
@@ -1652,25 +1803,19 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  layoutRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.snug,
-  },
-  verdictBar: {
-    paddingHorizontal: space.base,
-    paddingVertical: space.snug,
-    gap: space.snug,
-  },
-  drift: {
-    gap: space.tight,
-  },
-  sheet: {
-    maxHeight: '46%',
-  },
-  sheetBody: {
-    gap: space.snug,
-    paddingBottom: space.snug,
+  // COMPACT AND IN A CORNER. Full width it read as a header rather than a
+  // control on the object, and it pushed the part down the viewport - which
+  // is the opposite of what an overlay is for.
+  //
+  // AN EXPLICIT WIDTH AND NOT A maxWidth. Segmented lays its options out with
+  // flex, so inside a box that is only capped it has nothing to divide and
+  // collapses - which drew an empty rounded square in the corner of the
+  // viewport and no words at all.
+  layoutOver: {
+    position: 'absolute',
+    top: space.snug,
+    right: space.snug,
+    width: '62%',
   },
   saved: {
     padding: space.snug,
@@ -1776,12 +1921,6 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: radius.panel,
   },
-  command: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.snug,
-    padding: space.snug,
-  },
   input: {
     flex: 1,
     minHeight: metric.tap,
@@ -1789,12 +1928,5 @@ const styles = StyleSheet.create({
     fontFamily: type.mono,
     fontSize: type.size.body,
     paddingHorizontal: space.snug,
-  },
-  footer: {
-    flexDirection: 'row',
-    gap: space.snug,
-  },
-  footerButton: {
-    flex: 1,
   },
 });

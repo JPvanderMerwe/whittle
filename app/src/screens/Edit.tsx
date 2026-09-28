@@ -1,23 +1,27 @@
 /**
- * The editing screen: the model, the stack that made it, and the verdict.
+ * A model somebody brought in, on the workbench.
  *
- * Build plan v8 section 13.3. The layout is the viewport with everything else
- * under it, because a phone in portrait has one column and the geometry is the
- * thing being looked at.
+ * THIS SCREEN NO LONGER OWNS ITS OWN LAYOUT. It fills Workbench.tsx, which is
+ * the same frame a built part fills - same place for the object, same standing
+ * line, same box, same four words. The two screens used to have four tabs each
+ * and shared one name between them:
  *
- * THE THREE THINGS A PERSON NEEDS TO KNOW, and the three tabs:
+ *   a built part    change it | checks | measured | report
+ *   this screen     change it | model  | checks   | save
  *
- *   model   what arrived - size, format, units, what the repair changed
- *   edits   what has been done to it, every step still a slider
- *   checks  whether it prints, and what to do about it if not
- *   save    the edited mesh, written to a folder on the phone
+ * Three of the four were the same thing under a different word, and a person
+ * who imported a model after building one had to learn the app twice.
  *
- * THE FOURTH TAB IS NEW AND IT CLOSES A HOLE THE APP HAD EVERYWHERE: there
- * was no way to get a model out of it. You could import an STL, repair it,
- * hollow it, cut it to fit the bed, watch every check pass - and the result
- * stayed on the machine. `/api/project/<id>/export.stl` has always existed.
- * The export is the full mesh and never the preview proxy, which is why the
- * viewport says which one it is drawing.
+ * WHAT IS GENUINELY DIFFERENT, AND WHY THIS IS STILL ITS OWN FILE. A design
+ * has a spec and named dimensions; a mesh has a stack of operations that can
+ * be turned off, reordered and dragged. Those are different contents. They are
+ * not a different app, so only the contents live here.
+ *
+ * GETTING IT OUT closes a hole the app had everywhere: you could import an
+ * STL, repair it, hollow it, cut it to fit the bed, watch every check pass -
+ * and the result stayed on the machine. `/api/project/<id>/export.stl` has
+ * always existed. The export is the full mesh and never the preview proxy,
+ * which is why the viewport says which one it is drawing.
  *
  * WHAT MAKES THE DRAG USABLE
  * --------------------------
@@ -31,12 +35,8 @@
 import Slider from '@react-native-community/slider';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native';
 
@@ -51,12 +51,11 @@ import {
 } from '../api';
 import { FORMAT_NOTE, SAVEABLE, saveName, saveToFolder } from '../save';
 import { meshTweaks, operationLabel } from '../tweaks';
-import { core, metric, pen, radius, space, type } from '../tokens';
+import { core, pen, space, type } from '../tokens';
 import {
   Button,
   Chip,
   Empty,
-  Header,
   Mono,
   Panel,
   Problem,
@@ -69,9 +68,8 @@ import {
 } from '../ui';
 import { Rig } from '../Rig';
 import { Viewport } from '../Viewport';
-
-const TABS = ['change it', 'model', 'checks', 'save'] as const;
-type Tab = (typeof TABS)[number];
+import { Workbench } from '../Workbench';
+import { openAt, sayHint, standingOfProject, type PanelName } from '../workbench';
 
 interface Props {
   api: Api;
@@ -81,10 +79,16 @@ interface Props {
 }
 
 export function EditScreen({ api, project, onProject, onClose }: Props) {
-  // THE CHANGE TAB LEADS, as it does on a built part. Somebody who has just
-  // imported a model is here to do something to it; the verdict is one line at
-  // the top whichever tab is open.
-  const [tab, setTab] = useState<Tab>('change it');
+  /**
+   * Which drawer panel is open, if any.
+   *
+   * OPENED ON WHAT MATTERS RATHER THAN ALWAYS THE FIRST ONE - see openAt. A
+   * model that will not print opens on the reason; one that does opens on its
+   * numbers, because then the next move is a change rather than a diagnosis.
+   */
+  const [panel, setPanel] = useState<PanelName | null>(() =>
+    openAt(standingOfProject(project)),
+  );
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [catalogue, setCatalogue] = useState<Catalogue | null>(null);
@@ -233,96 +237,70 @@ export function EditScreen({ api, project, onProject, onClose }: Props) {
 
   // -- the screen ---------------------------------------------------------
 
-  const verdict = project.report;
-  const failures = verdict.findings.filter((f) => f.severity === 'fail');
-  const state = verdict.stale ? 'waiting' : verdict.printable ? 'pass' : 'fail';
-  const headline = verdict.stale
-    ? 'checking the change'
-    : verdict.printable
-      ? 'this prints'
-      : `${failures.length} thing${failures.length === 1 ? '' : 's'} stop it printing`;
+  const standing = standingOfProject(project);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {/* The back label used to say "library" and did not go there. A word
-          on a back arrow is a promise about where it lands. */}
-      <Header
-        back={onClose}
-        backLabel="back"
-        title={project.name}
-        subtitle={
-          `${project.size_mm.map((v) => v.toFixed(1)).join(' × ')} mm · ` +
-          `${project.triangles.toLocaleString()} triangles`
-        }
-        right={busy ? <Rig size={40} /> : undefined}
-      />
-
-      <View style={styles.viewport}>
-        <Viewport glb={glb} simplified={simplified} placeholder="drawing the model…" />
-      </View>
-
-      <Surface step="pill" style={styles.verdictBar}>
-        <Verdict state={state} text={headline} />
-      </Surface>
-
-      <Segmented options={TABS} value={tab} onChange={setTab} />
-
-      <ScrollView
-        style={styles.sheet}
-        contentContainerStyle={styles.sheetBody}
-        keyboardShouldPersistTaps="handled">
-        {problem ? <Problem text={problem} /> : null}
-
-        {tab === 'model' ? <ModelTab project={project} /> : null}
-        {tab === 'change it' ? (
-          <EditsTab
-            project={project}
-            catalogue={catalogue}
-            onSet={setValue}
-            onToggle={(op) =>
-              run(
-                () => api.toggle(project.id, op.id, !op.enabled),
-                (r) => r.project,
-              )
-            }
-            onRemove={(op) =>
-              run(
-                () => api.remove(project.id, op.id),
-                (r) => r.project,
-              )
-            }
-            onAdd={(kind) =>
-              run(
-                () => api.addEdit(project.id, kind),
-                (r) => r.project,
-              )
-            }
-            onSay={setSentence}
-          />
-        ) : null}
-        {tab === 'checks' ? <ChecksTab project={project} /> : null}
-        {tab === 'save' ? (
-          <SaveTab project={project} onSave={save} busy={busy} saved={saved} />
-        ) : null}
-      </ScrollView>
-
-      {echo ? <Understood said={echo} onDismiss={() => setEcho(null)} /> : null}
-
-      <Surface step="pill" style={styles.command}>
-        <TextInput
-          value={sentence}
-          onChangeText={setSentence}
-          onSubmitEditing={say}
-          returnKeyType="send"
-          placeholder="hollow it to 2mm and cut it to fit my bed"
-          placeholderTextColor={core.dim}
-          style={styles.input}
-        />
-        <Button label="do it" primary onPress={say} disabled={!sentence.trim() || busy} />
-      </Surface>
-    </KeyboardAvoidingView>
+    <Workbench
+      title={project.name}
+      subtitle={
+        `${project.size_mm.map((v) => v.toFixed(1)).join(' × ')} mm · ` +
+        `${project.triangles.toLocaleString()} triangles`
+      }
+      onClose={onClose}
+      headerRight={busy ? <Rig size={40} /> : undefined}
+      standing={standing}
+      panel={panel}
+      onPanel={setPanel}
+      panels={{
+        shape: (
+          <>
+            {problem ? <Problem text={problem} /> : null}
+            <EditsTab
+              project={project}
+              catalogue={catalogue}
+              onSet={setValue}
+              onToggle={(op) =>
+                run(
+                  () => api.toggle(project.id, op.id, !op.enabled),
+                  (r) => r.project,
+                )
+              }
+              onRemove={(op) =>
+                run(
+                  () => api.remove(project.id, op.id),
+                  (r) => r.project,
+                )
+              }
+              onAdd={(kind) =>
+                run(
+                  () => api.addEdit(project.id, kind),
+                  (r) => r.project,
+                )
+              }
+              onSay={setSentence}
+            />
+          </>
+        ),
+        prints: <ChecksTab project={project} />,
+        about: <ModelTab project={project} />,
+        save: <SaveTab project={project} onSave={save} busy={busy} saved={saved} />,
+      }}
+      say={{
+        value: sentence,
+        onChange: setSentence,
+        onSend: say,
+        hint: sayHint({ kind: 'project', id: project.id }),
+        busy,
+        action: 'do it',
+      }}
+      // WHAT WAS UNDERSTOOD SITS ABOVE THE BOX, not inside a panel. Rule 32:
+      // an instruction that reached nothing is reported in the words the
+      // person used, every time - so it has to be where they are looking,
+      // which is the line they just typed into.
+      above={echo ? <Understood said={echo} onDismiss={() => setEcho(null)} /> : null}
+    >
+      <Viewport glb={glb} simplified={simplified} placeholder="drawing the model…" />
+    </Workbench>
   );
 }
 
@@ -900,28 +878,6 @@ function formatMeasurement(value: unknown): string {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    gap: space.snug,
-    padding: space.base,
-  },
-  viewport: {
-    flex: 1,
-    minHeight: 220,
-    borderRadius: radius.card,
-    overflow: 'hidden',
-  },
-  verdictBar: {
-    paddingHorizontal: space.base,
-    paddingVertical: space.snug,
-  },
-  sheet: {
-    maxHeight: '42%',
-  },
-  sheetBody: {
-    gap: space.snug,
-    paddingBottom: space.snug,
-  },
   alternatives: {
     marginTop: space.tight,
   },
@@ -1005,19 +961,5 @@ const styles = StyleSheet.create({
   },
   saveWhat: {
     flex: 1,
-  },
-  command: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.snug,
-    padding: space.snug,
-  },
-  input: {
-    flex: 1,
-    minHeight: metric.tap,
-    color: core.screen,
-    fontFamily: type.mono,
-    fontSize: type.size.body,
-    paddingHorizontal: space.snug,
   },
 });

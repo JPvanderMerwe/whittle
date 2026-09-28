@@ -562,6 +562,63 @@ def _set_op_value(ops: list, address: str, value) -> tuple[str, object]:
     return field, was
 
 
+def _spec_with_values(spec, name: str, values: dict):
+    """
+    A copy of `spec` with some of its numbers set to exactly what was asked for.
+
+    EXTRACTED SO THE PREVIEW AND THE BUILD CANNOT DISAGREE. A live preview that
+    applied a slider differently from the build behind it would be the worst
+    kind of wrong: it would look right while you dragged and come out as
+    something else, and the difference would only appear after the wait. One
+    function, both callers.
+
+    Returns (changed_spec, None) or (None, the sentence to say instead).
+    """
+    addressed = [k for k in values if _OP_ADDRESS.fullmatch(k)]
+    if addressed and len(addressed) != len(values):
+        # ONE KIND OF NAME AT A TIME. A part is a template or a list of
+        # operations, never both, so a payload holding both kinds is a client
+        # mistake and half-applying it would leave a part nobody asked for.
+        return None, ("these are two different kinds of name: %s. A part is "
+                      "built either from template parameters or from "
+                      "operations, not both." % ", ".join(sorted(values)))
+
+    if addressed:
+        if not list(getattr(spec, "ops", None) or []):
+            return None, ("%s has no operations to change - it is built from "
+                          "a template, so its numbers are named rather than "
+                          "numbered." % name)
+        changed = spec.model_copy(deep=True)
+        try:
+            for key in sorted(values):
+                _set_op_value(changed.ops, key, values[key])
+        except ValueError as exc:
+            return None, str(exc)
+        return changed, None
+
+    if not getattr(spec, "template", None):
+        # A PART WITH NO TEMPLATE HAS NO TEMPLATE PARAMETERS, and writing some
+        # into it is not an error anything downstream notices: `params` is
+        # validated against a template's model, a level-2 spec has no template,
+        # so the numbers sit in the file unread. The part rebuilds byte for
+        # byte, the route answers ok, and the library gains a second identical
+        # entry - a slider that moves and changes nothing, which is the exact
+        # failure this route was written to prevent.
+        #
+        # Rule 32: what was not understood is said out loud, in the words that
+        # were used. Refused BEFORE the build, because the build is the
+        # expensive half and its success would be the misleading part.
+        return None, ("%s is built from operations rather than template "
+                      "parameters, so %s cannot be set on it. Its own numbers "
+                      "are addressed by position - see the dimensions it "
+                      "reports - or say what you want changed in words."
+                      % (name, ", ".join(sorted(values))))
+
+    changed = spec.model_copy(deep=True)
+    changed.params = {**dict(spec.params or {}), **values}
+    return changed, None
+
+
 def _params_work(name: str, values: dict):
     """
     Rebuild a part with some of its numbers set to exactly what was asked for.
@@ -615,57 +672,10 @@ def _params_work(name: str, values: dict):
         # Rule 32: what was not understood is said out loud, in the words that
         # were used. Refused BEFORE the build, because the build is the
         # expensive half and its success would be the misleading part.
-        addressed = [k for k in values if _OP_ADDRESS.fullmatch(k)]
-        if addressed and len(addressed) != len(values):
-            # ONE KIND OF NAME AT A TIME. A part is a template or a list of
-            # operations, never both, so a payload holding both kinds is a
-            # client mistake and half-applying it would leave a part nobody
-            # asked for.
-            return {"ok": False,
-                    "message": "these are two different kinds of name: %s. A "
-                               "part is built either from template parameters "
-                               "or from operations, not both."
-                               % ", ".join(sorted(values))}
-
-        if addressed:
-            ops = list(getattr(spec, "ops", None) or [])
-            if not ops:
-                return {"ok": False,
-                        "message": "%s has no operations to change - it is "
-                                   "built from a template, so its numbers are "
-                                   "named rather than numbered." % name}
-            changed = spec.model_copy(deep=True)
-            before = {}
-            try:
-                for key in sorted(values):
-                    _field, was = _set_op_value(changed.ops, key, values[key])
-                    before[key] = was
-            except ValueError as exc:
-                return {"ok": False, "message": str(exc)}
-        elif not getattr(spec, "template", None):
-            # A PART WITH NO TEMPLATE HAS NO TEMPLATE PARAMETERS, and writing
-            # some into it is not an error anything downstream notices:
-            # `params` is validated against a template's model, a level-2 spec
-            # has no template, so the numbers sit in the file unread. The part
-            # rebuilds byte for byte, the route answers ok, and the library
-            # gains a second identical entry - a slider that moves and changes
-            # nothing, which is the exact failure this route was written to
-            # prevent.
-            #
-            # Rule 32: what was not understood is said out loud, in the words
-            # that were used. Refused BEFORE the build, because the build is
-            # the expensive half and its success would be the misleading part.
-            return {"ok": False,
-                    "message": "%s is built from operations rather than "
-                               "template parameters, so %s cannot be set on "
-                               "it. Its own numbers are addressed by position "
-                               "- see the dimensions it reports - or say what "
-                               "you want changed in words."
-                               % (name, ", ".join(sorted(values)))}
-        else:
-            before = dict(spec.params or {})
-            changed = spec.model_copy(deep=True)
-            changed.params = {**before, **values}
+        before = dict(getattr(spec, "params", None) or {})
+        changed, refusal = _spec_with_values(spec, name, values)
+        if refusal:
+            return {"ok": False, "message": refusal}
 
         # THE SCHEMA DECIDES, NOT THIS FUNCTION. Bounds, types and any
         # cross-field validator live on the template's params model, and a
@@ -1917,8 +1927,14 @@ def _part_glb(name: str) -> bytes:
     if cached is not None:
         return cached
 
-    mesh = _assembled_mesh(name)
+    data = _glb_of_mesh(_assembled_mesh(name))
+    with _RENDER_LOCK:
+        _GLB_CACHE[name] = data
+    return data
 
+
+def _glb_of_mesh(mesh) -> bytes:
+    """The mesh as GLB, with the part's own colour and material baked in."""
     # THE PART'S OWN COLOUR AND A REAL MATERIAL, BAKED IN.
     #
     # A mesh exported straight out of CadQuery carries neither, and glTF's
@@ -1963,10 +1979,62 @@ def _part_glb(name: str) -> bytes:
     data = mesh.export(file_type="glb")
     if isinstance(data, str):
         data = data.encode("utf-8")
-
-    with _RENDER_LOCK:
-        _GLB_CACHE[name] = data
     return data
+
+
+def _preview_glb(name: str, values: dict) -> bytes:
+    """
+    The part as it WOULD be with these numbers, drawn now, written nowhere.
+
+    WHY THIS IS NOT THE PARAMS ROUTE WITH A FLAG. Setting a parameter builds a
+    new part: it verifies it, renders it, writes a spec, a report and a run
+    record, and leaves it in the library for ever. That is right for a change
+    somebody has decided on and completely wrong for the middle of a drag.
+
+    AND IT IS FAST, WHICH IS THE WHOLE POINT. Measured on three real parts,
+    the geometry is 57-90 ms; the seconds a params job takes are verification,
+    tessellation to disk, rendering and the job machinery. None of that is
+    needed to LOOK at the shape, so none of it runs here - the solid is meshed
+    in memory and handed straight back.
+
+    NO VERDICT COMES WITH IT, deliberately. The printability gate is the
+    expensive half and a verdict that lagged a slider by one position would be
+    worse than none: it would describe the shape you just left. The screen says
+    the verdict is catching up instead, and the real check runs when the change
+    is built. Same bargain the mesh editor already makes at 43 ms a move.
+    """
+    from whittle import api
+    from whittle.build.compile import compile_spec
+    from whittle.verify.fit import mesh_of_solid
+
+    spec_path = api._spec_path_for(name)
+    if spec_path is None:
+        raise HttpError(404, "no part called %r, or it has no spec.yaml to "
+                             "change" % name)
+    loaded = api.load_spec(spec_path)
+    spec = loaded[0] if isinstance(loaded, tuple) else loaded
+    base = loaded[1] if isinstance(loaded, tuple) and len(loaded) > 1 else None
+
+    changed, refusal = _spec_with_values(spec, name, values)
+    if refusal:
+        raise HttpError(422, refusal)
+
+    try:
+        built = compile_spec(changed, base)
+    except Exception as exc:
+        # A REFUSAL IS AN ANSWER AND IT IS THE USEFUL ONE. The schema's own
+        # words tell somebody dragging a slider exactly where the end is,
+        # which is what they were about to find out the slow way.
+        #
+        # THE WHOLE MESSAGE, FLATTENED - not its first line. The validator
+        # writes the field, the problem and the legal range on separate lines
+        # under a heading, so "op 'rounded_prism' is invalid:" is the one line
+        # that carries none of it.
+        raise HttpError(422, " ".join(
+            line.strip() for line in str(exc).splitlines() if line.strip()
+        )[:300]) from exc
+
+    return _glb_of_mesh(mesh_of_solid(built.solid))
 
 
 def _health() -> dict:
@@ -2388,6 +2456,35 @@ class Handler(BaseHTTPRequestHandler):
         if m:
             wanted = (body.get("name") or "").strip()
             return self._json(self._rename_part(m.group(1), wanted))
+
+        m = re.fullmatch(r"/api/part/([^/]+)/preview", path)
+        if m:
+            # SEEING THE CHANGE WHILE IT IS BEING MADE. The same values the
+            # params route takes, and the same function applies them - what is
+            # different is that nothing is written, nothing is verified and
+            # nothing goes in the library.
+            name = m.group(1)
+            self._check_name(name)
+            values = body.get("values")
+            if not isinstance(values, dict):
+                raise HttpError(400, 'send {"values": {"width_mm": 150}}')
+            if len(values) > 64:
+                raise HttpError(400, "that is more parameters than any template has")
+            for key, value in values.items():
+                if not isinstance(key, str) or not (
+                        key.replace("_", "").isalnum()
+                        or _OP_ADDRESS.fullmatch(key)):
+                    raise HttpError(400, "%r is not a parameter name" % key)
+                if not isinstance(value, (int, float, str, bool)):
+                    raise HttpError(400, "%s must be a number, a word or true/false" % key)
+            data = _preview_glb(name, values)
+            self.send_response(200)
+            self.send_header("Content-Type", "model/gltf-binary")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(data)
+            return None
 
         m = re.fullmatch(r"/api/part/([^/]+)/params", path)
         if m:

@@ -1093,6 +1093,41 @@ export class Api {
    * through the same screen for the same reason: it is a real build with real
    * checks at the end of it.
    */
+  /**
+   * The part as it WOULD be with these numbers, drawn now, written nowhere.
+   *
+   * SEEING A CHANGE WHILE IT IS BEING MADE. Setting a parameter builds a new
+   * part - it verifies, renders, writes a spec and a report, and leaves the
+   * result in the library for ever. That is right for a change somebody has
+   * decided on and useless in the middle of a drag, which is why a slider on a
+   * built part used to show nothing at all until the whole build had finished.
+   *
+   * Measured on the server: the geometry of a real part is 57-90 ms and the
+   * whole round trip 85-320 ms. The seconds a build takes are verification,
+   * tessellation to disk and rendering, and none of that is needed to LOOK at
+   * the shape.
+   *
+   * NO VERDICT COMES BACK, deliberately. The printability gate is the
+   * expensive half, and a verdict one slider position behind would describe
+   * the shape you had just left. The screen says it is catching up instead.
+   * Same bargain the mesh editor already makes at 43 ms a move.
+   */
+  async previewPart(
+    name: string,
+    values: Record<string, number | string | boolean>,
+  ): Promise<ArrayBuffer> {
+    const response = await this.call(
+      `/api/part/${encodeURIComponent(name)}/preview`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values }),
+      },
+      TIMEOUTS.preview,
+    );
+    return response.arrayBuffer();
+  }
+
   setParams(name: string, values: Record<string, number | string | boolean>) {
     return this.post<{ job: string }>(
       `/api/part/${encodeURIComponent(name)}/params`,

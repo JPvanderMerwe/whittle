@@ -88,6 +88,9 @@ class ImportedPart:
     # What was recovered, if anything.
     editable: bool = False
     fit_note: str = ""
+    #: Where the recovered spec deliberately departs from the measurement, and
+    #: by how much. RULE 15. Empty when the spec is the mesh as measured.
+    departures: list[str] = field(default_factory=list)
 
     problems: list[str] = field(default_factory=list)
 
@@ -303,9 +306,60 @@ def _try_recover_spec(part: ImportedPart, mesh, directory: Path) -> None:
     # handed to the extrusion fitter: a turned shape is not a prism, and a bowl
     # described as an extrusion along Y is nonsense that builds.
 
+    params = to_vessel_params(fit)
+    made = _write_vessel(part, params, directory, fit)
+    if made:
+        return
+
+    # THE MEASUREMENT WAS GOOD AND THE PART WOULD NOT PRINT. Held to a lean
+    # that prints, it will - and a spec that can be edited is worth far more
+    # than triangles that cannot, which is the whole reason this module
+    # exists. The departure is reported with its number (rule 15) and the
+    # measurement itself is still on disk.
+    #
+    # Measured on the library as it stood: two of seven models reached exactly
+    # here, both real bowls, both discarded.
+    from whittle.build.templates.vessel import MAX_LEAN_DEG
+    from whittle.measure.revolve import clamp_lean
+
+    held, clamp = clamp_lean(params.get("profile_points") or [], MAX_LEAN_DEG)
+    if clamp.changed:
+        attempt = dict(params, profile_points=held)
+        # The widest diameter is a parameter in its own right and the template
+        # scales the points to it, so leaving it at the measured value would
+        # scale the held profile straight back out again.
+        if "outer_dia_mm" in attempt:
+            attempt["outer_dia_mm"] = round(clamp.dia_now_mm, 2)
+        if _write_vessel(part, attempt, directory, fit, departure=clamp.why()):
+            return
+
+    part.fit_note = (
+        "this is a turned shape, but the profile measured off it will not "
+        "make a legal part: %s" % (_last_refusal or "")
+    )
+
+
+#: Why the last vessel attempt was refused, for the note when both attempts
+#: fail. A module-level hand-back rather than an exception chain because the
+#: caller wants the ENGINE'S sentence, not a traceback.
+_last_refusal = ""
+
+
+def _write_vessel(part: ImportedPart, params: dict, directory: Path, fit,
+                  departure: str = "") -> bool:
+    """
+    Try to write a vessel spec from these params. Returns whether it took.
+
+    NO FALLING THROUGH TO THE PRISM FITTER from here. The shape is turned; the
+    profile simply will not make a legal part, which is a real answer and a
+    useful one. Trying the extrusion fitter instead is how a bowl ended up
+    fitted as an extrusion along Y.
+    """
+    global _last_refusal
+    from whittle import api
+
     try:
-        params = to_vessel_params(fit)
-        spec = {
+        validated = api.validate_spec({
             "name": part.name,
             "level": 1,
             "material": "petg",
@@ -313,32 +367,24 @@ def _try_recover_spec(part: ImportedPart, mesh, directory: Path) -> None:
             "layer_mm": 0.24,
             "template": "vessel",
             "params": params,
-        }
-        from whittle import api
-
-        validated = api.validate_spec(spec)
+        })
         api.write_spec(validated, directory / "spec.yaml")
-        part.editable = True
-        part.fit_note = (
-            "turned profile recovered - wall %s mm, roundness %.4f. This is "
-            "editable: change any number and rebuild."
-            % (fit.wall_mm if fit.wall_mm is not None else "not measurable",
-               fit.roundness)
-        )
     except Exception as exc:
-        # A profile that fits the mesh but not the template's own rules is a
-        # real answer - usually "this would need supports" - and is reported.
-        # The prism fitter still gets its turn: a shape can read as turned and
-        # be better described as extruded.
-        # NO FALLING THROUGH TO THE PRISM FITTER. The shape is turned; the
-        # profile simply will not make a legal part, which is a real answer
-        # and a useful one. Trying the extrusion fitter here is how a bowl
-        # ended up fitted as an extrusion along Y.
-        part.fit_note = (
-            "this is a turned shape, but the profile measured off it will not "
-            "make a legal part: %s"
-            % str(exc).split("problem : Value error, ")[-1].split(".")[0][:160]
-        )
+        _last_refusal = (
+            str(exc).split("problem : Value error, ")[-1].split(".")[0][:160])
+        return False
+
+    part.editable = True
+    part.fit_note = (
+        "turned profile recovered - wall %s mm, roundness %.4f. This is "
+        "editable: change any number and rebuild."
+        % (fit.wall_mm if fit.wall_mm is not None else "not measurable",
+           fit.roundness)
+    )
+    if departure:
+        part.departures = [departure]
+        part.fit_note += " It was held to a lean that prints - see below."
+    return True
 
 
 def _try_prism(part: ImportedPart, mesh, directory: Path, notes: list) -> bool:

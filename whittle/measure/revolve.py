@@ -388,3 +388,105 @@ def to_vessel_params(fit: RevolveFit, points: int = DEFAULT_PROFILE_POINTS) -> d
     if fit.floor_mm is not None:
         params["floor_mm"] = fit.floor_mm
     return params
+
+
+# ---------------------------------------------------------------------------
+# making a measured profile printable
+# ---------------------------------------------------------------------------
+
+@dataclass
+class LeanClamp:
+    """What holding a profile to a printable lean cost, in numbers."""
+
+    #: The steepest outward lean the mesh actually has, degrees from vertical.
+    was_deg: float
+    #: What it was held to.
+    now_deg: float
+    #: Widest diameter before and after, so the cost is a size somebody knows.
+    dia_was_mm: float
+    dia_now_mm: float
+
+    @property
+    def changed(self) -> bool:
+        return self.was_deg > self.now_deg + 1e-6
+
+    def why(self) -> str:
+        """RULE 15: a deliberate departure, reported with its numeric factor."""
+        return (
+            "the measured profile flares to %.1f degrees from vertical and an "
+            "FDM printer is extruding onto air past %.0f, so the recovered "
+            "profile is held at %.0f. That takes the widest diameter from "
+            "%.1f mm to %.1f mm, which is %.1f%% narrower. The measurement "
+            "itself is unchanged and is in import.json - if you are printing "
+            "this in resin, or upside down, put the number back."
+            % (self.was_deg, self.now_deg, self.now_deg,
+               self.dia_was_mm, self.dia_now_mm,
+               100.0 * (1.0 - self.dia_now_mm / self.dia_was_mm)
+               if self.dia_was_mm else 0.0)
+        )
+
+
+def worst_lean_deg(points: list[list[float]]) -> float:
+    """
+    Steepest OUTWARD lean of a (radius, height) profile, degrees from vertical.
+
+    THE SAME ARITHMETIC THE VESSEL TEMPLATE USES, deliberately - this decides
+    whether that template will accept the profile, so measuring it any other
+    way here would be a second opinion about somebody else's rule. A segment
+    going inward or going nowhere leans nothing.
+    """
+    worst = 0.0
+    for (r0, z0), (r1, z1) in zip(points, points[1:]):
+        if r1 <= r0 or z1 <= z0:
+            continue
+        worst = max(worst, math.degrees(math.atan2(r1 - r0, z1 - z0)))
+    return worst
+
+
+def clamp_lean(points: list[list[float]], max_deg: float) -> tuple[list[list[float]], LeanClamp]:
+    """
+    Hold a measured profile to a lean that prints, changing as little as it can.
+
+    WHY THIS EXISTS. Two of the seven models in the library measured as turned
+    shapes - the fitter did its job and recovered the silhouette - and both
+    were then thrown away, because a bowl that flares to 63 degrees cannot be
+    printed upright without supports and the vessel template refuses it. The
+    measurement was good; the answer was to discard it.
+
+    That is the wrong trade. A spec is what makes an object EDITABLE, and
+    editable is the whole product: somebody who has a spec can say "make it
+    straighter" and print it, and somebody who has triangles can do nothing at
+    all. So the profile is held to what prints and the departure is reported
+    with its number, which is what rule 15 asks for.
+
+    ONLY THE POINTS THAT BREAK THE RULE MOVE, and they move the least distance
+    that fixes them: each radius is capped at what the point below it allows,
+    walking upward, so a profile that is legal comes back untouched and one
+    that flares only near the rim keeps its whole body. Walking upward matters
+    - each cap is measured against the point below AS ALREADY CAPPED, so one
+    pass leaves nothing over the limit.
+
+    INVERTING IT WAS THE OTHER IDEA AND IT DOES NOT WORK. A wall that flares
+    out going up leans in when the part is turned over, which fixes the wall -
+    and turns the bowl's cavity upside down, so the inside becomes a ceiling
+    over thin air. Rule 23. One rule traded for another is not a fix.
+    """
+    if len(points) < 2:
+        return list(points), LeanClamp(0.0, max_deg, 0.0, 0.0)
+
+    was = worst_lean_deg(points)
+    dia_was = 2.0 * max(float(r) for r, _z in points)
+
+    limit = math.tan(math.radians(max_deg))
+    out = [[float(points[0][0]), float(points[0][1])]]
+    for r1, z1 in points[1:]:
+        r0, z0 = out[-1]
+        rise = float(z1) - z0
+        # Going down or going nowhere: nothing to hold. A profile is measured
+        # bottom-up, so this is a flat step rather than a fold.
+        ceiling = r0 + rise * limit if rise > 0 else float(r1)
+        out.append([min(float(r1), ceiling), float(z1)])
+
+    dia_now = 2.0 * max(r for r, _z in out)
+    return out, LeanClamp(was_deg=was, now_deg=max_deg,
+                          dia_was_mm=dia_was, dia_now_mm=dia_now)

@@ -38,7 +38,7 @@ import {
 } from 'react-native';
 
 /** How long anything here may take. See the rules above. */
-const QUICK = 180;
+export const QUICK = 180;
 /** How far a thing may travel on its way in. */
 const RISE = 10;
 
