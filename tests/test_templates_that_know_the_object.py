@@ -360,3 +360,95 @@ def test_gridfinity_never_varies_the_grid():
     varied = {field for field, _values in AXES["gridfinity"]}
     forbidden = {"units_x", "units_y", "pitch_mm", "footprint_mm"}
     assert not (varied & forbidden), varied & forbidden
+
+
+# ---------------------------------------------------------------------------
+# a stand that looks like one people download
+# ---------------------------------------------------------------------------
+
+def test_the_backrest_is_not_a_solid_slab():
+    """
+    THE OWNER'S COMPLAINT, MADE MECHANICAL: "this phone stand looks nothing
+    like the production stls that are available for download online".
+
+    He was right about the shape and not only the size. Every stand people
+    actually download has the middle out of its backrest, for three reasons
+    that are all real: it is a third of the plastic, it clears the camera when
+    a phone is laid face-down against it, and a solid plate that size reads as
+    a slab whatever else is done to it.
+
+    Measured rather than eyeballed: opening it has to remove real material.
+    """
+    from whittle.build.helpers import BuildLog
+    from whittle.build.templates.stand import StandParams, build_core, derive
+
+    def volume(open_back: bool) -> float:
+        p = StandParams(open_back=open_back)
+        return build_core(p, derive(p), BuildLog()).val().Volume()
+
+    solid, opened = volume(False), volume(True)
+    assert opened < solid
+    assert (solid - opened) / solid > 0.10, "the opening barely removed anything"
+
+
+def test_the_opening_runs_out_through_the_top_so_nothing_has_to_bridge():
+    """
+    A CLOSED WINDOW IN A LEANING WALL HAS TO BRIDGE ITS OWN WIDTH - 40 to 60 mm
+    of unsupported plastic across the top of the hole. Open to the top there is
+    nothing to bridge at all, and that is also what the two-armed stands look
+    like: the printable answer and the good-looking one are the same answer.
+
+    Checked on the built solid: at the very top of the backrest there is
+    material at the sides and none in the middle.
+    """
+    import cadquery as cq
+
+    from whittle.build.helpers import BuildLog
+    from whittle.build.templates.stand import StandParams, build_core, derive
+
+    p = StandParams(open_back=True)
+    solid = build_core(p, derive(p), BuildLog())
+    box = solid.val().BoundingBox()
+
+    def material(x0: float, x1: float) -> float:
+        probe = (cq.Workplane("XY")
+                 .box(x1 - x0, box.ylen + 10, 6.0, centered=False)
+                 .translate((x0, box.ymin - 5, box.zmax - 6.0)))
+        try:
+            return solid.intersect(probe).val().Volume()
+        except Exception:
+            return 0.0
+
+    middle = material(-box.xlen * 0.12, box.xlen * 0.12)
+    side = material(box.xmin, box.xmin + box.xlen * 0.2)
+    assert side > 0, "the arms should reach the top"
+    assert middle == pytest.approx(0.0, abs=1e-6), "the opening should reach the top"
+
+
+def test_the_open_back_can_be_asked_for_and_turned_off_in_english():
+    """Rule 32: a capability no sentence reaches does not exist."""
+    from whittle.spec import language
+    from whittle.build.templates.stand import StandParams
+
+    off = language.read("give it a solid back, no cut out", StandParams,
+                        {"open_back": True})
+    assert off.as_params().get("open_back") is False
+
+
+@pytest.mark.parametrize("lean", [45.0, 65.0, 78.0])
+def test_an_opened_stand_still_prints_at_every_angle(lean, tmp_path):
+    """
+    The opening and the rounded arms are geometry, and geometry that breaks
+    printability is not an improvement. Built and verified, not just built.
+    """
+    from whittle import api
+
+    api.write_spec(
+        api.validate_spec({
+            "name": "stand", "level": 1, "template": "stand", "material": "pla",
+            "nozzle_mm": 0.4, "layer_mm": 0.2, "params": {"lean_deg": lean},
+        }),
+        tmp_path / "spec.yaml",
+    )
+    api.build(tmp_path / "spec.yaml", out_dir=tmp_path)
+    assert next(tmp_path.rglob("*.stl"), None) is not None

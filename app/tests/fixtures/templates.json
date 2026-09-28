@@ -3629,6 +3629,17 @@
     "bounds": {},
     "choices": [],
     "default": true,
+    "description": "Take the middle out of the backrest, leaving two arms and a band across the bottom. This is what every stand people actually download looks like: a third of the plastic, it does not cover the camera on a phone laid face down, and it is the thing that stops it reading as a slab. False leaves a solid back.",
+    "name": "open_back",
+    "optional": false,
+    "required": false,
+    "type": "bool",
+    "units": ""
+   },
+   {
+    "bounds": {},
+    "choices": [],
+    "default": true,
     "description": "Cut a channel through the bottom of the slot so a charging cable reaches the socket. Without it the stand can only be used with the device unplugged, which is the opposite of what a desk stand is for.",
     "name": "cable_slot",
     "optional": false,

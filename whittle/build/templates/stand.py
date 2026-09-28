@@ -125,6 +125,20 @@ class StandParams(TemplateParams):
         ),
     )
 
+    open_back: bool = Field(
+        True,
+        json_schema_extra={"says": ["open back", "open backed", "cut out",
+                                    "cutout", "window", "skeletal", "arms",
+                                    "two arms", "lightweight", "hollow back"]},
+        description=(
+            "Take the middle out of the backrest, leaving two arms and a band "
+            "across the bottom. This is what every stand people actually "
+            "download looks like: a third of the plastic, it does not cover "
+            "the camera on a phone laid face down, and it is the thing that "
+            "stops it reading as a slab. False leaves a solid back."
+        ),
+    )
+
     # --- what goes through it ---------------------------------------------
     cable_slot: bool = Field(
         True,
@@ -185,6 +199,20 @@ class _Derived:
 #: case. A millimetre and a half is loose enough to drop in and close enough
 #: that it does not rattle.
 SLOT_EASE_MM = 1.5
+
+#: How wide each arm of an open backrest is, as a fraction of the width.
+#:
+#: A quarter each side leaves half the width open. Narrower and the arms flex
+#: when the screen is pressed; wider and it is a plate with a slot in it,
+#: which is what opening it exists to stop.
+BACK_ARM_FRACTION = 0.26
+
+#: How tall the solid band at the bottom of the backrest is, along the lean.
+#:
+#: The device rests against this and the arms are levered off it, so it
+#: carries everything. A third of the backrest keeps the load path solid and
+#: still leaves two thirds open.
+BACK_SILL_FRACTION = 0.34
 
 #: How much wider than the device the stand itself is, each side.
 #:
@@ -249,8 +277,64 @@ def build_core(p: StandParams, d: _Derived, log: BuildLog) -> cq.Workplane:
     back = (
         cq.Workplane("XY")
         .box(d.width, p.wall_mm, d.back_len, centered=(True, True, False))
-        .rotate((0, 0, 0), (1, 0, 0), -(90.0 - p.lean_deg))
     )
+
+    # THE MIDDLE OUT OF THE BACKREST, which is the single thing that makes a
+    # stand look like one somebody designed rather than one milled out of a
+    # billet. Every popular printed stand has it, for three reasons that are
+    # all real: it is a third of the plastic, it clears the camera when a
+    # phone is laid face-down against it, and a solid plate this size reads as
+    # a slab whatever else is done to it.
+    #
+    # IT IS OPEN AT THE TOP - a U, not a window. A closed window in a leaning
+    # wall has to bridge its own full width at the top, which is 40-60 mm of
+    # unsupported plastic; open to the top there is nothing to bridge at all.
+    # It is also what the two-armed stands look like, so the printable answer
+    # and the good-looking one turn out to be the same answer.
+    if p.open_back:
+        arm = max(p.wall_mm * 2.0, round(d.width * BACK_ARM_FRACTION, 1))
+        sill = max(p.wall_mm * 2.0, round(d.back_len * BACK_SILL_FRACTION, 1))
+        opening_w = d.width - 2 * arm
+        opening_h = d.back_len - sill + 2.0        # out through the top
+        if opening_w > 8.0 and opening_h > 8.0:
+            window = (
+                cq.Workplane("XY")
+                .box(opening_w, p.wall_mm * 4, opening_h,
+                     centered=(True, True, False))
+                .translate((0, 0, sill))
+            )
+            # Rounded where it meets the sill: that inside corner is where the
+            # arms are levered against the band below them, and a sharp one is
+            # the crack that starts there.
+            window = try_edge_op(
+                window, "|Y", "fillet",
+                safe_fillet_radius(min(arm, sill) * 0.6, opening_w, opening_h),
+                "backrest opening", log,
+            )
+            back = back.cut(window)
+            log.notes.append(
+                "the middle of the backrest is open, leaving %.0f mm arms and "
+                "a %.0f mm band at the bottom - a third less plastic, and "
+                "nothing to bridge because it opens at the top" % (arm, sill)
+            )
+
+    # THE TOP CORNERS ROUNDED, and only the top two. This is done in the
+    # backrest's OWN upright frame, before it leans: once it is rotated, those
+    # corners are not parallel to any axis and no selector reaches them
+    # without picking up the base as well. "|Y and >Z" is the two edges across
+    # the top of the plate and nothing else - the bottom two sit on the base
+    # and rounding them would open a gap along the joint.
+    #
+    # A square-cornered plate is the other half of why this read as milled
+    # stock. Nothing anybody prints has square corners at the top of an arm.
+    back = try_edge_op(
+        back, "|Y and >Z", "fillet",
+        safe_fillet_radius(min(d.width * 0.12, d.back_len * 0.22),
+                           d.width, d.back_len),
+        "backrest top corners", log,
+    )
+
+    back = back.rotate((0, 0, 0), (1, 0, 0), -(90.0 - p.lean_deg))
     # Sit it at the back of the slot, standing on the base.
     slot_back_y = -d.base_depth / 2.0 + p.wall_mm + d.slot_w
     back = back.translate((0, slot_back_y, d.base_height - p.wall_mm))

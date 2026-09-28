@@ -272,6 +272,130 @@ def _decide_locally(
                      ladder=LadderResult(ok=True, value=changed))
 
 
+def _template_now_claims(spec: PartSpec, instruction: str) -> str | None:
+    """
+    A part built from primitives that a template WOULD make, if asked today.
+
+    THE FAILURE THIS FIXES, IN THE OWNER'S WORDS: "i tried to reprompt the
+    phone stand in the app... whittle has created an ugly block for the phone
+    stand".
+
+    He was right, and the reason was one line below: a level-2 part goes to
+    refine_ops, which nudges the numbers of the primitives it already has.
+    parts/phone_stand is a 100 x 100 x 30 rounded prism with a wedge cut out
+    of it and a pocket in the top - a block with a slit in it - because it was
+    built BEFORE there was a stand template. Reprompting it asked a model to
+    make a better block. It could never become a stand, however many times
+    anybody asked, because nothing in that path can change what a part is made
+    of.
+
+    That breaks the promise the whole product rests on. "Work it until it is
+    right" is worth nothing if an object cannot escape the way it was first
+    built.
+
+    So a part with no template is offered to the router before it is sent to
+    the operations path, and the router reads the part's OWN NAME as well as
+    the instruction - "phone_stand" is what the person called it and is the
+    best statement of what they wanted. If a template claims it now, the part
+    is rebuilt as that template.
+
+    NOTHING IS DESTROYED. A refine writes a new part and leaves the old one
+    alone, which is what makes this safe to do at all.
+    """
+    if spec.template:
+        return None
+    try:
+        from whittle.agent.route import route
+    except Exception:
+        return None
+
+    # THE NAME AND THE INSTRUCTION TOGETHER. The name carries what the thing
+    # is ("phone_stand"); the instruction usually carries only the change
+    # ("make it look better"), which claims nothing on its own.
+    said = "%s %s" % (str(getattr(spec, "name", "") or "").replace("_", " "),
+                      instruction or "")
+    decided = route(said)
+    if not decided.template_road or not decided.matched:
+        return None
+    # The router sorts its matches longest phrase first, so the head is the
+    # most specific claim anything made on this request.
+    return decided.matched[0][1]
+
+
+def _rebuild_as_template(
+    spec: PartSpec,
+    template_name: str,
+    instruction: str,
+    verify_fn: Callable[[PartSpec], Any] | None = None,
+) -> AskResult | None:
+    """
+    Rebuild a primitives part as the template that now claims it.
+
+    NO MODEL. The template's own defaults are a better starting point than
+    anything a 7B model invents for a shape it has never been shown, and the
+    instruction is then read against the template's schema by the same parser
+    that handles every other sentence. Rule 11: this has to work with no model
+    at all, and a part escaping a bad first build is exactly the case where
+    nobody should have to wait two minutes for a GPU.
+
+    Returns None if the template will not take it, and the caller falls back
+    to the operations path - a worse answer, but a real one.
+    """
+    from whittle.models.selector import LadderResult
+    from whittle.spec import language, registry
+
+    try:
+        template = registry.get(template_name)
+    except Exception:
+        return None
+
+    changed = spec.model_copy(deep=True)
+    changed.level = 1
+    changed.template = template_name
+    # AN EMPTY LIST, NOT None. `ops` is `list[dict]` with [] for a default, so
+    # None is not a legal value for it - a spec carrying one passes model_copy,
+    # which does not revalidate, and is then refused the next time anything
+    # loads it back. A part that builds once and cannot be reopened is the
+    # worst shape this could have taken.
+    changed.ops = []
+    changed.params = {}
+
+    # The instruction, read against the template it is now about. Anything the
+    # parser cannot place is reported rather than dropped - rule 32.
+    unmapped: list[str] = []
+    try:
+        reading = language.read(instruction, template.params_model,
+                                dict(template.params_model().model_dump()))
+        changed.params = reading.as_params()
+        unmapped = list(reading.unmapped)
+    except Exception:
+        changed.params = {}
+
+    try:
+        template.params_model(**changed.params)
+    except Exception:
+        return None
+
+    if verify_fn is not None:
+        try:
+            verify_fn(changed)
+        except Exception:
+            return None
+
+    note = (
+        "rebuilt as the %s template. It was made from primitives, before "
+        "there was a template for this - which is why it was a block. The "
+        "older one is still in the library." % template_name
+    )
+    if changed.params:
+        note += " Set from what you said: %s." % ", ".join(sorted(changed.params))
+    if unmapped:
+        note += " Nothing geometric in: %s." % "; ".join(unmapped)
+
+    return AskResult(spec=changed, request=instruction, level=1, note=note,
+                     ladder=LadderResult(ok=True, value=changed))
+
+
 def refine(
     spec: PartSpec,
     instruction: str,
@@ -306,9 +430,18 @@ def refine(
         return decided
 
     # A part built from primitives has no template and no params, so the
-    # parameter-diff path has nothing to show the model. Send it to the
-    # operations path instead.
+    # parameter-diff path has nothing to show the model.
     if spec.level == 2 or not spec.template:
+        # BUT FIRST: DOES A TEMPLATE CLAIM IT NOW? A part built before its
+        # template existed is stuck as primitives for ever otherwise - see
+        # _template_now_claims for the phone stand that made this obvious.
+        claimed = _template_now_claims(spec, instruction)
+        if claimed:
+            rebuilt = _rebuild_as_template(spec, claimed, instruction, verify_fn)
+            if rebuilt is not None:
+                return rebuilt
+
+        # Send it to the operations path instead.
         return refine_ops(
             spec, instruction, profile, report=report,
             on_attempt=on_attempt, verify_fn=verify_fn,
