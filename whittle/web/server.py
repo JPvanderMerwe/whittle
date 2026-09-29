@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import os
 import queue
 import re
 import threading
@@ -192,13 +193,66 @@ JOBS: dict[str, Job] = {}
 JOBS_LOCK = threading.Lock()
 
 
+# ---------------------------------------------------------------------------
+# One build at a time
+# ---------------------------------------------------------------------------
+#
+# WHY THIS EXISTS. Every job used to get its own thread with nothing limiting
+# how many ran at once, and a generation is an 8-billion-parameter model on
+# the CPU. Four of them arrived together on an eight-core machine: load
+# average twelve, every build crawling, and each one slower than it would
+# have been alone. From the browser that looks exactly like the tool is
+# broken — which is what it was reported as.
+#
+# It is worse than merely slow. The model client posts with stream disabled,
+# so a browser giving up does not cancel anything: the generation runs to
+# completion against a socket nobody is reading, still holding the CPU, while
+# the person retries and adds another. Concurrency does not share this
+# machine, it multiplies the queue.
+#
+# So expensive work is serialised. Waiting jobs say they are waiting and how
+# many are ahead, because a queue you can see is a wait people accept and an
+# invisible one is a hang.
+#
+# The limit is an environment variable rather than a constant: one is right
+# for a CPU, and the machine with the GPU can afford more.
+
+_BUILD_SLOTS = max(1, int(os.environ.get("WHITTLE_MAX_BUILDS", "1")))
+_BUILD_GATE = threading.BoundedSemaphore(_BUILD_SLOTS)
+
+#: Kinds that hold the model and must queue. Everything else — reading the
+#: library, opening a project, moving a slider — is cheap and runs freely.
+_EXPENSIVE = ("generate", "refine")
+
+_WAITING = 0
+_WAITING_LOCK = threading.Lock()
+
+
 def _start_job(kind: str, request: str, work) -> Job:
     job = Job(id=uuid.uuid4().hex[:12], kind=kind, request=request)
     with JOBS_LOCK:
         JOBS[job.id] = job
 
     def run():
+        global _WAITING
+        gated = kind in _EXPENSIVE
+        held = False
         try:
+            if gated:
+                if not _BUILD_GATE.acquire(blocking=False):
+                    # Only announced when there really is a wait, so an
+                    # ordinary build does not flash a queue message.
+                    with _WAITING_LOCK:
+                        _WAITING += 1
+                        ahead = _WAITING
+                    job.emit("queued", ahead=ahead,
+                             text="waiting for the machine - %d build%s ahead"
+                                  % (ahead, "" if ahead == 1 else "s"))
+                    _BUILD_GATE.acquire()
+                    with _WAITING_LOCK:
+                        _WAITING -= 1
+                held = True
+
             job.emit("started", request=request)
             result = work(job)
             job.result = result
@@ -210,6 +264,8 @@ def _start_job(kind: str, request: str, work) -> Job:
             job.result = {"ok": False, "message": str(exc).split("\n")[0][:400]}
             job.emit("failed", message=job.result["message"])
         finally:
+            if held:
+                _BUILD_GATE.release()
             job.done = True
             job.emit("closed")
 
