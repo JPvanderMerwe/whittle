@@ -146,7 +146,7 @@ class OllamaBackend:
             "model": self.model,
             "prompt": user,
             "system": system,
-            "stream": False,
+            "stream": True,
             "options": {
                 "temperature": self.temperature,
                 "num_ctx": self.num_ctx,
@@ -190,17 +190,80 @@ class OllamaBackend:
 
     # -- internals ---------------------------------------------------------
 
+    #: How long to wait for the NEXT token before calling it a hang.
+    #:
+    #: Not the same thing as the total budget. A CPU model that is simply slow
+    #: keeps producing tokens and should be allowed to finish; one that has
+    #: stopped producing them is stuck. Timing the whole call cannot tell
+    #: those apart, and the old code answered "slow" and "stuck" identically.
+    STALL_S = 90.0
+
     def _post(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """
+        Run one generation, streaming.
+
+        WHY STREAMING, WHEN NOTHING HERE WANTS THE TOKENS AS THEY ARRIVE.
+        With `stream: false` Ollama builds the entire response before it
+        writes a single byte, so it does not discover that the caller has
+        gone until it tries to send the result. A client that times out, a
+        browser that navigates away, a job that is cancelled — none of them
+        stop the work. The generation runs to completion against nobody,
+        holding the CPU, while the person retries and starts another.
+
+        That is not theoretical. Killing the engine with jobs in flight left
+        Ollama at 639% CPU finishing answers no one would ever read, and each
+        orphan made the next real build slower — the feedback loop that made
+        this tool look broken.
+
+        Streaming closes the loop: the connection carries a token every
+        second or so, Ollama notices immediately when it breaks, and the
+        generation stops with it. It also lets a stall be told apart from
+        slowness, which the single whole-call timeout never could.
+        """
         url = "%s/api/generate" % self.host.rstrip("/")
+        chunks: list[str] = []
+        final: dict[str, Any] = {}
+        started = time.monotonic()
+        # Connect quickly; then allow a long gap between tokens but not an
+        # unbounded one. `write` and `pool` keep their ordinary limits.
+        timeout = httpx.Timeout(connect=10.0, read=self.STALL_S, write=30.0, pool=10.0)
         try:
-            with httpx.Client(timeout=self.timeout_s) as client:
-                response = client.post(url, json=payload)
+            with httpx.Client(timeout=timeout) as client:
+                with client.stream("POST", url, json=payload) as response:
+                    if response.status_code >= 400:
+                        response.read()
+                        return self._raise_for(response)
+                    for line in response.iter_lines():
+                        if not line:
+                            continue
+                        try:
+                            part = json.loads(line)
+                        except ValueError:
+                            # One malformed line is not worth losing a
+                            # two-minute generation over.
+                            continue
+                        piece = part.get("response")
+                        if piece:
+                            chunks.append(piece)
+                        if part.get("error"):
+                            raise OllamaError(str(part["error"])[:400])
+                        if part.get("done"):
+                            final = part
+                            break
+                        if time.monotonic() - started > self.timeout_s:
+                            raise OllamaTimeout(
+                                "%s has been generating for %.0fs, past this "
+                                "profile's budget of %.0fs. It is producing "
+                                "tokens, so it is slow rather than stuck - "
+                                "raise timeout_s or use the smaller model."
+                                % (self.model, time.monotonic() - started,
+                                   self.timeout_s)
+                            )
         except httpx.TimeoutException as exc:
             raise OllamaTimeout(
-                "%s did not answer within %.0fs. On a CPU-only machine this "
-                "usually means the model is simply slow rather than broken - "
-                "raise timeout_s for this machine profile, or drop to the "
-                "smaller model." % (self.model, self.timeout_s)
+                "%s produced nothing for %.0fs. On a CPU-only machine that "
+                "usually means it is stuck rather than slow - a model that is "
+                "merely slow keeps emitting tokens." % (self.model, self.STALL_S)
             ) from exc
         except httpx.ConnectError as exc:
             raise OllamaError(
@@ -212,23 +275,21 @@ class OllamaBackend:
         except httpx.HTTPError as exc:
             raise OllamaError("HTTP error talking to %s: %s" % (self.host, exc)) from exc
 
+        # The same shape the non-streaming call returned: the final chunk
+        # carries the counters, and the text is the pieces joined.
+        final["response"] = "".join(chunks)
+        return final
+
+    def _raise_for(self, response) -> dict[str, Any]:
         if response.status_code == 404:
             raise OllamaError(
                 "Ollama has no model named %r. Pull it with `ollama pull %s`, "
                 "or set a model this machine actually has - `ollama list` shows "
                 "them." % (self.model, self.model)
             )
-        if response.status_code >= 400:
-            raise OllamaError(
-                "Ollama returned %d: %s" % (response.status_code, response.text[:400])
-            )
-
-        try:
-            return response.json()
-        except ValueError as exc:
-            raise OllamaError(
-                "Ollama returned something that is not JSON: %r" % response.text[:200]
-            ) from exc
+        raise OllamaError(
+            "Ollama returned %d: %s" % (response.status_code, response.text[:400])
+        )
 
     def _record(
         self,
