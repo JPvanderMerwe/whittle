@@ -135,6 +135,114 @@ def _mirror(mesh, values, target, *, nozzle_mm):
 
 
 # ---------------------------------------------------------------------------
+# push and pull: the first operation that acts on part of the model
+# ---------------------------------------------------------------------------
+#
+# Everything else here treats the model as one thing — scale all of it, cut
+# all of it, hollow all of it. This is the first that acts on a REGION, which
+# is what "extrude" means in a modelling package and what the tool could not
+# do at all.
+#
+# THE REGION IS PICKED BY A POINT, NOT BY A FACE INDEX. The obvious interface
+# is "extrude face 412", and it is wrong here: the preview the user clicks may
+# be a SIMPLIFIED proxy of the working mesh, so face 412 on screen is a
+# different triangle from face 412 in the geometry, and the extrusion would
+# appear somewhere the person did not click. A point in model space means the
+# same place in both meshes however either is tessellated.
+#
+# The region grows from that point across neighbouring faces whose normals
+# agree within a tolerance, which is what makes clicking one triangle select
+# the whole flat face a person thinks they clicked.
+
+
+def _region_at(mesh, point, spread_deg: float):
+    """The faces forming the flat area containing `point`."""
+    import numpy as np
+
+    centres = mesh.triangles_center
+    seed = int(np.argmin(((centres - np.asarray(point, dtype=float)) ** 2).sum(axis=1)))
+
+    normals = mesh.face_normals
+    seed_normal = normals[seed]
+    limit = np.cos(np.radians(max(0.0, min(89.0, spread_deg))))
+
+    # Breadth-first across shared edges. Adjacency comes from trimesh, which
+    # has already worked out which faces touch — walking it by hand on a
+    # hundred thousand triangles is where this would get slow.
+    adjacency: dict[int, list[int]] = {}
+    for a, b in mesh.face_adjacency:
+        adjacency.setdefault(int(a), []).append(int(b))
+        adjacency.setdefault(int(b), []).append(int(a))
+
+    region = {seed}
+    queue = [seed]
+    while queue:
+        face = queue.pop()
+        for other in adjacency.get(face, ()):
+            if other in region:
+                continue
+            if float(np.dot(normals[other], seed_normal)) >= limit:
+                region.add(other)
+                queue.append(other)
+    return sorted(region), seed_normal
+
+
+def _push_face(mesh, values, target, *, nozzle_mm):
+    """Move a flat region along its own normal, stretching what it is attached to.
+
+    Push-pull, as every CAD package calls it: pull the top of a block and the
+    block gets taller, push it and the block gets shorter. Positive moves it
+    outward along its own normal, negative inward.
+
+    WHY THIS MOVES VERTICES RATHER THAN BUILDING NEW WALLS. The first version
+    duplicated the region's vertices, offset the copies and stitched side
+    walls along the boundary. Pulling was exact. Pushing was not: the original
+    rim stayed where it was, so pushing the top of a cube in gave a cube with
+    a crater rather than a shorter cube — the volume was right and the shape
+    was wrong, which is the worst way to be wrong.
+
+    Moving the vertices is both simpler and what push-pull means. The faces
+    around the region share those vertices, so they stretch to follow, which
+    is exactly the behaviour: the sides of the block get longer or shorter.
+    Nothing is created, nothing is deleted, the topology is untouched, and the
+    solid cannot stop being closed.
+
+    The trade is that a patch in the MIDDLE of a large face shears its
+    surroundings instead of extruding a boss out of them. Growing the region
+    by normal agreement means that case mostly does not arise — clicking a
+    flat face selects that whole flat face — and shearing is a visible,
+    recoverable result rather than a silently broken mesh.
+    """
+    import numpy as np
+
+    distance = float(values["distance_mm"])
+    point = (float(values["at_x"]), float(values["at_y"]), float(values["at_z"]))
+    spread = float(values.get("spread_deg", 12.0))
+
+    out = mesh.copy()
+    if abs(distance) < 1e-9:
+        return out
+
+    faces, normal = _region_at(out, point, spread)
+    if not faces:
+        raise EditError("no face at that point - click on the model itself")
+    if len(faces) == len(out.faces):
+        raise EditError(
+            "that selected the whole model, which is a move rather than a "
+            "push. Lower the spread, or use scale."
+        )
+
+    moved = np.unique(out.faces[faces])
+    out.vertices[moved] = out.vertices[moved] + np.asarray(normal, dtype=float) * distance
+
+    # Pushing in far enough turns the solid through itself; the volume is the
+    # evidence, as it is for mirror.
+    if float(out.volume) < 0:
+        out.invert()
+    return out
+
+
+# ---------------------------------------------------------------------------
 # shaping: the two that change the form rather than the size
 # ---------------------------------------------------------------------------
 #
@@ -472,6 +580,28 @@ REGISTRY: dict[str, Operation] = {
                           low=-360.0, high=360.0),
             ParameterSpec("axis", "z", kind="axis", units="",
                           choices=("x", "y", "z")),
+        ),
+    ),
+    "push_face": Operation(
+        kind="push_face",
+        summary="Push or pull the flat face you clicked, walls following.",
+        run=_push_face,
+        params=(
+            ParameterSpec("distance_mm", 5.0, kind="length", units="mm",
+                          low=-200.0, high=200.0,
+                          description="How far to move it. Negative pushes in."),
+            ParameterSpec("at_x", 0.0, kind="length", units="mm",
+                          low=-100000.0, high=100000.0, affects_print=False,
+                          description="Where you clicked, in model space."),
+            ParameterSpec("at_y", 0.0, kind="length", units="mm",
+                          low=-100000.0, high=100000.0, affects_print=False),
+            ParameterSpec("at_z", 0.0, kind="length", units="mm",
+                          low=-100000.0, high=100000.0, affects_print=False),
+            ParameterSpec("spread_deg", 12.0, kind="angle", units="deg",
+                          low=0.0, high=80.0,
+                          description="How far the selection spreads across "
+                                      "neighbouring faces. Larger takes in "
+                                      "curved surfaces."),
         ),
     ),
     "taper": Operation(
