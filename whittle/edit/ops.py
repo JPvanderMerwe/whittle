@@ -135,6 +135,98 @@ def _mirror(mesh, values, target, *, nozzle_mm):
 
 
 # ---------------------------------------------------------------------------
+# shaping: the two that change the form rather than the size
+# ---------------------------------------------------------------------------
+#
+# WHY THESE TWO AND NOT "EXTRUDE". Extrude in the Blender sense selects faces
+# and pushes them along their normals, which needs a face selection the tool
+# has no way to express — there is no viewport picking here, and a slider
+# cannot say "these eleven faces". Taper and twist are the two shaping
+# modifiers that need no selection at all: they are a continuous function of
+# position along one axis, so they are fully described by two numbers and
+# work on triangle soup that has no topology worth speaking of.
+#
+# Both move vertices and touch no faces, which is what makes them safe on
+# generated meshes: the triangle count, the winding and the connectivity come
+# out exactly as they went in, so nothing downstream can be broken by them.
+
+
+def _axis_index(name: str) -> int:
+    return {"x": 0, "y": 1, "z": 2}[name]
+
+
+def _along(mesh, axis: int):
+    """Each vertex's position along an axis, as 0 at the bottom and 1 at the top.
+
+    Returned with the raw span because an operation that divides by it must
+    not divide by zero: a perfectly flat model has no extent along one axis
+    and every shaping operation on it is a no-op rather than an error.
+    """
+    import numpy as np
+
+    lo = float(mesh.bounds[0][axis])
+    hi = float(mesh.bounds[1][axis])
+    span = hi - lo
+    if span <= 1e-9:
+        return None, 0.0
+    return (mesh.vertices[:, axis] - lo) / span, span
+
+
+def _taper(mesh, values, target, *, nozzle_mm):
+    """Narrow or widen the model progressively along an axis.
+
+    A draft angle on a moulded part, a plant pot that flares, a handle that
+    thickens towards the grip. The cross-section is scaled by a factor that
+    runs from 1.0 at the bottom of the axis to `factor` at the top.
+    """
+    import numpy as np
+
+    axis = _axis_index(values["axis"])
+    factor = float(values["factor"])
+    out = mesh.copy()
+    t, span = _along(out, axis)
+    if t is None:
+        return out
+
+    # The two axes that are NOT the taper axis are the ones that scale; the
+    # taper axis itself must not move, or the model changes height as well as
+    # shape and the number in the box stops meaning what it says.
+    others = [i for i in (0, 1, 2) if i != axis]
+    scale = 1.0 + (factor - 1.0) * t
+    centre = out.vertices[:, others].mean(axis=0)
+    out.vertices[:, others] = centre + (out.vertices[:, others] - centre) * scale[:, None]
+    return out
+
+
+def _twist(mesh, values, target, *, nozzle_mm):
+    """Rotate the cross-section progressively along an axis.
+
+    The vase with the spiral, the grip with a helical texture. Rotation runs
+    from zero at the bottom of the axis to `degrees` at the top, about the
+    model's own centre line.
+    """
+    import numpy as np
+
+    axis = _axis_index(values["axis"])
+    degrees = float(values["degrees"])
+    out = mesh.copy()
+    t, span = _along(out, axis)
+    if t is None or abs(degrees) < 1e-9:
+        return out
+
+    others = [i for i in (0, 1, 2) if i != axis]
+    centre = out.vertices[:, others].mean(axis=0)
+    local = out.vertices[:, others] - centre
+
+    angle = np.radians(degrees) * t
+    cos, sin = np.cos(angle), np.sin(angle)
+    u, v = local[:, 0], local[:, 1]
+    out.vertices[:, others[0]] = centre[0] + u * cos - v * sin
+    out.vertices[:, others[1]] = centre[1] + u * sin + v * cos
+    return out
+
+
+# ---------------------------------------------------------------------------
 # the five M2 is judged on
 # ---------------------------------------------------------------------------
 
@@ -380,6 +472,34 @@ REGISTRY: dict[str, Operation] = {
                           low=-360.0, high=360.0),
             ParameterSpec("axis", "z", kind="axis", units="",
                           choices=("x", "y", "z")),
+        ),
+    ),
+    "taper": Operation(
+        kind="taper",
+        summary="Narrow or widen the model along an axis \u2014 a draft angle, a flare.",
+        run=_taper,
+        params=(
+            ParameterSpec("factor", 0.8, kind="length", units="x",
+                          low=0.05, high=5.0,
+                          description="How wide the far end is, as a "
+                                      "multiple of the near end. Below 1 "
+                                      "narrows, above 1 flares."),
+            ParameterSpec("axis", "z", kind="axis", units="",
+                          choices=("x", "y", "z"),
+                          description="The axis the taper runs along."),
+        ),
+    ),
+    "twist": Operation(
+        kind="twist",
+        summary="Spiral the model about an axis.",
+        run=_twist,
+        params=(
+            ParameterSpec("degrees", 45.0, kind="angle", units="deg",
+                          low=-720.0, high=720.0,
+                          description="Total turn from one end to the other."),
+            ParameterSpec("axis", "z", kind="axis", units="",
+                          choices=("x", "y", "z"),
+                          description="The axis the twist runs about."),
         ),
     ),
     "mirror": Operation(
